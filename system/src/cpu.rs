@@ -10,6 +10,7 @@ const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 enum DcState {
     RegWrite { reg: usize, value: i64 },
     Cp0Write { reg: Cp0Register, value: i64 },
+    LoadWord { reg: usize, addr: u32 },
     Nop,
 }
 
@@ -92,6 +93,12 @@ impl Cpu {
                 self.wb.reg = 0;
                 // self.wb.value doesn't matter
                 self.wb.op = Some(WbOperation::Cp0Write { reg, value });
+            }
+            DcState::LoadWord { reg, addr } => {
+                // TODO: Stall cycles
+                self.wb.reg = reg;
+                self.wb.value = self.read::<u32>(bus, addr) as i64;
+                self.wb.op = None;
             }
             DcState::Nop => (),
         }

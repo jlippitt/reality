@@ -39,7 +39,7 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, word: u32) -> DcState {
     let imm = (word & 0xffff) as u64 as i64;
 
     println!(
-        "{:08X}: {} {}, {}, 0x{:04X}",
+        "{:08X}: {}I {}, {}, 0x{:04X}",
         cpu.pc_debug,
         Op::NAME,
         Cpu::REG_NAMES[rs],
