@@ -106,6 +106,7 @@ impl Cpu {
                 // TODO: Stall cycles
                 self.wb.reg = reg;
                 self.wb.value = self.read::<u32>(bus, addr) as i64;
+                println!("  {:08X} => {:08X}", addr, self.wb.value);
                 self.wb.op = None;
             }
             DcState::Nop => {
