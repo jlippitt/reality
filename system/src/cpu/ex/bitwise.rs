@@ -33,14 +33,14 @@ impl BitwiseOperator for Xor {
     }
 }
 
-pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, word: u32) -> DcState {
+pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as u64 as i64;
 
     println!(
         "{:08X}: {}I {}, {}, 0x{:04X}",
-        cpu.pc_debug,
+        pc,
         Op::NAME,
         Cpu::REG_NAMES[rs],
         Cpu::REG_NAMES[rt],

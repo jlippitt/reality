@@ -7,6 +7,18 @@ mod ex;
 
 const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 
+#[derive(Default)]
+struct RfState {
+    pc: u32,
+    word: u32,
+}
+
+#[derive(Default)]
+struct ExState {
+    pc: u32,
+    word: u32,
+}
+
 enum DcState {
     RegWrite { reg: usize, value: i64 },
     Cp0Write { reg: Cp0Register, value: i64 },
@@ -31,10 +43,9 @@ pub trait Bus {
 pub struct Cpu {
     wb: WbState,
     dc: DcState,
-    ex: Option<u32>,
-    rf: Option<u32>,
+    ex: ExState,
+    rf: RfState,
     pc: u32,
-    pc_debug: u32,
     regs: [i64; 32],
     cp0: Cp0,
 }
@@ -48,8 +59,8 @@ impl Cpu {
 
     pub fn new() -> Self {
         Self {
-            rf: None,
-            ex: None,
+            rf: Default::default(),
+            ex: Default::default(),
             dc: DcState::Nop,
             wb: WbState {
                 reg: 0,
@@ -57,7 +68,6 @@ impl Cpu {
                 op: None,
             },
             pc: COLD_RESET_VECTOR,
-            pc_debug: 0,
             regs: [0; 32],
             cp0: Cp0::new(),
         }
@@ -72,10 +82,8 @@ impl Cpu {
             println!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
         }
 
-        self.wb.reg = 0;
-
-        if let Some(op) = self.wb.op.take() {
-            match op {
+        if let Some(op) = &self.wb.op {
+            match *op {
                 WbOperation::Cp0Write { reg, value } => {
                     self.cp0.write_reg(reg, value);
                 }
@@ -100,29 +108,37 @@ impl Cpu {
                 self.wb.value = self.read::<u32>(bus, addr) as i64;
                 self.wb.op = None;
             }
-            DcState::Nop => (),
+            DcState::Nop => {
+                self.wb.reg = 0;
+                self.wb.op = None;
+            }
         }
 
-        self.dc = DcState::Nop;
-
         // EX
-        if let Some(word) = self.ex.take() {
+        if self.ex.word != 0 {
             // Operand forwarding from DC stage
             let tmp = self.regs[self.wb.reg];
             self.regs[self.wb.reg] = self.wb.value;
             self.regs[0] = 0;
-            self.dc = ex::execute(self, word);
+            self.dc = ex::execute(self, self.ex.pc, self.ex.word);
             self.regs[self.wb.reg] = tmp;
-        };
+        } else {
+            println!("{:08X}: NOP", self.ex.pc);
+            self.dc = DcState::Nop;
+        }
 
         // RF
-        if let Some(word) = self.rf.take() {
-            self.ex = Some(word);
+        self.ex = ExState {
+            pc: self.rf.pc,
+            word: self.rf.word,
         };
 
         // IC
-        self.pc_debug = self.pc;
-        self.rf = Some(self.read(bus, self.pc));
+        self.rf = RfState {
+            pc: self.pc,
+            word: self.read(bus, self.pc),
+        };
+
         self.pc = self.pc.wrapping_add(4);
     }
 
