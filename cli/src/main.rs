@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
+use system::Device;
 
 #[derive(Deserialize, Debug)]
 struct Config {
@@ -28,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::read(pif_data_path.as_ref())?
     };
 
-    println!("{:?}", pif_data);
+    let device = Device::new(pif_data);
 
     Ok(())
 }
