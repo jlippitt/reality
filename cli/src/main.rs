@@ -30,7 +30,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut device = Device::new(pif_data);
-    device.step();
 
-    Ok(())
+    loop {
+        device.step();
+    }
 }
