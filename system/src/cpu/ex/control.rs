@@ -21,7 +21,7 @@ pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         println!("Branch not taken");
 
         if LIKELY {
-            cpu.rf = Default::default();
+            cpu.rf.word = 0;
         }
     }
 
