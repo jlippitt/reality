@@ -4,6 +4,7 @@ use std::mem;
 #[derive(Copy, Clone, Debug)]
 pub enum Mapping {
     None,
+    Rsp,
     Pif,
 }
 
@@ -12,6 +13,13 @@ pub struct Memory {
 }
 
 impl Memory {
+    pub fn new(len: usize) -> Self {
+        assert!((len & 3) == 0);
+        Self {
+            vec: vec![0; len >> 2],
+        }
+    }
+
     pub fn read<T: Pod>(&self, address: u32) -> T {
         let mem_size = mem::size_of::<u32>();
         let data_size = mem::size_of::<T>();

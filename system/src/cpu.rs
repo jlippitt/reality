@@ -36,8 +36,43 @@ struct WbState {
     op: Option<WbOperation>,
 }
 
+pub trait Size: Pod {
+    fn from_u32(value: u32) -> Self;
+    fn to_u32(self) -> u32;
+}
+
+impl Size for u8 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
+    }
+
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+impl Size for u16 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
+    }
+
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+impl Size for u32 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
+    }
+
+    fn to_u32(self) -> u32 {
+        self
+    }
+}
+
 pub trait Bus {
-    fn read_single<T: Pod>(&self, address: u32) -> T;
+    fn read_single<T: Size>(&self, address: u32) -> T;
 }
 
 pub struct Cpu {
@@ -143,7 +178,7 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(4);
     }
 
-    fn read<T: Pod>(&self, bus: &mut impl Bus, address: u32) -> T {
+    fn read<T: Size>(&self, bus: &mut impl Bus, address: u32) -> T {
         let segment = address >> 29;
 
         if (segment & 6) != 4 {
