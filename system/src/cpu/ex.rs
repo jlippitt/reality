@@ -5,6 +5,7 @@ mod arithmetic;
 mod bitwise;
 mod control;
 mod load;
+mod store;
 
 pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word >> 26 {
@@ -17,6 +18,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o20 => Cp0::cop0(cpu, pc, word),
         0o24 => control::beq::<true>(cpu, pc, word),
         0o43 => load::lw(cpu, pc, word),
+        0o53 => store::sw(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }

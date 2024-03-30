@@ -23,6 +23,7 @@ enum DcState {
     RegWrite { reg: usize, value: i64 },
     Cp0Write { reg: Cp0Register, value: i64 },
     LoadWord { reg: usize, addr: u32 },
+    StoreWord { value: i64, addr: u32 },
     Nop,
 }
 
@@ -73,6 +74,7 @@ impl Size for u32 {
 
 pub trait Bus {
     fn read_single<T: Size>(&self, address: u32) -> T;
+    fn write_single<T: Size>(&mut self, address: u32, value: T);
 }
 
 pub struct Cpu {
@@ -141,8 +143,15 @@ impl Cpu {
                 // TODO: Stall cycles
                 self.wb.reg = reg;
                 self.wb.value = self.read::<u32>(bus, addr) as i64;
-                println!("  {:08X} => {:08X}", addr, self.wb.value);
                 self.wb.op = None;
+                println!("  {:08X} => {:08X}", addr, self.wb.value as u32);
+            }
+            DcState::StoreWord { value, addr } => {
+                // TODO: Stall cycles
+                self.wb.reg = 0;
+                self.wb.op = None;
+                println!("  {:08X} <= {:08X}", addr, value as u32);
+                self.write::<u32>(bus, addr, value as u32);
             }
             DcState::Nop => {
                 self.wb.reg = 0;
@@ -194,5 +203,23 @@ impl Cpu {
         }
 
         bus.read_single(address & 0x1fff_ffff)
+    }
+
+    fn write<T: Size>(&mut self, bus: &mut impl Bus, address: u32, value: T) {
+        let segment = address >> 29;
+
+        if (segment & 6) != 4 {
+            todo!("TLB lookups");
+        }
+
+        if segment == 4 {
+            todo!("Cached writes");
+        }
+
+        if mem::size_of::<T>() > 4 {
+            todo!("Block writes");
+        }
+
+        bus.write_single(address & 0x1fff_ffff, value);
     }
 }

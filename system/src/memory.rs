@@ -1,3 +1,4 @@
+use crate::cpu::Size;
 use bytemuck::Pod;
 use std::mem;
 
@@ -23,10 +24,19 @@ impl Memory {
     pub fn read<T: Pod>(&self, address: u32) -> T {
         let mem_size = mem::size_of::<u32>();
         let data_size = mem::size_of::<T>();
-        assert!((mem_size % data_size) == 0);
+        debug_assert!((mem_size % data_size) == 0);
         let index = address as usize >> data_size.ilog2();
         let slice: &[T] = bytemuck::must_cast_slice(&self.vec);
         slice[index ^ ((mem_size / data_size) - 1)]
+    }
+
+    pub fn write<T: Pod>(&mut self, address: u32, value: T) {
+        let mem_size = mem::size_of::<u32>();
+        let data_size = mem::size_of::<T>();
+        debug_assert!((mem_size % data_size) == 0);
+        let index = address as usize >> data_size.ilog2();
+        let slice: &mut [T] = bytemuck::must_cast_slice_mut(&mut self.vec);
+        slice[index ^ ((mem_size / data_size) - 1)] = value;
     }
 }
 
@@ -38,5 +48,73 @@ impl From<Vec<u8>> for Memory {
             .collect();
 
         Self { vec }
+    }
+}
+
+#[derive(Debug)]
+pub struct WriteMask {
+    value: u32,
+    mask: u32,
+}
+
+impl WriteMask {
+    pub fn new<T: Size>(address: u32, value: T) -> Self {
+        let data_size = mem::size_of::<T>() as u32;
+        let base_mask = 0xffff_ffffu32.wrapping_shr(32 - (data_size << 3));
+        let shift = ((address & 3) ^ (4 - data_size)) << 3;
+
+        Self {
+            value: value.to_u32().wrapping_shl(shift),
+            mask: base_mask.wrapping_shl(shift),
+        }
+    }
+
+    pub fn raw(&self) -> u32 {
+        self.value
+    }
+
+    pub fn apply(&self, dst: &mut u32) {
+        *dst = (*dst & !self.mask) | (self.value & self.mask);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_mask_u8() {
+        let mut dst = 0x00112233u32;
+        let mask = WriteMask::new(0, 0x44u8);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44112233);
+        let mask = WriteMask::new(1, 0x55u8);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44552233);
+        let mask = WriteMask::new(2, 0x66u8);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44556633);
+        let mask = WriteMask::new(3, 0x77u8);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44556677);
+    }
+
+    #[test]
+    fn write_mask_u16() {
+        let mut dst = 0x00112233u32;
+        let mask = WriteMask::new(0, 0x4455u16);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44552233u32);
+        let mask = WriteMask::new(2, 0x6677u16);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44556677u32);
+    }
+
+    #[test]
+    fn write_mask_u32() {
+        let mut dst = 0x00112233u32;
+        let mask = WriteMask::new(0, 0x44556677u32);
+        mask.apply(&mut dst);
+        assert_eq!(dst, 0x44556677u32);
     }
 }

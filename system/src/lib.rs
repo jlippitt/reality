@@ -49,4 +49,12 @@ impl cpu::Bus for Bus {
             Mapping::None => T::zeroed(),
         }
     }
+
+    fn write_single<T: Size>(&mut self, address: u32, value: T) {
+        match self.memory_map[address as usize >> 20] {
+            Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
+            Mapping::Pif => todo!("PIF writes"),
+            Mapping::None => (),
+        }
+    }
 }

@@ -1,4 +1,4 @@
-use super::memory::Memory;
+use super::memory::{Memory, WriteMask};
 use crate::cpu::Size;
 use regs::Status;
 
@@ -23,10 +23,19 @@ impl Rsp {
         if (address as usize) < MEM_SIZE {
             self.mem.read(address)
         } else if address >= 0x0004_0000 {
-            // Read register
             T::from_u32(self.read_register(address))
         } else {
             panic!("Read from unmapped RSP address: {:08X}", address);
+        }
+    }
+
+    pub fn write<T: Size>(&mut self, address: u32, value: T) {
+        if (address as usize) < MEM_SIZE {
+            self.mem.write(address, value);
+        } else if address >= 0x0004_0000 {
+            self.write_register(address, WriteMask::new(address, value));
+        } else {
+            panic!("Write to unmapped RSP address: {:08X}", address);
         }
     }
 
@@ -34,6 +43,12 @@ impl Rsp {
         match (address & 0xffff) >> 2 {
             4 => self.status.into(),
             _ => todo!("RSP Register Read: {:08X}", address),
+        }
+    }
+
+    fn write_register(&self, address: u32, mask: WriteMask) {
+        match (address & 0xffff) >> 2 {
+            _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
 }
