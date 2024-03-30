@@ -67,3 +67,20 @@ pub struct Status {
     pub cu2: bool,
     pub cu3: bool,
 }
+
+#[bitfield(u32)]
+pub struct Config {
+    #[bits(3)]
+    pub k0: u32,
+    pub cu: bool,
+    #[bits(11)]
+    __: u32,
+    pub be: bool,
+    #[bits(8)]
+    __: u32,
+    #[bits(4)]
+    pub ep: u32,
+    #[bits(3)]
+    pub ec: u32,
+    __: bool,
+}
