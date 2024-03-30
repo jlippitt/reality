@@ -29,7 +29,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::read(pif_data_path.as_ref())?
     };
 
-    let device = Device::new(pif_data);
+    let mut device = Device::new(pif_data);
+    device.step();
 
     Ok(())
 }
