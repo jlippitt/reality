@@ -104,7 +104,7 @@ impl Cpu {
             let tmp = self.regs[self.wb.reg];
             self.regs[self.wb.reg] = self.wb.value;
             self.regs[0] = 0;
-            ex::execute(self, word);
+            self.dc = ex::execute(self, word);
             self.regs[self.wb.reg] = tmp;
         };
 
