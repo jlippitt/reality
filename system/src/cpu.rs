@@ -1,5 +1,5 @@
 use bytemuck::Pod;
-use cp0::Cp0;
+use cp0::{Cp0, Cp0Register};
 use std::mem;
 
 mod cp0;
@@ -9,12 +9,12 @@ const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 
 enum DcState {
     RegWrite { reg: usize, value: i64 },
-    Cp0Write { reg: usize, value: i64 },
+    Cp0Write { reg: Cp0Register, value: i64 },
     Nop,
 }
 
 enum WbOperation {
-    Cp0Write { reg: usize, value: i64 },
+    Cp0Write { reg: Cp0Register, value: i64 },
 }
 
 struct WbState {

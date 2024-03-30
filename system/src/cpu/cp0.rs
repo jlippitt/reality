@@ -1,52 +1,32 @@
+pub use regs::Cp0Register;
+
+use regs::Status;
+
+mod regs;
+
+#[derive(Debug)]
 pub struct Cp0 {
     regs: [i64; 32],
 }
 
 impl Cp0 {
-    pub const REG_NAMES: [&'static str; 32] = [
-        "Index",
-        "Random",
-        "EntryLo0",
-        "EntryLo1",
-        "Context",
-        "PageMask",
-        "Wired",
-        "R7",
-        "BadVAddr",
-        "Count",
-        "EntryHi",
-        "Compare",
-        "Status",
-        "Cause",
-        "EPC",
-        "PRId",
-        "Config",
-        "LLAddr",
-        "WatchLo",
-        "WatchHi",
-        "XContext",
-        "R21",
-        "R22",
-        "R23",
-        "R24",
-        "R25",
-        "ParityError",
-        "CacheError",
-        "TagLo",
-        "TagHi",
-        "ErrorEPC",
-        "R31",
-    ];
-
     pub fn new() -> Self {
         Self { regs: [0; 32] }
     }
 
-    pub fn write_reg(&mut self, reg: usize, value: i64) {
-        self.regs[reg] = value;
+    pub fn write_reg(&mut self, reg: Cp0Register, value: i64) {
+        self.regs[reg as usize] = value;
 
         match reg {
-            _ => todo!("Write to {}", Self::REG_NAMES[reg]),
+            Cp0Register::Status => {
+                let status = Status::from(value as u32);
+                println!("  Status: {:?}", status);
+                assert_eq!(status.ksu(), 0, "Only kernel mode is supported");
+                assert!(!status.kx(), "Only 32-bit addressing is supported");
+                assert_eq!(status.ds(), 0, "Diagnostics are not supported");
+                assert!(!status.rp(), "Low power mode is not supported");
+            }
+            _ => todo!("Write to {:?}", reg),
         }
     }
 }

@@ -1,4 +1,5 @@
-use super::{Cp0, Cpu, DcState};
+use super::{Cpu, DcState};
+use crate::cpu::cp0::Cp0Register;
 
 pub fn execute(cpu: &mut Cpu, word: u32) {
     match word >> 26 {
@@ -32,12 +33,12 @@ fn lui(cpu: &mut Cpu, word: u32) {
 
 fn mtc0(cpu: &mut Cpu, word: u32) {
     let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+    let rd = Cp0Register::from((word >> 11) & 31);
     println!(
-        "{:08X}: MTC0 {}, {}",
+        "{:08X}: MTC0 {}, {:?}",
         cpu.pc_debug,
         Cpu::REG_NAMES[rt],
-        Cp0::REG_NAMES[rd]
+        rd
     );
     cpu.dc = DcState::Cp0Write {
         reg: rd,
