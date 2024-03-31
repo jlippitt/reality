@@ -1,6 +1,6 @@
 use audio::AudioInterface;
 use cpu::{Cpu, Size};
-use memory::Mapping;
+use memory::{Mapping, Memory};
 use peripheral::PeripheralInterface;
 use pif::Pif;
 use rsp::Rsp;
@@ -23,6 +23,7 @@ struct Bus {
     ai: AudioInterface,
     pi: PeripheralInterface,
     si: SerialInterface,
+    rom: Memory,
     pif: Pif,
 }
 
@@ -32,7 +33,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(pif_data: Vec<u8>) -> Self {
+    pub fn new(pif_data: Vec<u8>, rom_data: Vec<u8>) -> Self {
         let mut memory_map = vec![Mapping::None; 512];
 
         memory_map[0x040] = Mapping::Rsp;
@@ -40,6 +41,7 @@ impl Device {
         memory_map[0x045] = Mapping::AudioInterface;
         memory_map[0x046] = Mapping::PeripheralInterface;
         memory_map[0x048] = Mapping::SerialInterface;
+        memory_map[0x100..=0x1fb].fill(Mapping::CartridgeRom);
         memory_map[0x1fc] = Mapping::Pif;
 
         Self {
@@ -51,6 +53,7 @@ impl Device {
                 ai: AudioInterface::new(),
                 pi: PeripheralInterface::new(),
                 si: SerialInterface::new(),
+                rom: rom_data.into(),
                 pif: Pif::new(pif_data),
             },
         }
@@ -69,6 +72,7 @@ impl cpu::Bus for Bus {
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
+            Mapping::CartridgeRom => self.rom.read(address & 0x0fff_ffff),
             Mapping::Pif => self.pif.read(address & 0x000f_ffff),
             Mapping::None => panic!("Unmapped read: {:08X}", address),
         }
@@ -81,6 +85,7 @@ impl cpu::Bus for Bus {
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
+            Mapping::CartridgeRom => panic!("Write to Cartridge ROM: {:08X}", address),
             Mapping::Pif => self.pif.write(address & 0x000f_ffff, value),
             Mapping::None => panic!("Unmapped write: {:08X}", address),
         }

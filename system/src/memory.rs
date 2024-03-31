@@ -10,6 +10,7 @@ pub enum Mapping {
     AudioInterface,
     PeripheralInterface,
     SerialInterface,
+    CartridgeRom,
     Pif,
 }
 

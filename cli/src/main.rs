@@ -14,6 +14,8 @@ struct Config {
 
 #[derive(Parser, Debug)]
 struct Args {
+    rom_path: PathBuf,
+
     #[arg(short, long)]
     config_path: PathBuf,
 }
@@ -31,9 +33,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::read(pif_data_path.as_ref())?
     };
 
+    let rom_data = fs::read(args.rom_path)?;
+
     let _guard = log::init()?;
 
-    let mut device = Device::new(pif_data);
+    let mut device = Device::new(pif_data, rom_data);
 
     loop {
         device.step();
