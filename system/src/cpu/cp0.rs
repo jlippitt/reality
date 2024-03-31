@@ -47,7 +47,7 @@ impl Cp0 {
     pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         match (word >> 21) & 31 {
             0o04 => ex::mtc0(cpu, pc, word),
-            opcode => todo!("COP0 Opcode '{:02o}' at {:08X}", opcode, pc),
+            opcode => todo!("CPU COP0 Opcode '{:02o}' at {:08X}", opcode, pc),
         }
     }
 }

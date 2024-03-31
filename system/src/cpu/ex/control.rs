@@ -1,6 +1,13 @@
 use super::{Cpu, DcState};
 use tracing::trace;
 
+pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rs = ((word >> 21) & 31) as usize;
+    trace!("{:08X}: JR {}", pc, Cpu::REG_NAMES[rs]);
+    cpu.pc = cpu.regs[rs] as u32;
+    DcState::Nop
+}
+
 pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
