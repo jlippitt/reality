@@ -1,10 +1,11 @@
 use super::cp0::Cp0;
 use super::{Cpu, DcState};
 
-mod arithmetic;
+mod add_sub;
 mod bitwise;
 mod control;
 mod load;
+mod mul_div;
 mod shift;
 mod store;
 
@@ -13,8 +14,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o00 => special(cpu, pc, word),
         0o04 => control::beq::<false>(cpu, pc, word),
         0o05 => control::bne::<false>(cpu, pc, word),
-        0o10 => arithmetic::addi(cpu, pc, word),
-        0o11 => arithmetic::addiu(cpu, pc, word),
+        0o10 => add_sub::addi(cpu, pc, word),
+        0o11 => add_sub::addiu(cpu, pc, word),
         0o14 => bitwise::i_type::<bitwise::And>(cpu, pc, word),
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
         0o16 => bitwise::i_type::<bitwise::Xor>(cpu, pc, word),
@@ -33,6 +34,10 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o00 => shift::shift::<shift::Sll>(cpu, pc, word),
         0o02 => shift::shift::<shift::Srl>(cpu, pc, word),
         0o03 => shift::shift::<shift::Sra>(cpu, pc, word),
+        0o20 => mul_div::mfhi(cpu, pc, word),
+        0o22 => mul_div::mflo(cpu, pc, word),
+        0o30 => mul_div::mult(cpu, pc, word),
+        0o31 => mul_div::multu(cpu, pc, word),
         0o44 => bitwise::r_type::<bitwise::And>(cpu, pc, word),
         0o45 => bitwise::r_type::<bitwise::Or>(cpu, pc, word),
         0o46 => bitwise::r_type::<bitwise::Xor>(cpu, pc, word),
