@@ -9,6 +9,7 @@ pub trait BitwiseOperator {
 pub struct And;
 pub struct Or;
 pub struct Xor;
+pub struct Nor;
 
 impl BitwiseOperator for And {
     const NAME: &'static str = "AND";
@@ -34,6 +35,14 @@ impl BitwiseOperator for Xor {
     }
 }
 
+impl BitwiseOperator for Nor {
+    const NAME: &'static str = "NOR";
+
+    fn apply(lhs: i64, rhs: i64) -> i64 {
+        !(lhs | rhs)
+    }
+}
+
 pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
@@ -51,5 +60,25 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
     DcState::RegWrite {
         reg: rt,
         value: Op::apply(cpu.regs[rs], imm),
+    }
+}
+
+pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rs = ((word >> 21) & 31) as usize;
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
+    trace!(
+        "{:08X}: {} {}, {}, {}",
+        pc,
+        Op::NAME,
+        Cpu::REG_NAMES[rd],
+        Cpu::REG_NAMES[rs],
+        Cpu::REG_NAMES[rt],
+    );
+
+    DcState::RegWrite {
+        reg: rd,
+        value: Op::apply(cpu.regs[rs], cpu.regs[rt]),
     }
 }
