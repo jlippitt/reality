@@ -1,0 +1,55 @@
+use super::{Cpu, DcState};
+use tracing::trace;
+
+pub trait ShiftOperator {
+    const NAME: &'static str;
+    fn apply(input: i64, amount: u32) -> i64;
+}
+
+pub struct Sll;
+pub struct Srl;
+pub struct Sra;
+
+impl ShiftOperator for Sll {
+    const NAME: &'static str = "SLL";
+
+    fn apply(lhs: i64, amount: u32) -> i64 {
+        ((lhs as u32) << amount) as i64
+    }
+}
+
+impl ShiftOperator for Srl {
+    const NAME: &'static str = "SRL";
+
+    fn apply(lhs: i64, amount: u32) -> i64 {
+        ((lhs as u32) >> amount) as i64
+    }
+}
+
+impl ShiftOperator for Sra {
+    const NAME: &'static str = "SRA";
+
+    fn apply(lhs: i64, amount: u32) -> i64 {
+        ((lhs as i32) >> amount) as i64
+    }
+}
+
+pub fn shift<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+    let sa = (word >> 6) & 31;
+
+    trace!(
+        "{:08X}: {} {}, {}, {}",
+        pc,
+        Op::NAME,
+        Cpu::REG_NAMES[rd],
+        Cpu::REG_NAMES[rt],
+        sa
+    );
+
+    DcState::RegWrite {
+        reg: rd,
+        value: Op::apply(cpu.regs[rt], sa),
+    }
+}

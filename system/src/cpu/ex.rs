@@ -5,6 +5,7 @@ mod arithmetic;
 mod bitwise;
 mod control;
 mod load;
+mod shift;
 mod store;
 
 pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
@@ -28,6 +29,9 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word & 31 {
+        0o00 => shift::shift::<shift::Sll>(cpu, pc, word),
+        0o02 => shift::shift::<shift::Srl>(cpu, pc, word),
+        0o03 => shift::shift::<shift::Sra>(cpu, pc, word),
         0o10 => control::jr(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
