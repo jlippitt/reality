@@ -3,6 +3,7 @@ use super::{Cpu, DcState};
 
 mod arithmetic;
 mod bitwise;
+mod compare;
 mod control;
 mod load;
 mod mul_div;
@@ -17,6 +18,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o05 => control::bne::<false>(cpu, pc, word),
         0o10 => arithmetic::i_type_checked::<arithmetic::Add>(cpu, pc, word),
         0o11 => arithmetic::i_type_unchecked::<arithmetic::Add>(cpu, pc, word),
+        0o12 => compare::slti(cpu, pc, word),
+        0o13 => compare::sltiu(cpu, pc, word),
         0o14 => bitwise::i_type::<bitwise::And>(cpu, pc, word),
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
         0o16 => bitwise::i_type::<bitwise::Xor>(cpu, pc, word),
@@ -47,6 +50,8 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o45 => bitwise::r_type::<bitwise::Or>(cpu, pc, word),
         0o46 => bitwise::r_type::<bitwise::Xor>(cpu, pc, word),
         0o47 => bitwise::r_type::<bitwise::Nor>(cpu, pc, word),
+        0o52 => compare::slt(cpu, pc, word),
+        0o53 => compare::sltu(cpu, pc, word),
         0o10 => control::jr(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
