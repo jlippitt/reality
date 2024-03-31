@@ -6,7 +6,8 @@ use std::mem;
 pub enum Mapping {
     None,
     Rsp,
-    Peripheral,
+    VideoInterface,
+    PeripheralInterface,
     Pif,
 }
 
@@ -74,8 +75,8 @@ impl WriteMask {
         self.value
     }
 
-    pub fn apply(&self, dst: &mut u32) {
-        *dst = (*dst & !self.mask) | (self.value & self.mask);
+    pub fn write<T: Copy + From<u32> + Into<u32>>(&self, dst: &mut T) {
+        *dst = T::from(((*dst).into() & !self.mask) | (self.value & self.mask));
     }
 }
 
@@ -87,16 +88,16 @@ mod tests {
     fn write_mask_u8() {
         let mut dst = 0x00112233u32;
         let mask = WriteMask::new(0, 0x44u8);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44112233);
         let mask = WriteMask::new(1, 0x55u8);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44552233);
         let mask = WriteMask::new(2, 0x66u8);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44556633);
         let mask = WriteMask::new(3, 0x77u8);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44556677);
     }
 
@@ -104,10 +105,10 @@ mod tests {
     fn write_mask_u16() {
         let mut dst = 0x00112233u32;
         let mask = WriteMask::new(0, 0x4455u16);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44552233u32);
         let mask = WriteMask::new(2, 0x6677u16);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44556677u32);
     }
 
@@ -115,7 +116,7 @@ mod tests {
     fn write_mask_u32() {
         let mut dst = 0x00112233u32;
         let mask = WriteMask::new(0, 0x44556677u32);
-        mask.apply(&mut dst);
+        mask.write(&mut dst);
         assert_eq!(dst, 0x44556677u32);
     }
 }

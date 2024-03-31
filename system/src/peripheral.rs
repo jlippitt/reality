@@ -11,7 +11,7 @@ impl PeripheralInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        todo!("PI Register Write: {:08X}", address);
+        todo!("PI Register Read: {:08X}", address);
     }
 
     pub fn write<T: Size>(&self, address: u32, value: T) {
