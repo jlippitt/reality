@@ -30,6 +30,7 @@ impl PeripheralInterface {
                     warn!("TODO: Acknowledge PI interrupt");
                 }
             }
+            5..=12 => warn!("TODO: PI DOM registers"),
             _ => todo!("PI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
