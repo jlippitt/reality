@@ -65,39 +65,21 @@ impl Rsp {
                     todo!("Trigger RSP interrupt");
                 }
 
-                set_or_clr(&mut self.status, Status::set_halted, 1, 0, raw);
-                set_or_clr(&mut self.status, Status::set_sstep, 6, 5, raw);
-                set_or_clr(&mut self.status, Status::set_intbreak, 8, 7, raw);
-                set_or_clr(&mut self.status, Status::set_sig0, 10, 9, raw);
-                set_or_clr(&mut self.status, Status::set_sig1, 12, 11, raw);
-                set_or_clr(&mut self.status, Status::set_sig2, 14, 13, raw);
-                set_or_clr(&mut self.status, Status::set_sig3, 16, 15, raw);
-                set_or_clr(&mut self.status, Status::set_sig4, 18, 17, raw);
-                set_or_clr(&mut self.status, Status::set_sig5, 20, 19, raw);
-                set_or_clr(&mut self.status, Status::set_sig6, 22, 21, raw);
-                set_or_clr(&mut self.status, Status::set_sig7, 24, 23, raw);
+                mask.set_or_clear(&mut self.status, Status::set_halted, 1, 0);
+                mask.set_or_clear(&mut self.status, Status::set_sstep, 6, 5);
+                mask.set_or_clear(&mut self.status, Status::set_intbreak, 8, 7);
+                mask.set_or_clear(&mut self.status, Status::set_sig0, 10, 9);
+                mask.set_or_clear(&mut self.status, Status::set_sig1, 12, 11);
+                mask.set_or_clear(&mut self.status, Status::set_sig2, 14, 13);
+                mask.set_or_clear(&mut self.status, Status::set_sig3, 16, 15);
+                mask.set_or_clear(&mut self.status, Status::set_sig4, 18, 17);
+                mask.set_or_clear(&mut self.status, Status::set_sig5, 20, 19);
+                mask.set_or_clear(&mut self.status, Status::set_sig6, 22, 21);
+                mask.set_or_clear(&mut self.status, Status::set_sig7, 24, 23);
 
                 trace!("SP_STATUS: {:?}", self.status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
-    }
-}
-
-fn set_or_clr<F>(status: &mut Status, setter: F, set_bit: u32, clr_bit: u32, word: u32)
-where
-    F: Fn(&mut Status, bool),
-{
-    let set = (word & (1 << set_bit)) != 0;
-    let clr = (word & (1 << clr_bit)) != 0;
-
-    match (set, clr) {
-        (false, false) => (),
-        (false, true) => setter(status, false),
-        (true, false) => setter(status, true),
-        (true, true) => panic!(
-            "Conflict between SET_* and CLR_* bits {} and {}",
-            set_bit, clr_bit
-        ),
     }
 }

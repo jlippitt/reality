@@ -1,6 +1,7 @@
 use audio::AudioInterface;
 use cpu::{Cpu, Size};
 use memory::{Mapping, Memory};
+use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use pif::Pif;
 use rdp::Rdp;
@@ -12,6 +13,7 @@ use video::VideoInterface;
 mod audio;
 mod cpu;
 mod memory;
+mod mips_interface;
 mod peripheral;
 mod pif;
 mod rdp;
@@ -25,6 +27,7 @@ struct Bus {
     rdram: Rdram,
     rsp: Rsp,
     rdp: Rdp,
+    mi: MipsInterface,
     vi: VideoInterface,
     ai: AudioInterface,
     pi: PeripheralInterface,
@@ -45,6 +48,7 @@ impl Device {
         memory_map[0x040] = Mapping::Rsp;
         memory_map[0x041] = Mapping::RdpCommand;
         memory_map[0x042] = Mapping::RdpSpan;
+        memory_map[0x043] = Mapping::MipsInterface;
         memory_map[0x044] = Mapping::VideoInterface;
         memory_map[0x045] = Mapping::AudioInterface;
         memory_map[0x046] = Mapping::PeripheralInterface;
@@ -60,6 +64,7 @@ impl Device {
                 rdram: Rdram::new(),
                 rsp: Rsp::new(),
                 rdp: Rdp::new(),
+                mi: MipsInterface::new(),
                 vi: VideoInterface::new(),
                 ai: AudioInterface::new(),
                 pi: PeripheralInterface::new(),
@@ -81,6 +86,7 @@ impl cpu::Bus for Bus {
             Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
             Mapping::RdpSpan => self.rdp.read_span(address & 0x000f_ffff),
+            Mapping::MipsInterface => self.mi.read(address & 0x000f_ffff),
             Mapping::VideoInterface => self.vi.read(address & 0x000f_ffff),
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
@@ -97,6 +103,7 @@ impl cpu::Bus for Bus {
             Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
             Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
             Mapping::RdpSpan => self.rdp.write_span(address & 0x000f_ffff, value),
+            Mapping::MipsInterface => self.mi.write(address & 0x000f_ffff, value),
             Mapping::VideoInterface => self.vi.write(address & 0x000f_ffff, value),
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),

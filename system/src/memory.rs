@@ -8,6 +8,7 @@ pub enum Mapping {
     Rsp,
     RdpCommand,
     RdpSpan,
+    MipsInterface,
     VideoInterface,
     AudioInterface,
     PeripheralInterface,
@@ -83,6 +84,29 @@ impl WriteMask {
 
     pub fn write<T: Copy + From<u32> + Into<u32>>(&self, dst: &mut T) {
         *dst = T::from(((*dst).into() & !self.mask) | (self.value & self.mask));
+    }
+
+    pub fn write_partial<T: Copy + From<u32> + Into<u32>>(&self, dst: &mut T, partial_mask: u32) {
+        let mask = self.mask & partial_mask;
+        *dst = T::from(((*dst).into() & !mask) | (self.value & mask));
+    }
+
+    pub fn set_or_clear<T, F>(&self, dst: &mut T, setter: F, set_bit: u32, clr_bit: u32)
+    where
+        F: Fn(&mut T, bool),
+    {
+        let set = (self.value & (1 << set_bit)) != 0;
+        let clr = (self.value & (1 << clr_bit)) != 0;
+
+        match (set, clr) {
+            (false, false) => (),
+            (false, true) => setter(dst, false),
+            (true, false) => setter(dst, true),
+            (true, true) => panic!(
+                "Conflict between SET_* and CLR_* bits {} and {}",
+                set_bit, clr_bit
+            ),
+        }
     }
 }
 
