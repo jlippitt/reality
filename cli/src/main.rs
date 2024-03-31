@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::read(pif_data_path.as_ref())?
     };
 
-    log::init()?;
+    let _guard = log::init()?;
 
     let mut device = Device::new(pif_data);
 
