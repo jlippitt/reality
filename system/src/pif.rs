@@ -36,20 +36,44 @@ impl Pif {
 
         self.mem.write(address, value);
 
-        let cmd: u8 = self.mem.read(0x7ff);
+        // Impossible to write command byte at these addresses
+        if address < 0x7fc {
+            return;
+        }
+
+        // Interpret PIF command
+        let cmd = self.mem.read::<u8>(0x7ff) & 0x7b;
 
         if cmd == 0 {
             return;
         }
 
-        match cmd {
-            0x10 => {
-                self.rom_locked = true;
-                trace!("PIF ROM locked");
-            }
-            _ => todo!("PIF command: {:02X}", cmd),
+        let mut result: u8 = 0;
+
+        if (cmd & 0x01) != 0 {
+            todo!("PIF Joybus Configure");
         }
 
-        self.mem.write(0x7ff, 0u8);
+        if (cmd & 0x02) != 0 {
+            todo!("PIF Challenge/Response");
+        }
+
+        if (cmd & 0x08) != 0 {
+            todo!("PIF Terminate Boot Process");
+        }
+
+        if (cmd & 0x10) != 0 {
+            self.rom_locked = true;
+            trace!("PIF ROM locked");
+        }
+
+        if (cmd & 0x20) != 0 {
+            // TODO: Timing?
+            result |= 0x80;
+        }
+
+        // 0x40 (bit 6) is a NOP
+
+        self.mem.write(0x7ff, result);
     }
 }
