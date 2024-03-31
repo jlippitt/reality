@@ -13,6 +13,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o00 => special(cpu, pc, word),
         0o04 => control::beq::<false>(cpu, pc, word),
         0o05 => control::bne::<false>(cpu, pc, word),
+        0o10 => arithmetic::addi(cpu, pc, word),
         0o11 => arithmetic::addiu(cpu, pc, word),
         0o14 => bitwise::i_type::<bitwise::And>(cpu, pc, word),
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
