@@ -1,6 +1,7 @@
 use bytemuck::Pod;
 use cp0::{Cp0, Cp0Register};
 use std::mem;
+use tracing::trace;
 
 mod cp0;
 mod ex;
@@ -116,7 +117,7 @@ impl Cpu {
         self.regs[0] = 0;
 
         if self.wb.reg != 0 {
-            println!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
+            trace!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
         }
 
         if let Some(op) = &self.wb.op {
@@ -144,13 +145,13 @@ impl Cpu {
                 self.wb.reg = reg;
                 self.wb.value = self.read::<u32>(bus, addr) as i64;
                 self.wb.op = None;
-                println!("  [{:08X} => {:08X}]", addr, self.wb.value as u32);
+                trace!("  [{:08X} => {:08X}]", addr, self.wb.value as u32);
             }
             DcState::StoreWord { value, addr } => {
                 // TODO: Stall cycles
                 self.wb.reg = 0;
                 self.wb.op = None;
-                println!("  [{:08X} <= {:08X}]", addr, value as u32);
+                trace!("  [{:08X} <= {:08X}]", addr, value as u32);
                 self.write::<u32>(bus, addr, value as u32);
             }
             DcState::Nop => {
@@ -168,7 +169,7 @@ impl Cpu {
             self.dc = ex::execute(self, self.ex.pc, self.ex.word);
             self.regs[self.wb.reg] = tmp;
         } else {
-            println!("{:08X}: NOP", self.ex.pc);
+            trace!("{:08X}: NOP", self.ex.pc);
             self.dc = DcState::Nop;
         }
 

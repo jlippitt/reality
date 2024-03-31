@@ -1,10 +1,11 @@
 use super::{Cpu, DcState};
+use tracing::trace;
 
 pub fn lui(_cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i64;
 
-    println!("{:08X}: LUI {}, 0x{:04X}", pc, Cpu::REG_NAMES[rt], imm);
+    trace!("{:08X}: LUI {}, 0x{:04X}", pc, Cpu::REG_NAMES[rt], imm);
 
     DcState::RegWrite {
         reg: rt,
@@ -17,7 +18,7 @@ pub fn lw(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i64;
 
-    println!(
+    trace!(
         "{:08X}: LW {}, {}({})",
         pc,
         Cpu::REG_NAMES[rt],

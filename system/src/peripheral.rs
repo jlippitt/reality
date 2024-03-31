@@ -1,5 +1,6 @@
 use crate::cpu::Size;
 use crate::memory::WriteMask;
+use tracing::warn;
 
 pub struct PeripheralInterface {
     //
@@ -22,11 +23,11 @@ impl PeripheralInterface {
                 let raw = mask.raw();
 
                 if (raw & 0x01) != 0 {
-                    // TODO: Reset DMA controller
+                    warn!("TODO: Reset PI DMA controller");
                 }
 
                 if (raw & 0x02) != 0 {
-                    // TODO: Clear interrupt
+                    warn!("TODO: Acknowledge PI interrupt");
                 }
             }
             _ => todo!("PI Register Write: {:08X} <= {:08X}", address, mask.raw()),

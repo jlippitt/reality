@@ -1,6 +1,7 @@
 use super::{Cpu, DcState};
 pub use regs::Cp0Register;
 use regs::{Config, Status};
+use tracing::trace;
 
 mod ex;
 mod regs;
@@ -21,7 +22,7 @@ impl Cp0 {
         match reg {
             Cp0Register::Status => {
                 let status = Status::from(value as u32);
-                println!("  Status: {:?}", status);
+                trace!("  Status: {:?}", status);
                 assert_eq!(status.ksu(), 0, "Only kernel mode is supported");
                 assert!(!status.kx(), "Only 32-bit addressing is supported");
                 assert_eq!(status.ds(), 0, "Diagnostics are not supported");
@@ -30,7 +31,7 @@ impl Cp0 {
             // TOOD: This register has special behaviour when read back
             Cp0Register::Config => {
                 let config = Config::from(value as u32);
-                println!("  Config: {:?}", config);
+                trace!("  Config: {:?}", config);
                 assert_ne!(config.k0(), 2, "Uncached KSEG0 is not supported");
                 assert!(config.be(), "Little-endian mode is not supported");
                 assert_eq!(

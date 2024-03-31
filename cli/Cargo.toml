@@ -11,3 +11,5 @@ serde = { version = "1.0.197", features = ["derive"] }
 shellexpand = "3.1.0"
 toml = "0.8.12"
 system = { path = "../system" }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-core = "0.1.32"

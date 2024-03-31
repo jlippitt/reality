@@ -1,4 +1,5 @@
 use super::{Cpu, DcState};
+use tracing::trace;
 
 pub trait BitwiseOperator {
     const NAME: &'static str;
@@ -38,7 +39,7 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as u64 as i64;
 
-    println!(
+    trace!(
         "{:08X}: {}I {}, {}, 0x{:04X}",
         pc,
         Op::NAME,

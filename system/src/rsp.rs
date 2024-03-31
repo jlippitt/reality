@@ -1,6 +1,7 @@
 use super::memory::{Memory, WriteMask};
 use crate::cpu::Size;
 use regs::Status;
+use tracing::{trace, warn};
 
 mod regs;
 
@@ -57,7 +58,7 @@ impl Rsp {
                 }
 
                 if (raw & 0x0000_0008) != 0 {
-                    // TODO: Acknowledge RSP Interrupt
+                    warn!("TODO: Acknowledge RSP Interrupt");
                 }
 
                 if (raw & 0x0000_0010) != 0 {
@@ -76,7 +77,7 @@ impl Rsp {
                 set_or_clr(&mut self.status, Status::set_sig6, 22, 21, raw);
                 set_or_clr(&mut self.status, Status::set_sig7, 24, 23, raw);
 
-                println!("SP_STATUS: {:?}", self.status);
+                trace!("SP_STATUS: {:?}", self.status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

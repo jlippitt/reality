@@ -1,11 +1,12 @@
 use super::{Cpu, DcState};
+use tracing::trace;
 
 pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
-    println!(
+    trace!(
         "{:08X}: BEQ{} {}, {}, {}",
         pc,
         if LIKELY { "L" } else { "" },
@@ -22,7 +23,7 @@ pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
-    println!(
+    trace!(
         "{:08X}: BNE{} {}, {}, {}",
         pc,
         if LIKELY { "L" } else { "" },
@@ -36,10 +37,10 @@ pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 fn branch<const LIKELY: bool>(cpu: &mut Cpu, condition: bool, offset: i64) -> DcState {
     if condition {
-        println!("Branch taken");
+        trace!("Branch taken");
         cpu.pc = (cpu.rf.pc as i64).wrapping_add(offset) as u32;
     } else {
-        println!("Branch not taken");
+        trace!("Branch not taken");
 
         if LIKELY {
             cpu.rf.word = 0;

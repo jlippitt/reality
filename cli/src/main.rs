@@ -5,6 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 use system::Device;
 
+mod log;
+
 #[derive(Deserialize, Debug)]
 struct Config {
     pif_data_path: String,
@@ -28,6 +30,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let pif_data_path = shellexpand::full(&config.pif_data_path)?;
         fs::read(pif_data_path.as_ref())?
     };
+
+    log::init()?;
 
     let mut device = Device::new(pif_data);
 

@@ -1,6 +1,7 @@
 use super::memory::WriteMask;
 use crate::cpu::Size;
 use regs::{HVideo, VIntr};
+use tracing::{trace, warn};
 
 mod regs;
 
@@ -27,12 +28,12 @@ impl VideoInterface {
         match address >> 2 {
             3 => {
                 mask.write(&mut self.v_intr);
-                println!("VI_V_INTR: {:?}", self.v_intr);
+                trace!("VI_V_INTR: {:?}", self.v_intr);
             }
-            4 => {} // TODO: Clear VI interrupt
+            4 => warn!("TODO: Acknowledge VI interrupt"),
             9 => {
                 mask.write(&mut self.h_video);
-                println!("VI_H_VIDEO: {:?}", self.h_video);
+                trace!("VI_H_VIDEO: {:?}", self.h_video);
             }
             _ => todo!("VI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
