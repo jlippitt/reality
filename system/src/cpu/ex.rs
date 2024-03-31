@@ -1,7 +1,7 @@
 use super::cp0::Cp0;
 use super::{Cpu, DcState};
 
-mod add_sub;
+mod arithmetic;
 mod bitwise;
 mod control;
 mod load;
@@ -15,8 +15,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o01 => regimm(cpu, pc, word),
         0o04 => control::beq::<false>(cpu, pc, word),
         0o05 => control::bne::<false>(cpu, pc, word),
-        0o10 => add_sub::addi(cpu, pc, word),
-        0o11 => add_sub::addiu(cpu, pc, word),
+        0o10 => arithmetic::i_type_checked::<arithmetic::Add>(cpu, pc, word),
+        0o11 => arithmetic::i_type_unchecked::<arithmetic::Add>(cpu, pc, word),
         0o14 => bitwise::i_type::<bitwise::And>(cpu, pc, word),
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
         0o16 => bitwise::i_type::<bitwise::Xor>(cpu, pc, word),
@@ -39,6 +39,10 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o22 => mul_div::mflo(cpu, pc, word),
         0o30 => mul_div::mult(cpu, pc, word),
         0o31 => mul_div::multu(cpu, pc, word),
+        0o40 => arithmetic::r_type_checked::<arithmetic::Add>(cpu, pc, word),
+        0o41 => arithmetic::r_type_unchecked::<arithmetic::Add>(cpu, pc, word),
+        0o42 => arithmetic::r_type_checked::<arithmetic::Sub>(cpu, pc, word),
+        0o43 => arithmetic::r_type_unchecked::<arithmetic::Sub>(cpu, pc, word),
         0o44 => bitwise::r_type::<bitwise::And>(cpu, pc, word),
         0o45 => bitwise::r_type::<bitwise::Or>(cpu, pc, word),
         0o46 => bitwise::r_type::<bitwise::Xor>(cpu, pc, word),
