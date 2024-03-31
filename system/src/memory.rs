@@ -6,6 +6,8 @@ use std::mem;
 pub enum Mapping {
     None,
     Rsp,
+    RdpCommand,
+    RdpSpan,
     VideoInterface,
     AudioInterface,
     PeripheralInterface,
