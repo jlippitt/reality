@@ -35,9 +35,12 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word & 63 {
-        0o00 => shift::shift::<shift::Sll>(cpu, pc, word),
-        0o02 => shift::shift::<shift::Srl>(cpu, pc, word),
-        0o03 => shift::shift::<shift::Sra>(cpu, pc, word),
+        0o00 => shift::fixed::<shift::Sll>(cpu, pc, word),
+        0o02 => shift::fixed::<shift::Srl>(cpu, pc, word),
+        0o03 => shift::fixed::<shift::Sra>(cpu, pc, word),
+        0o04 => shift::variable::<shift::Sll>(cpu, pc, word),
+        0o06 => shift::variable::<shift::Srl>(cpu, pc, word),
+        0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o22 => mul_div::mflo(cpu, pc, word),
         0o30 => mul_div::mult(cpu, pc, word),
