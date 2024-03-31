@@ -11,6 +11,7 @@ pub enum Mapping {
     VideoInterface,
     AudioInterface,
     PeripheralInterface,
+    RdramInterface,
     SerialInterface,
     CartridgeRom,
     Pif,

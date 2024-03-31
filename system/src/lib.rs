@@ -4,6 +4,7 @@ use memory::{Mapping, Memory};
 use peripheral::PeripheralInterface;
 use pif::Pif;
 use rdp::Rdp;
+use rdram::Rdram;
 use rsp::Rsp;
 use serial::SerialInterface;
 use video::VideoInterface;
@@ -14,12 +15,14 @@ mod memory;
 mod peripheral;
 mod pif;
 mod rdp;
+mod rdram;
 mod rsp;
 mod serial;
 mod video;
 
 struct Bus {
     memory_map: Vec<Mapping>,
+    rdram: Rdram,
     rsp: Rsp,
     rdp: Rdp,
     vi: VideoInterface,
@@ -45,6 +48,7 @@ impl Device {
         memory_map[0x044] = Mapping::VideoInterface;
         memory_map[0x045] = Mapping::AudioInterface;
         memory_map[0x046] = Mapping::PeripheralInterface;
+        memory_map[0x047] = Mapping::RdramInterface;
         memory_map[0x048] = Mapping::SerialInterface;
         memory_map[0x100..=0x1fb].fill(Mapping::CartridgeRom);
         memory_map[0x1fc] = Mapping::Pif;
@@ -53,6 +57,7 @@ impl Device {
             cpu: Cpu::new(),
             bus: Bus {
                 memory_map,
+                rdram: Rdram::new(),
                 rsp: Rsp::new(),
                 rdp: Rdp::new(),
                 vi: VideoInterface::new(),
@@ -79,6 +84,7 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.read(address & 0x000f_ffff),
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
+            Mapping::RdramInterface => self.rdram.read_interface(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
             Mapping::CartridgeRom => self.rom.read(address & 0x0fff_ffff),
             Mapping::Pif => self.pif.read(address & 0x000f_ffff),
@@ -94,6 +100,7 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.write(address & 0x000f_ffff, value),
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
+            Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
             Mapping::CartridgeRom => panic!("Write to Cartridge ROM: {:08X}", address),
             Mapping::Pif => self.pif.write(address & 0x000f_ffff, value),
