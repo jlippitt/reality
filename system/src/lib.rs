@@ -4,6 +4,7 @@ use memory::Mapping;
 use peripheral::PeripheralInterface;
 use pif::Pif;
 use rsp::Rsp;
+use serial::SerialInterface;
 use video::VideoInterface;
 
 mod audio;
@@ -12,6 +13,7 @@ mod memory;
 mod peripheral;
 mod pif;
 mod rsp;
+mod serial;
 mod video;
 
 struct Bus {
@@ -20,6 +22,7 @@ struct Bus {
     vi: VideoInterface,
     ai: AudioInterface,
     pi: PeripheralInterface,
+    si: SerialInterface,
     pif: Pif,
 }
 
@@ -36,6 +39,7 @@ impl Device {
         memory_map[0x044] = Mapping::VideoInterface;
         memory_map[0x045] = Mapping::AudioInterface;
         memory_map[0x046] = Mapping::PeripheralInterface;
+        memory_map[0x048] = Mapping::SerialInterface;
         memory_map[0x1fc] = Mapping::Pif;
 
         Self {
@@ -46,6 +50,7 @@ impl Device {
                 vi: VideoInterface::new(),
                 ai: AudioInterface::new(),
                 pi: PeripheralInterface::new(),
+                si: SerialInterface::new(),
                 pif: Pif::new(pif_data),
             },
         }
@@ -63,6 +68,7 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.read(address & 0x000f_ffff),
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
+            Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
             Mapping::Pif => self.pif.read(address & 0x000f_ffff),
             Mapping::None => panic!("Unmapped read: {:08X}", address),
         }
@@ -74,6 +80,7 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.write(address & 0x000f_ffff, value),
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
+            Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
             Mapping::Pif => todo!("PIF writes"),
             Mapping::None => panic!("Unmapped write: {:08X}", address),
         }

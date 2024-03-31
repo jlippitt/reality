@@ -9,6 +9,7 @@ pub enum Mapping {
     VideoInterface,
     AudioInterface,
     PeripheralInterface,
+    SerialInterface,
     Pif,
 }
 
