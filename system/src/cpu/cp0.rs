@@ -1,6 +1,6 @@
 use super::{Cpu, DcState};
 pub use regs::Cp0Register;
-use regs::{Config, Status};
+use regs::{Cause, Config, Status};
 use tracing::trace;
 
 mod ex;
@@ -27,6 +27,18 @@ impl Cp0 {
                 assert!(!status.kx(), "Only 32-bit addressing is supported");
                 assert_eq!(status.ds(), 0, "Diagnostics are not supported");
                 assert!(!status.rp(), "Low power mode is not supported");
+
+                if status.im() != 0 {
+                    todo!("Interrupt checks");
+                }
+            }
+            Cp0Register::Cause => {
+                let cause = Cause::from(value as u32);
+                trace!("  Cause: {:?}", cause);
+
+                if cause.ip() != 0 {
+                    todo!("Manual interrupts");
+                }
             }
             // TOOD: This register has special behaviour when read back
             Cp0Register::Config => {
@@ -39,6 +51,9 @@ impl Cp0 {
                     0,
                     "Only the default transfer data pattern is supported"
                 );
+            }
+            Cp0Register::Count | Cp0Register::Compare => {
+                trace!("  {:?}: {:08X}", reg, value as u32);
             }
             _ => todo!("Write to {:?}", reg),
         }

@@ -69,6 +69,22 @@ pub struct Status {
 }
 
 #[bitfield(u32)]
+pub struct Cause {
+    #[bits(2)]
+    __: u32,
+    #[bits(5)]
+    pub exc_code: u32,
+    __: bool,
+    pub ip: u8,
+    #[bits(12)]
+    __: u32,
+    #[bits(2)]
+    pub ce: u32,
+    __: bool,
+    pub bd: bool,
+}
+
+#[bitfield(u32)]
 pub struct Config {
     #[bits(3)]
     pub k0: u32,
