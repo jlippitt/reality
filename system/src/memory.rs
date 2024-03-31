@@ -7,6 +7,7 @@ pub enum Mapping {
     None,
     Rsp,
     VideoInterface,
+    AudioInterface,
     PeripheralInterface,
     Pif,
 }

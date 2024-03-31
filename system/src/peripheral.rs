@@ -15,7 +15,7 @@ impl PeripheralInterface {
         todo!("PI Register Read: {:08X}", address);
     }
 
-    pub fn write<T: Size>(&self, address: u32, value: T) {
+    pub fn write<T: Size>(&mut self, address: u32, value: T) {
         let mask = WriteMask::new(address, value);
 
         match address >> 2 {
