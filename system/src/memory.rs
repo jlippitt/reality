@@ -5,6 +5,7 @@ use std::mem;
 #[derive(Copy, Clone, Debug)]
 pub enum Mapping {
     None,
+    RdramRegister,
     Rsp,
     RdpCommand,
     RdpSpan,
@@ -60,7 +61,7 @@ impl From<Vec<u8>> for Memory {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct WriteMask {
     value: u32,
     mask: u32,
@@ -75,6 +76,13 @@ impl WriteMask {
         Self {
             value: value.to_u32().wrapping_shl(shift),
             mask: base_mask.wrapping_shl(shift),
+        }
+    }
+
+    pub fn rotate(self, bits: u32) -> Self {
+        Self {
+            value: self.value.rotate_right(bits),
+            mask: self.mask.rotate_right(bits),
         }
     }
 

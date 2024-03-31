@@ -45,6 +45,7 @@ impl Device {
     pub fn new(pif_data: Vec<u8>, rom_data: Vec<u8>) -> Self {
         let mut memory_map = vec![Mapping::None; 512];
 
+        memory_map[0x03f] = Mapping::RdramRegister;
         memory_map[0x040] = Mapping::Rsp;
         memory_map[0x041] = Mapping::RdpCommand;
         memory_map[0x042] = Mapping::RdpSpan;
@@ -83,6 +84,7 @@ impl Device {
 impl cpu::Bus for Bus {
     fn read_single<T: Size>(&self, address: u32) -> T {
         match self.memory_map[address as usize >> 20] {
+            Mapping::RdramRegister => self.rdram.read_register(address & 0x000f_ffff),
             Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
             Mapping::RdpSpan => self.rdp.read_span(address & 0x000f_ffff),
@@ -100,6 +102,10 @@ impl cpu::Bus for Bus {
 
     fn write_single<T: Size>(&mut self, address: u32, value: T) {
         match self.memory_map[address as usize >> 20] {
+            Mapping::RdramRegister => {
+                self.rdram
+                    .write_register(&mut self.mi, address & 0x000f_ffff, value);
+            }
             Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
             Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
             Mapping::RdpSpan => self.rdp.write_span(address & 0x000f_ffff, value),

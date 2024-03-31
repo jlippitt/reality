@@ -14,6 +14,14 @@ impl MipsInterface {
         Self { mode: Mode::new() }
     }
 
+    pub fn is_repeat(&self) -> bool {
+        self.mode.repeat()
+    }
+
+    pub fn clear_repeat(&mut self) {
+        self.mode.set_repeat(false);
+    }
+
     pub fn read<T: Size>(&self, address: u32) -> T {
         todo!("MI Register Read: {:08X}", address);
     }
@@ -28,6 +36,11 @@ impl MipsInterface {
                 mask.set_or_clear(&mut self.mode, Mode::set_ebus, 10, 9);
                 mask.set_or_clear(&mut self.mode, Mode::set_upper, 13, 12);
                 trace!("MI_MODE: {:?}", self.mode);
+
+                assert!(
+                    !self.mode.repeat() || self.mode.repeat_count() == 15,
+                    "Unsupported repeat mode configuration"
+                );
 
                 assert!(!self.mode.ebus(), "EBus mode not supported");
                 assert!(!self.mode.upper(), "EBus mode not supported");
