@@ -42,6 +42,7 @@ impl Rsp {
     fn read_register(&self, address: u32) -> u32 {
         match (address & 0xffff) >> 2 {
             4 => self.status.into(),
+            6 => self.status.dma_busy() as u32,
             _ => todo!("RSP Register Read: {:08X}", address),
         }
     }

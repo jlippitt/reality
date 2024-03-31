@@ -144,13 +144,13 @@ impl Cpu {
                 self.wb.reg = reg;
                 self.wb.value = self.read::<u32>(bus, addr) as i64;
                 self.wb.op = None;
-                println!("  {:08X} => {:08X}", addr, self.wb.value as u32);
+                println!("  [{:08X} => {:08X}]", addr, self.wb.value as u32);
             }
             DcState::StoreWord { value, addr } => {
                 // TODO: Stall cycles
                 self.wb.reg = 0;
                 self.wb.op = None;
-                println!("  {:08X} <= {:08X}", addr, value as u32);
+                println!("  [{:08X} <= {:08X}]", addr, value as u32);
                 self.write::<u32>(bus, addr, value as u32);
             }
             DcState::Nop => {
