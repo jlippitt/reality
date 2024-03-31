@@ -19,4 +19,12 @@ impl Pif {
     pub fn read<T: Pod>(&self, address: u32) -> T {
         self.mem.read(address)
     }
+
+    pub fn write<T: Pod>(&mut self, address: u32, value: T) {
+        if address < 0x7c0 {
+            panic!("Write to PIF ROM: {:08X}", address);
+        }
+
+        self.mem.write(address, value)
+    }
 }

@@ -81,7 +81,7 @@ impl cpu::Bus for Bus {
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
-            Mapping::Pif => todo!("PIF writes"),
+            Mapping::Pif => self.pif.write(address & 0x000f_ffff, value),
             Mapping::None => panic!("Unmapped write: {:08X}", address),
         }
     }
