@@ -12,6 +12,7 @@ mod store;
 pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word >> 26 {
         0o00 => special(cpu, pc, word),
+        0o01 => regimm(cpu, pc, word),
         0o04 => control::beq::<false>(cpu, pc, word),
         0o05 => control::bne::<false>(cpu, pc, word),
         0o10 => add_sub::addi(cpu, pc, word),
@@ -44,5 +45,19 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o47 => bitwise::r_type::<bitwise::Nor>(cpu, pc, word),
         0o10 => control::jr(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
+    }
+}
+
+pub fn regimm(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    match (word >> 16) & 31 {
+        0o00 => control::bltz::<false, false>(cpu, pc, word),
+        0o01 => control::bgez::<false, false>(cpu, pc, word),
+        0o02 => control::bltz::<false, true>(cpu, pc, word),
+        0o03 => control::bgez::<false, true>(cpu, pc, word),
+        0o20 => control::bltz::<true, false>(cpu, pc, word),
+        0o21 => control::bgez::<true, false>(cpu, pc, word),
+        0o22 => control::bltz::<true, true>(cpu, pc, word),
+        0o23 => control::bgez::<true, true>(cpu, pc, word),
+        opcode => todo!("CPU RegImm Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }
