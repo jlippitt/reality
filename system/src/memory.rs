@@ -6,6 +6,7 @@ use std::mem;
 pub enum Mapping {
     None,
     Rsp,
+    Peripheral,
     Pif,
 }
 
