@@ -15,7 +15,7 @@ pub fn lui(_cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 pub fn lw(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
-    let offset = (word & 0xffff) as i64;
+    let offset = (word & 0xffff) as i16 as i64;
 
     println!(
         "{:08X}: LW {}, {}({})",

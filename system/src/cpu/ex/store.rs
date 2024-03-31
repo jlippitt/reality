@@ -3,7 +3,7 @@ use super::{Cpu, DcState};
 pub fn sw(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
-    let offset = (word & 0xffff) as i64;
+    let offset = (word & 0xffff) as i16 as i64;
 
     println!(
         "{:08X}: SW {}, {}({})",
