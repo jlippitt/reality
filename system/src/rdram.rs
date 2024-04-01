@@ -2,7 +2,7 @@ use crate::cpu::Size;
 use crate::memory::{Mapping, Memory, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiSelect};
-use tracing::trace;
+use tracing::{trace, warn};
 
 mod regs;
 
@@ -112,7 +112,7 @@ impl Rdram {
                     }
                 }
 
-                panic!("Nothing responded to device ID {:04X}", device_id);
+                warn!("Nothing responded to device ID {:04X}", device_id);
             }
         }
 

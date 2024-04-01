@@ -8,6 +8,7 @@ use rdp::Rdp;
 use rdram::Rdram;
 use rsp::Rsp;
 use serial::SerialInterface;
+use tracing::warn;
 use video::VideoInterface;
 
 mod audio;
@@ -97,7 +98,10 @@ impl cpu::Bus for Bus {
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
             Mapping::CartridgeRom => self.rom.read(address & 0x0fff_ffff),
             Mapping::Pif => self.pif.read(address & 0x000f_ffff),
-            Mapping::None => panic!("Unmapped read: {:08X}", address),
+            Mapping::None => {
+                warn!("Unmapped read: {:08X}", address);
+                T::zeroed()
+            }
         }
     }
 
@@ -123,7 +127,7 @@ impl cpu::Bus for Bus {
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
             Mapping::CartridgeRom => panic!("Write to Cartridge ROM: {:08X}", address),
             Mapping::Pif => self.pif.write(address & 0x000f_ffff, value),
-            Mapping::None => panic!("Unmapped write: {:08X}", address),
+            Mapping::None => warn!("Unmapped write: {:08X}", address),
         }
     }
 }
