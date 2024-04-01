@@ -5,7 +5,7 @@ use std::mem;
 #[derive(Copy, Clone, Debug)]
 pub enum Mapping {
     None,
-    RdramBank(u32),
+    RdramData,
     RdramRegister,
     Rsp,
     RdpCommand,

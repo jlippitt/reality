@@ -53,14 +53,14 @@ impl Rdram {
         }
     }
 
-    pub fn read_single<T: Size>(&self, bank: u32, address: u32) -> T {
-        let bank_offset = self.banks[bank as usize].offset;
+    pub fn read_single<T: Size>(&self, address: u32) -> T {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         self.data.read(mapped_address)
     }
 
-    pub fn write_single<T: Size>(&mut self, bank: u32, address: u32, value: T) {
-        let bank_offset = self.banks[bank as usize].offset;
+    pub fn write_single<T: Size>(&mut self, address: u32, value: T) {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         self.data.write(mapped_address, value);
     }
@@ -220,7 +220,7 @@ impl Rdram {
         for (index, &active) in bank_active.iter().enumerate() {
             memory_map[index] = if active {
                 trace!("Bank {}: {}", index, self.banks[index].offset);
-                Mapping::RdramBank(index as u32)
+                Mapping::RdramData
             } else {
                 trace!("Bank {}: Unmapped", index);
                 Mapping::None
