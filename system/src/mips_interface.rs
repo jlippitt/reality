@@ -23,7 +23,10 @@ impl MipsInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        todo!("MI Register Read: {:08X}", address);
+        T::from_u32(match address >> 2 {
+            1 => 0x0202_0102,
+            _ => todo!("MI Register Read: {:08X}", address),
+        })
     }
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {

@@ -50,8 +50,18 @@ impl Rdram {
             }
         } else {
             // Single module mode
-            let index = ((address >> 10) & 0x01ff) as usize;
-            self.modules[index].write_register(mi, index, address, mask);
+            let device_id = (address >> 10) & 0x01ff;
+
+            'outer: {
+                for (index, module) in self.modules.iter_mut().enumerate() {
+                    if module.device_id == device_id {
+                        self.modules[index].write_register(mi, index, address, mask);
+                        break 'outer;
+                    }
+                }
+
+                panic!("Nothing responded to device ID {:04X}", device_id);
+            }
         }
 
         mi.clear_repeat()
@@ -111,19 +121,19 @@ impl Module {
 
         match (address & 0x03ff) >> 2 {
             1 => {
-                let mut device_id = (self.device_id << 6)
-                    | ((self.device_id >> 3) & 0x0080_0000)
-                    | ((self.device_id >> 19) & 0xff00)
-                    | ((self.device_id >> 28) & 0x0080);
+                let mut device_id = (self.device_id << 26)
+                    | ((self.device_id << 17) & 0x0080_0000)
+                    | ((self.device_id << 1) & 0xff00)
+                    | ((self.device_id >> 8) & 0x0080);
 
                 mask.write(&mut device_id);
 
-                self.device_id = ((device_id & 0xfc00_0000) >> 6)
-                    | ((device_id & 0x0080_0000) << 3)
-                    | ((device_id & 0xff00) << 19)
-                    | ((device_id & 0x0080) << 28);
+                self.device_id = ((device_id & 0xfc00_0000) >> 26)
+                    | ((device_id & 0x0080_0000) >> 17)
+                    | ((device_id & 0xff00) >> 1)
+                    | ((device_id & 0x0080) >> 8);
 
-                trace!("RDRAM{} Device Id: {:08X}", index, self.device_id);
+                trace!("RDRAM{} Device Id: {:04X}", index, self.device_id);
             }
             2 => {
                 mask.write(&mut self.delay);
