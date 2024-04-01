@@ -23,8 +23,14 @@ struct ExState {
 enum DcState {
     RegWrite { reg: usize, value: i64 },
     Cp0Write { reg: Cp0Register, value: i64 },
+    LoadByte { reg: usize, addr: u32 },
+    LoadByteUnsigned { reg: usize, addr: u32 },
+    LoadHalfword { reg: usize, addr: u32 },
+    LoadHalfwordUnsigned { reg: usize, addr: u32 },
     LoadWord { reg: usize, addr: u32 },
-    StoreWord { value: i64, addr: u32 },
+    StoreByte { value: u8, addr: u32 },
+    StoreHalfword { value: u16, addr: u32 },
+    StoreWord { value: u32, addr: u32 },
     MfHi { reg: usize },
     MfLo { reg: usize },
     Nop,
@@ -156,19 +162,71 @@ impl Cpu {
                 // self.wb.value doesn't matter
                 self.wb.op = Some(WbOperation::Cp0Write { reg, value });
             }
+            DcState::LoadByte { reg, addr } => {
+                // TODO: Stall cycles
+                let value = self.read::<u8>(bus, addr);
+                self.wb.reg = reg;
+                self.wb.value = value as i8 as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:02X}]", addr, value);
+            }
+            DcState::LoadByteUnsigned { reg, addr } => {
+                // TODO: Stall cycles
+                let value = self.read::<u8>(bus, addr);
+                self.wb.reg = reg;
+                self.wb.value = value as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:02X}]", addr, value);
+            }
+            DcState::LoadHalfword { reg, addr } => {
+                // TODO: Stall cycles
+                let value = self.read::<u16>(bus, addr) as i16 as i64;
+                assert!((addr & 1) == 0);
+                self.wb.reg = reg;
+                self.wb.value = value as i16 as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:04X}]", addr, value);
+            }
+            DcState::LoadHalfwordUnsigned { reg, addr } => {
+                // TODO: Stall cycles
+                let value = self.read::<u16>(bus, addr);
+                assert!((addr & 1) == 0);
+                self.wb.reg = reg;
+                self.wb.value = value as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:04X}]", addr, value);
+            }
             DcState::LoadWord { reg, addr } => {
                 // TODO: Stall cycles
+                let value = self.read::<u32>(bus, addr);
+                assert!((addr & 3) == 0);
                 self.wb.reg = reg;
-                self.wb.value = self.read::<u32>(bus, addr) as i64;
+                self.wb.value = value as i32 as i64;
                 self.wb.op = None;
-                trace!("  [{:08X} => {:08X}]", addr, self.wb.value as u32);
+                trace!("  [{:08X} => {:08X}]", addr, value);
             }
-            DcState::StoreWord { value, addr } => {
+            DcState::StoreByte { value, addr } => {
                 // TODO: Stall cycles
                 self.wb.reg = 0;
                 self.wb.op = None;
-                trace!("  [{:08X} <= {:08X}]", addr, value as u32);
-                self.write::<u32>(bus, addr, value as u32);
+                trace!("  [{:08X} <= {:08X}]", addr, value);
+                self.write(bus, addr, value);
+            }
+            DcState::StoreHalfword { value, addr } => {
+                // TODO: Stall cycles
+                assert!((addr & 1) == 0);
+                self.wb.reg = 0;
+                self.wb.op = None;
+                trace!("  [{:08X} <= {:08X}]", addr, value);
+                self.write(bus, addr, value);
+            }
+            DcState::StoreWord { value, addr } => {
+                // TODO: Stall cycles
+                assert!((addr & 3) == 0);
+                self.wb.reg = 0;
+                self.wb.op = None;
+                trace!("  [{:08X} <= {:08X}]", addr, value);
+                self.write(bus, addr, value);
             }
             DcState::MfHi { reg } => {
                 self.wb.reg = 0;
