@@ -1,7 +1,7 @@
 use crate::cpu::Size;
 use crate::memory::{Mapping, Memory, WriteMask};
 use crate::mips_interface::MipsInterface;
-use regs::{Delay, Mode, RefRow, RiConfig, RiMode, RiSelect};
+use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiSelect};
 use tracing::trace;
 
 mod regs;
@@ -14,6 +14,7 @@ struct Module {
     delay: Delay,
     mode: Mode,
     ref_row: RefRow,
+    ras_interval: RasInterval,
 }
 
 #[derive(Default)]
@@ -161,6 +162,10 @@ impl Rdram {
                 assert!(mi.is_upper());
                 u32::from(module.mode) ^ 0x40c0c0c0
             }
+            9 => {
+                assert!(mi.is_upper());
+                0x0000_0200
+            }
             _ => todo!("RDRAM{} Register Read: {:08X}", index, address,),
         }
     }
@@ -217,6 +222,10 @@ impl Rdram {
             5 => {
                 mask.write(&mut module.ref_row);
                 trace!("RDRAM{} RefRow: {:?}", index, module.ref_row);
+            }
+            6 => {
+                mask.write(&mut module.ras_interval);
+                trace!("RDRAM{} RasInterval: {:?}", index, module.ras_interval);
             }
             _ => todo!(
                 "RDRAM{} Register Write: {:08X} <= {:08x}",

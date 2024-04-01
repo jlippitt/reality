@@ -71,6 +71,26 @@ pub struct RefRow {
 }
 
 #[bitfield(u32)]
+pub struct RasInterval {
+    #[bits(5)]
+    pub row_exp_restore: u32,
+    #[bits(3)]
+    __: u32,
+    #[bits(5)]
+    pub row_imp_restore: u32,
+    #[bits(3)]
+    __: u32,
+    #[bits(5)]
+    pub row_sense: u32,
+    #[bits(3)]
+    __: u32,
+    #[bits(5)]
+    pub row_precharge: u32,
+    #[bits(3)]
+    __: u32,
+}
+
+#[bitfield(u32)]
 pub struct RiMode {
     #[bits(2)]
     pub op_mode: u32,
