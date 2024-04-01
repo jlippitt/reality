@@ -84,6 +84,7 @@ impl Device {
 impl cpu::Bus for Bus {
     fn read_single<T: Size>(&self, address: u32) -> T {
         match self.memory_map[address as usize >> 20] {
+            Mapping::RdramBank(bank) => self.rdram.read_single(bank, address),
             Mapping::RdramRegister => self.rdram.read_register(address & 0x000f_ffff),
             Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
@@ -102,9 +103,14 @@ impl cpu::Bus for Bus {
 
     fn write_single<T: Size>(&mut self, address: u32, value: T) {
         match self.memory_map[address as usize >> 20] {
+            Mapping::RdramBank(bank) => self.rdram.write_single(bank, address, value),
             Mapping::RdramRegister => {
-                self.rdram
-                    .write_register(&mut self.mi, address & 0x000f_ffff, value);
+                self.rdram.write_register(
+                    &mut self.mi,
+                    &mut self.memory_map,
+                    address & 0x000f_ffff,
+                    value,
+                );
             }
             Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
             Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
