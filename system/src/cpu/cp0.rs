@@ -1,6 +1,6 @@
 use super::{Cpu, DcState};
 pub use regs::Cp0Register;
-use regs::{Cause, Config, Status};
+use regs::{Cause, Config, Status, TagLo};
 use tracing::trace;
 
 mod ex;
@@ -23,9 +23,9 @@ impl Cp0 {
             Cp0Register::Status => {
                 let status = Status::from(value as u32);
                 trace!("  Status: {:?}", status);
-                assert_eq!(status.ksu(), 0, "Only kernel mode is supported");
+                assert_eq!(0, status.ksu(), "Only kernel mode is supported");
                 assert!(!status.kx(), "Only 32-bit addressing is supported");
-                assert_eq!(status.ds(), 0, "Diagnostics are not supported");
+                assert_eq!(0, status.ds(), "Diagnostics are not supported");
                 assert!(!status.rp(), "Low power mode is not supported");
 
                 if status.im() != 0 {
@@ -44,13 +44,25 @@ impl Cp0 {
             Cp0Register::Config => {
                 let config = Config::from(value as u32);
                 trace!("  Config: {:?}", config);
-                assert_ne!(config.k0(), 2, "Uncached KSEG0 is not supported");
+                assert_ne!(2, config.k0(), "Uncached KSEG0 is not supported");
                 assert!(config.be(), "Little-endian mode is not supported");
                 assert_eq!(
-                    config.ep(),
                     0,
+                    config.ep(),
                     "Only the default transfer data pattern is supported"
                 );
+            }
+            Cp0Register::TagLo => {
+                let tag_lo = TagLo::from(value as u32);
+                trace!("  TagLo: {:?}", tag_lo);
+                assert_eq!(
+                    0,
+                    value & 0xf000_003f,
+                    "Bits 0-5 and 28-31 must be written as zero"
+                );
+            }
+            Cp0Register::TagHi => {
+                assert_eq!(0, value);
             }
             Cp0Register::Count | Cp0Register::Compare => {
                 trace!("  {:?}: {:08X}", reg, value as u32);

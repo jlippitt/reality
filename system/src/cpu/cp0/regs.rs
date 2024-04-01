@@ -100,3 +100,15 @@ pub struct Config {
     pub ec: u32,
     __: bool,
 }
+
+#[bitfield(u32)]
+pub struct TagLo {
+    #[bits(6)]
+    __: u32,
+    #[bits(2)]
+    p_state: u32,
+    #[bits(20)]
+    p_tag_lo: u32,
+    #[bits(4)]
+    __: u32,
+}
