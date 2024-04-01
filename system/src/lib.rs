@@ -40,6 +40,7 @@ struct Bus {
 pub struct Device {
     cpu: Cpu,
     bus: Bus,
+    extra_cycle: bool,
 }
 
 impl Device {
@@ -74,11 +75,18 @@ impl Device {
                 rom: rom_data.into(),
                 pif: Pif::new(pif_data),
             },
+            extra_cycle: true,
         }
     }
 
     pub fn step(&mut self) {
         self.cpu.step(&mut self.bus);
+
+        if self.extra_cycle {
+            self.cpu.step(&mut self.bus);
+        }
+
+        self.bus.pi.step(&mut self.bus.rdram, &mut self.bus.rom);
     }
 }
 

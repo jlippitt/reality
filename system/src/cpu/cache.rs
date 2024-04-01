@@ -60,7 +60,7 @@ impl ICache {
 
 #[derive(Copy, Clone, Default, Debug)]
 struct DCacheLine {
-    data: [u32; 4],
+    _data: [u32; 4],
     ptag: u32,
     valid: bool,
     dirty: bool,

@@ -49,6 +49,18 @@ impl Memory {
         let slice: &mut [T] = bytemuck::must_cast_slice_mut(&mut self.vec);
         slice[index ^ ((mem_size / data_size) - 1)] = value;
     }
+
+    pub fn read_block(&self, address: u32, data: &mut [u32]) {
+        assert!((address & 3) == 0);
+        let index = (address >> 2) as usize;
+        data.copy_from_slice(&self.vec[index..(index + data.len())]);
+    }
+
+    pub fn write_block(&mut self, address: u32, data: &[u32]) {
+        assert!((address & 3) == 0);
+        let index = (address >> 2) as usize;
+        self.vec[index..(index + data.len())].copy_from_slice(data);
+    }
 }
 
 impl From<Vec<u8>> for Memory {

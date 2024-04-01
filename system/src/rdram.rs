@@ -66,14 +66,16 @@ impl Rdram {
 
     pub fn read_block(&self, address: u32, data: &mut [u32]) {
         let bank_offset = self.banks[(address >> 20) as usize].offset;
-        let mut mapped_address = bank_offset + (address & 0x000f_ffff);
-        assert!((mapped_address & 3) == 0);
+        let mapped_address = bank_offset + (address & 0x000f_ffff);
+        // TODO: What happens if we cross a non-contiguous bank boundary?
+        self.data.read_block(mapped_address, data);
+    }
 
-        // TODO: What happens if we cross a bank boundary?
-        for word in data.iter_mut() {
-            *word = self.data.read(mapped_address);
-            mapped_address += 4;
-        }
+    pub fn write_block(&mut self, address: u32, data: &[u32]) {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
+        let mapped_address = bank_offset + (address & 0x000f_ffff);
+        // TODO: What happens if we cross a non-contiguous bank boundary?
+        self.data.write_block(mapped_address, data);
     }
 
     pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {
