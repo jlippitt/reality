@@ -33,7 +33,7 @@ impl StoreOperator for Sh {
 }
 
 impl StoreOperator for Sw {
-    const NAME: &'static str = "LW";
+    const NAME: &'static str = "SW";
 
     fn apply(value: i64, addr: u32) -> DcState {
         DcState::StoreWord {
