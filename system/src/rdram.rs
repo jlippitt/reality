@@ -8,6 +8,7 @@ mod regs;
 
 #[derive(Default)]
 struct Module {
+    device_id: u32,
     delay: Delay,
     ref_row: RefRow,
 }
@@ -109,6 +110,21 @@ impl Module {
         };
 
         match (address & 0x03ff) >> 2 {
+            1 => {
+                let mut device_id = (self.device_id << 6)
+                    | ((self.device_id >> 3) & 0x0080_0000)
+                    | ((self.device_id >> 19) & 0xff00)
+                    | ((self.device_id >> 28) & 0x0080);
+
+                mask.write(&mut device_id);
+
+                self.device_id = ((device_id & 0xfc00_0000) >> 6)
+                    | ((device_id & 0x0080_0000) << 3)
+                    | ((device_id & 0xff00) << 19)
+                    | ((device_id & 0x0080) << 28);
+
+                trace!("RDRAM{} Device Id: {:08X}", index, self.device_id);
+            }
             2 => {
                 mask.write(&mut self.delay);
                 trace!("RDRAM{} Delay: {:?}", index, self.delay);
