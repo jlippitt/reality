@@ -1,7 +1,7 @@
 use crate::cpu::Size;
 use crate::memory::{Mapping, Memory, WriteMask};
 use crate::mips_interface::MipsInterface;
-use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiSelect};
+use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
 use tracing::{trace, warn};
 
 mod regs;
@@ -22,10 +22,12 @@ struct Bank {
     offset: u32,
 }
 
+#[derive(Default)]
 struct Interface {
     mode: RiMode,
     config: RiConfig,
     select: RiSelect,
+    refresh: RiRefresh,
 }
 
 pub struct Rdram {
@@ -46,11 +48,7 @@ impl Rdram {
                     ..Module::default()
                 })
                 .collect(),
-            ri: Interface {
-                mode: RiMode::new(),
-                config: RiConfig::new(),
-                select: RiSelect::new(),
-            },
+            ri: Default::default(),
         }
     }
 
@@ -123,6 +121,7 @@ impl Rdram {
         T::from_u32(match address >> 2 {
             0 => self.ri.mode.into(),
             3 => self.ri.select.into(),
+            4 => self.ri.refresh.into(),
             _ => todo!("RI Register Read: {:08X}", address),
         })
     }
@@ -148,6 +147,10 @@ impl Rdram {
                 trace!("RI_SELECT: {:?}", self.ri.select);
                 assert_eq!(0b0100, self.ri.select.rsel());
                 assert_eq!(0b0001, self.ri.select.tsel());
+            }
+            4 => {
+                mask.write(&mut self.ri.refresh);
+                trace!("RI_REFRESH: {:?}", self.ri.refresh);
             }
             _ => todo!("RI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

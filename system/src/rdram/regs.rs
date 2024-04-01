@@ -118,3 +118,18 @@ pub struct RiSelect {
     #[bits(24)]
     __: u32,
 }
+
+#[bitfield(u32)]
+pub struct RiRefresh {
+    #[bits(8)]
+    clean_refresh_delay: u32,
+    #[bits(8)]
+    dirty_refresh_delay: u32,
+    bank: bool,
+    en: bool,
+    opt: bool,
+    #[bits(4)]
+    multi_bank: u8,
+    #[bits(9)]
+    __: u32,
+}
