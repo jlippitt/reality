@@ -65,8 +65,23 @@ impl Rdram {
         self.data.write(mapped_address, value);
     }
 
-    pub fn read_register<T: Size>(&self, address: u32) -> T {
-        todo!("RDRAM Register Read: {:08X}", address);
+    pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {
+        // Broadcast mode
+        if (address & 0x0008_0000) != 0 {
+            panic!("Cannot broadcast a read");
+        }
+
+        // Single module mode
+        let device_id = (address >> 10) & 0x01ff;
+
+        for (index, module) in self.modules.iter().enumerate() {
+            // Assume all modules are 2Mbit
+            if (module.device_id & !1) == device_id {
+                return T::from_u32(self.read_module_register(mi, index, address));
+            }
+        }
+
+        panic!("Nothing responded to device ID {:04X}", device_id);
     }
 
     pub fn write_register<T: Size>(
@@ -134,6 +149,18 @@ impl Rdram {
                 assert_eq!(0b0001, self.ri.select.tsel());
             }
             _ => todo!("RI Register Write: {:08X} <= {:08X}", address, mask.raw()),
+        }
+    }
+
+    fn read_module_register(&self, mi: &MipsInterface, index: usize, address: u32) -> u32 {
+        let module = &self.modules[index];
+
+        match (address & 0x03ff) >> 2 {
+            3 => {
+                assert!(mi.is_upper());
+                u32::from(module.mode) ^ 0x40c0c0c0
+            }
+            _ => todo!("RDRAM{} Register Read: {:08X}", index, address,),
         }
     }
 

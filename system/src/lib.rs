@@ -85,7 +85,7 @@ impl cpu::Bus for Bus {
     fn read_single<T: Size>(&self, address: u32) -> T {
         match self.memory_map[address as usize >> 20] {
             Mapping::RdramData => self.rdram.read_single(address),
-            Mapping::RdramRegister => self.rdram.read_register(address & 0x000f_ffff),
+            Mapping::RdramRegister => self.rdram.read_register(&self.mi, address & 0x000f_ffff),
             Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
             Mapping::RdpSpan => self.rdp.read_span(address & 0x000f_ffff),

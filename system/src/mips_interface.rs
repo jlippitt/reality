@@ -14,6 +14,10 @@ impl MipsInterface {
         Self { mode: Mode::new() }
     }
 
+    pub fn is_upper(&self) -> bool {
+        self.mode.upper()
+    }
+
     pub fn is_repeat(&self) -> bool {
         self.mode.repeat()
     }
@@ -46,7 +50,6 @@ impl MipsInterface {
                 );
 
                 assert!(!self.mode.ebus(), "EBus mode not supported");
-                assert!(!self.mode.upper(), "EBus mode not supported");
 
                 if (mask.raw() & 0x0800) != 0 {
                     warn!("TODO: Acknowledge MI interrupt")
