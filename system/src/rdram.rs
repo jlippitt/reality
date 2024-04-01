@@ -156,6 +156,7 @@ impl Rdram {
         let module = &self.modules[index];
 
         match (address & 0x03ff) >> 2 {
+            0 => 0xb419_0010,
             3 => {
                 assert!(mi.is_upper());
                 u32::from(module.mode) ^ 0x40c0c0c0
