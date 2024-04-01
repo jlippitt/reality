@@ -88,6 +88,7 @@ impl Size for u32 {
 pub trait Bus {
     fn read_single<T: Size>(&self, address: u32) -> T;
     fn write_single<T: Size>(&mut self, address: u32, value: T);
+    fn read_block(&self, address: u32, data: &mut [u32]);
 }
 
 pub struct Cpu {
@@ -272,10 +273,31 @@ impl Cpu {
         // IC
         self.rf = RfState {
             pc: self.pc,
-            word: self.read(bus, self.pc),
+            word: self.read_opcode(bus, self.pc),
         };
 
         self.pc = self.pc.wrapping_add(4);
+    }
+
+    fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
+        let segment = address >> 29;
+
+        if (segment & 6) != 4 {
+            todo!("TLB lookups");
+        }
+
+        if segment == 4 {
+            return self.icache.read(self.pc).unwrap_or_else(|| {
+                // TODO: Timing
+                let mut data = [0u32; 8];
+                bus.read_block(self.pc & 0x1fff_ffe0, &mut data);
+                let value = data[(self.pc & 0x1f) as usize];
+                self.icache.insert_line(self.pc, data);
+                value
+            });
+        }
+
+        bus.read_single(address & 0x1fff_ffff)
     }
 
     fn read<T: Size>(&self, bus: &mut impl Bus, address: u32) -> T {

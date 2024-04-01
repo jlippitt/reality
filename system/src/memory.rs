@@ -2,7 +2,7 @@ use crate::cpu::Size;
 use bytemuck::Pod;
 use std::mem;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Mapping {
     None,
     RdramData,

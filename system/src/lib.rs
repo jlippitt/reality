@@ -130,4 +130,12 @@ impl cpu::Bus for Bus {
             Mapping::None => warn!("Unmapped write: {:08X}", address),
         }
     }
+
+    fn read_block(&self, address: u32, data: &mut [u32]) {
+        if self.memory_map[address as usize >> 20] != Mapping::RdramData {
+            panic!("Only RDRAM data is supported for block reads");
+        }
+
+        self.rdram.read_block(address, data);
+    }
 }

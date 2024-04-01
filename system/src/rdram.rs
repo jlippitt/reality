@@ -64,6 +64,18 @@ impl Rdram {
         self.data.write(mapped_address, value);
     }
 
+    pub fn read_block(&self, address: u32, data: &mut [u32]) {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
+        let mut mapped_address = bank_offset + (address & 0x000f_ffff);
+        assert!((mapped_address & 3) == 0);
+
+        // TODO: What happens if we cross a bank boundary?
+        for word in data.iter_mut() {
+            *word = self.data.read(mapped_address);
+            mapped_address += 4;
+        }
+    }
+
     pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {
         // Broadcast mode
         if (address & 0x0008_0000) != 0 {
