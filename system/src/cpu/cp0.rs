@@ -77,4 +77,43 @@ impl Cp0 {
             opcode => todo!("CPU COP0 Opcode '{:02o}' at {:08X}", opcode, pc),
         }
     }
+
+    pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+        const CACHE_OP_NAMES: [char; 8] = ['?', '?', 'P', '?', '?', '?', '?', '?'];
+        const CACHE_NAMES: [char; 4] = ['I', 'D', '?', '?'];
+
+        let base = ((word >> 21) & 31) as usize;
+        let op = (word >> 16) & 31;
+        let offset = (word & 0xffff) as i16;
+
+        trace!(
+            "{:08X}: CACHE {}{}, {}({})",
+            pc,
+            CACHE_OP_NAMES[(op >> 2) as usize],
+            CACHE_NAMES[(op & 3) as usize],
+            offset,
+            Cpu::REG_NAMES[base]
+        );
+
+        let address = cpu.regs[base].wrapping_add(offset as i64) as u32;
+
+        match (word >> 16) & 31 {
+            0b01000 => {
+                let tag = TagLo::from(cpu.cp0.regs[Cp0Register::TagLo as usize] as u32);
+                let ptag = tag.ptag_lo();
+                let valid = (tag.pstate() & 0b10) != 0;
+                cpu.icache.index_store_tag(address, ptag, valid);
+            }
+            0b01001 => {
+                let tag = TagLo::from(cpu.cp0.regs[Cp0Register::TagLo as usize] as u32);
+                let ptag = tag.ptag_lo();
+                let valid = (tag.pstate() & 0b10) != 0;
+                let dirty = (tag.pstate() & 0b01) != 0;
+                cpu.dcache.index_store_tag(address, ptag, valid, dirty);
+            }
+            op => todo!("Cache Operation: {:05b}", op),
+        }
+
+        DcState::Nop
+    }
 }

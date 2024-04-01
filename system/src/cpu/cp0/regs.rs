@@ -106,9 +106,9 @@ pub struct TagLo {
     #[bits(6)]
     __: u32,
     #[bits(2)]
-    p_state: u32,
+    pub pstate: u32,
     #[bits(20)]
-    p_tag_lo: u32,
+    pub ptag_lo: u32,
     #[bits(4)]
     __: u32,
 }

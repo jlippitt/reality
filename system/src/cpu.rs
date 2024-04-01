@@ -1,8 +1,10 @@
 use bytemuck::Pod;
+use cache::{DCache, ICache};
 use cp0::{Cp0, Cp0Register};
 use std::mem;
 use tracing::trace;
 
+mod cache;
 mod cp0;
 mod ex;
 
@@ -98,6 +100,8 @@ pub struct Cpu {
     lo: i64,
     regs: [i64; 32],
     cp0: Cp0,
+    icache: ICache,
+    dcache: DCache,
 }
 
 impl Cpu {
@@ -122,6 +126,8 @@ impl Cpu {
             lo: 0,
             regs: [0; 32],
             cp0: Cp0::new(),
+            icache: ICache::new(),
+            dcache: DCache::new(),
         }
     }
 

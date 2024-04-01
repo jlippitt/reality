@@ -41,6 +41,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o50 => store::store::<store::Sb>(cpu, pc, word),
         0o51 => store::store::<store::Sh>(cpu, pc, word),
         0o53 => store::store::<store::Sw>(cpu, pc, word),
+        0o57 => Cp0::cache(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }
