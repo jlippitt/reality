@@ -1,6 +1,29 @@
 use super::{Cpu, DcState};
 use tracing::trace;
 
+pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let offset = (word & 0x03ff_ffff) << 2;
+    let target = (cpu.rf.pc & 0xf000_0000) | offset;
+
+    trace!(
+        "{:08X}: J{} 0x{:08X}",
+        pc,
+        if LINK { "AL" } else { "" },
+        target
+    );
+
+    cpu.pc = target;
+
+    if LINK {
+        DcState::RegWrite {
+            reg: 31,
+            value: cpu.rf.pc.wrapping_add(4) as i64,
+        }
+    } else {
+        DcState::Nop
+    }
+}
+
 pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     trace!("{:08X}: JR {}", pc, Cpu::REG_NAMES[rs]);

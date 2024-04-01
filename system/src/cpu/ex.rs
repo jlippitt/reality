@@ -14,6 +14,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word >> 26 {
         0o00 => special(cpu, pc, word),
         0o01 => regimm(cpu, pc, word),
+        0o02 => control::j::<false>(cpu, pc, word),
+        0o03 => control::j::<true>(cpu, pc, word),
         0o04 => control::beq::<false>(cpu, pc, word),
         0o05 => control::bne::<false>(cpu, pc, word),
         0o10 => arithmetic::i_type_checked::<arithmetic::Add>(cpu, pc, word),
