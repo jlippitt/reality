@@ -1,7 +1,7 @@
 use crate::cpu::Size;
 use crate::memory::WriteMask;
 use crate::mips_interface::MipsInterface;
-use regs::{Delay, RiConfig, RiMode, RiSelect};
+use regs::{Delay, RefRow, RiConfig, RiMode, RiSelect};
 use tracing::trace;
 
 mod regs;
@@ -9,6 +9,7 @@ mod regs;
 #[derive(Default)]
 struct Module {
     delay: Delay,
+    ref_row: RefRow,
 }
 
 struct Interface {
@@ -115,6 +116,10 @@ impl Module {
                 assert_eq!(3, self.delay.ack_delay());
                 assert_eq!(7, self.delay.read_delay());
                 assert_eq!(5, self.delay.ack_win_delay());
+            }
+            5 => {
+                mask.write(&mut self.ref_row);
+                trace!("RDRAM{} RefRow: {:?}", index, self.ref_row);
             }
             _ => todo!(
                 "RDRAM{} Register Write: {:08X} <= {:08x}",

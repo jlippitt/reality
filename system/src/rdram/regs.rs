@@ -29,6 +29,21 @@ pub struct Delay {
 }
 
 #[bitfield(u32)]
+pub struct RefRow {
+    #[bits(8)]
+    __: u32,
+    #[bits(2)]
+    pub row_field_high: u32,
+    #[bits(9)]
+    __: u32,
+    pub bank_field: bool,
+    #[bits(5)]
+    __: u32,
+    #[bits(7)]
+    pub row_field_low: u32,
+}
+
+#[bitfield(u32)]
 pub struct RiMode {
     #[bits(2)]
     pub op_mode: u32,
