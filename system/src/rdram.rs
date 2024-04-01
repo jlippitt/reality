@@ -247,7 +247,7 @@ impl Rdram {
                 continue;
             }
 
-            let memory_start = device_id * 2 * BANK_SIZE;
+            let memory_start = device_id * BANK_SIZE;
             self.banks[device_id].offset = memory_start as u32;
             self.banks[device_id | 1].offset = (memory_start + BANK_SIZE) as u32;
             bank_active[device_id] = true;
