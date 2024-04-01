@@ -29,6 +29,33 @@ pub struct Delay {
 }
 
 #[bitfield(u32)]
+pub struct Mode {
+    #[bits(6)]
+    __: u32,
+    c0: bool,
+    c3: bool,
+    #[bits(6)]
+    __: u32,
+    c1: bool,
+    c4: bool,
+    #[bits(3)]
+    __: u32,
+    ad: bool,
+    #[bits(2)]
+    __: u32,
+    c2: bool,
+    c5: bool,
+    le: bool,
+    de: bool,
+    as_: bool,
+    sk: bool,
+    sv: bool,
+    pl: bool,
+    x2: bool,
+    ce: bool,
+}
+
+#[bitfield(u32)]
 pub struct RefRow {
     #[bits(8)]
     __: u32,

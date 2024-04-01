@@ -1,7 +1,7 @@
 use crate::cpu::Size;
 use crate::memory::WriteMask;
 use crate::mips_interface::MipsInterface;
-use regs::{Delay, RefRow, RiConfig, RiMode, RiSelect};
+use regs::{Delay, Mode, RefRow, RiConfig, RiMode, RiSelect};
 use tracing::trace;
 
 mod regs;
@@ -10,6 +10,7 @@ mod regs;
 struct Module {
     device_id: u32,
     delay: Delay,
+    mode: Mode,
     ref_row: RefRow,
 }
 
@@ -142,6 +143,10 @@ impl Module {
                 assert_eq!(3, self.delay.ack_delay());
                 assert_eq!(7, self.delay.read_delay());
                 assert_eq!(5, self.delay.ack_win_delay());
+            }
+            3 => {
+                mask.write(&mut self.mode);
+                trace!("RDRAM{} Mode: {:?}", index, self.mode);
             }
             5 => {
                 mask.write(&mut self.ref_row);
