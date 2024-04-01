@@ -209,7 +209,7 @@ impl Cpu {
                 // TODO: Stall cycles
                 self.wb.reg = 0;
                 self.wb.op = None;
-                trace!("  [{:08X} <= {:08X}]", addr, value);
+                trace!("  [{:08X} <= {:02X}]", addr, value);
                 self.write(bus, addr, value);
             }
             DcState::StoreHalfword { value, addr } => {
@@ -217,7 +217,7 @@ impl Cpu {
                 assert!((addr & 1) == 0);
                 self.wb.reg = 0;
                 self.wb.op = None;
-                trace!("  [{:08X} <= {:08X}]", addr, value);
+                trace!("  [{:08X} <= {:04X}]", addr, value);
                 self.write(bus, addr, value);
             }
             DcState::StoreWord { value, addr } => {
