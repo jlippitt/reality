@@ -57,6 +57,8 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o04 => shift::variable::<shift::Sll>(cpu, pc, word),
         0o06 => shift::variable::<shift::Srl>(cpu, pc, word),
         0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
+        0o10 => control::jr::<false>(cpu, pc, word),
+        0o11 => control::jr::<true>(cpu, pc, word),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o22 => mul_div::mflo(cpu, pc, word),
         0o30 => mul_div::mult(cpu, pc, word),
@@ -71,7 +73,6 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o47 => bitwise::r_type::<bitwise::Nor>(cpu, pc, word),
         0o52 => compare::slt(cpu, pc, word),
         0o53 => compare::sltu(cpu, pc, word),
-        0o10 => control::jr(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }
