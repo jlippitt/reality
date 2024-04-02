@@ -14,7 +14,7 @@ impl ShiftOperator for Sll {
     const NAME: &'static str = "SLL";
 
     fn apply(lhs: i64, amount: u32) -> i64 {
-        (lhs as u32).wrapping_shl(amount) as i64
+        (lhs as u32).wrapping_shl(amount) as i32 as i64
     }
 }
 
@@ -22,7 +22,7 @@ impl ShiftOperator for Srl {
     const NAME: &'static str = "SRL";
 
     fn apply(lhs: i64, amount: u32) -> i64 {
-        (lhs as u32).wrapping_shr(amount) as i64
+        (lhs as u32).wrapping_shr(amount) as i32 as i64
     }
 }
 
@@ -30,7 +30,7 @@ impl ShiftOperator for Sra {
     const NAME: &'static str = "SRA";
 
     fn apply(lhs: i64, amount: u32) -> i64 {
-        (lhs as i32).wrapping_shr(amount) as i64
+        lhs.wrapping_shr(amount & 31) as i32 as i64
     }
 }
 
