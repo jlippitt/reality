@@ -46,6 +46,52 @@ pub struct VIntr {
 }
 
 #[bitfield(u32)]
+pub struct Burst {
+    #[bits(8)]
+    hsync_width: u32,
+    #[bits(8)]
+    burst_width: u32,
+    #[bits(4)]
+    vsync_width: u32,
+    #[bits(10)]
+    burst_start: u32,
+    #[bits(2)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct VSync {
+    #[bits(10)]
+    pub v_sync: u32,
+    #[bits(22)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct HSync {
+    #[bits(12)]
+    pub h_sync: u32,
+    #[bits(4)]
+    __: u32,
+    #[bits(5)]
+    pub leap: u32,
+    #[bits(11)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct HSyncLeap {
+    #[bits(12)]
+    pub leap_b: u32,
+    #[bits(4)]
+    __: u32,
+    #[bits(12)]
+    pub leap_a: u32,
+    #[bits(4)]
+    __: u32,
+}
+
+#[bitfield(u32)]
 pub struct HVideo {
     #[bits(10)]
     pub h_end: u32,

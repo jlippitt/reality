@@ -1,5 +1,5 @@
 use super::memory::{Size, WriteMask};
-use regs::{Ctrl, HVideo, Origin, VIntr, Width};
+use regs::{Burst, Ctrl, HSync, HSyncLeap, HVideo, Origin, VIntr, VSync, Width};
 use tracing::{trace, warn};
 
 mod regs;
@@ -9,6 +9,10 @@ pub struct VideoInterface {
     origin: Origin,
     width: Width,
     v_intr: VIntr,
+    burst: Burst,
+    v_sync: VSync,
+    h_sync: HSync,
+    h_sync_leap: HSyncLeap,
     h_video: HVideo,
 }
 
@@ -19,6 +23,10 @@ impl VideoInterface {
             origin: Origin::new(),
             width: Width::new(),
             v_intr: VIntr::new(),
+            burst: Burst::new(),
+            v_sync: VSync::new(),
+            h_sync: HSync::new(),
+            h_sync_leap: HSyncLeap::new(),
             h_video: HVideo::new(),
         }
     }
@@ -48,6 +56,22 @@ impl VideoInterface {
                 trace!("VI_V_INTR: {:?}", self.v_intr);
             }
             4 => warn!("TODO: Acknowledge VI interrupt"),
+            5 => {
+                mask.write(&mut self.burst);
+                trace!("VI_BURST: {:?}", self.burst);
+            }
+            6 => {
+                mask.write(&mut self.v_sync);
+                trace!("VI_V_SYNC: {:?}", self.v_sync);
+            }
+            7 => {
+                mask.write(&mut self.h_sync);
+                trace!("VI_H_SYNC: {:?}", self.h_sync);
+            }
+            8 => {
+                mask.write(&mut self.h_sync_leap);
+                trace!("VI_H_SYNC_LEAP: {:?}", self.h_sync_leap);
+            }
             9 => {
                 mask.write(&mut self.h_video);
                 trace!("VI_H_VIDEO: {:?}", self.h_video);
