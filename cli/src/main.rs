@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use system::Device;
 use winit::dpi::Size;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
 
@@ -51,33 +51,36 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut device = Device::new(pif_data, rom_data);
 
-    event_loop.run(move |event, elwt| match event {
-        Event::WindowEvent {
-            event: window_event,
-            ..
-        } => match window_event {
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        state: ElementState::Pressed,
-                        logical_key: Key::Named(NamedKey::Escape),
-                        ..
-                    },
+    event_loop.run(move |event, elwt| {
+        elwt.set_control_flow(ControlFlow::Poll);
+        match event {
+            Event::WindowEvent {
+                event: window_event,
                 ..
-            } => {
-                elwt.exit();
-            }
-            WindowEvent::RedrawRequested => {
-                println!("Redraw");
+            } => match window_event {
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            state: ElementState::Pressed,
+                            logical_key: Key::Named(NamedKey::Escape),
+                            ..
+                        },
+                    ..
+                } => {
+                    elwt.exit();
+                }
+                WindowEvent::RedrawRequested => {
+                    println!("Redraw");
+                }
+                _ => (),
+            },
+            Event::AboutToWait => {
+                while !device.step() {}
+                window.request_redraw();
             }
             _ => (),
-        },
-        Event::AboutToWait => {
-            while !device.step() {}
-            window.request_redraw();
         }
-        _ => (),
     })?;
 
     Ok(())
