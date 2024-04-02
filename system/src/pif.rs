@@ -11,9 +11,16 @@ pub struct Pif {
 impl Pif {
     pub fn new(data: Vec<u8>) -> Self {
         assert!(data.len() == PIF_DATA_SIZE);
+
         let mut mem = Memory::from_bytes(&data);
-        mem.write(0x7e4, 0u32);
+
+        // This data is written by PIF upon startup
+        // (byte 1 is the seed for the IPL3 CRC check)
+        mem.write(0x7e4, 0x0000_3f00u32);
+
+        // The initial command byte is always set to 0
         mem.write(0x7ff, 0u8);
+
         Self {
             mem,
             rom_locked: false,
