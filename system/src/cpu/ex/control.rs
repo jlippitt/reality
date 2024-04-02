@@ -135,7 +135,14 @@ pub fn bgez<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: 
 fn branch<const LIKELY: bool>(cpu: &mut Cpu, condition: bool, offset: i64) {
     if condition {
         trace!("Branch taken");
-        cpu.pc = (cpu.rf.pc as i64).wrapping_add(offset) as u32;
+
+        let target = (cpu.rf.pc as i64).wrapping_add(offset) as u32;
+
+        // Temporary hack to skip the IPL3 CRC check
+        // TODO: Remove this
+        if target != 0x800001c8 {
+            cpu.pc = target;
+        }
     } else {
         trace!("Branch not taken");
 
