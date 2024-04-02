@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 bitfield-struct = "0.6.0"
 bytemuck = { version = "1.15.0", features = ["must_cast"] }
+pollster = "0.3.0"
 tracing = { version = "0.1.40", features = ["release_max_level_info"] }
+wgpu = "0.19.3"

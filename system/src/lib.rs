@@ -1,3 +1,5 @@
+pub use video::DisplayTarget;
+
 use audio::AudioInterface;
 use cpu::Cpu;
 use memory::{Mapping, Memory, Size};
@@ -8,6 +10,7 @@ use rdp::Rdp;
 use rdram::Rdram;
 use rsp::Rsp;
 use serial::SerialInterface;
+use std::error::Error;
 use tracing::warn;
 use video::VideoInterface;
 
@@ -37,6 +40,12 @@ struct Bus {
     pif: Pif,
 }
 
+pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
+    pub display_target: DisplayTarget<T>,
+    pub pif_data: Vec<u8>,
+    pub rom_data: Vec<u8>,
+}
+
 pub struct Device {
     cpu: Cpu,
     bus: Bus,
@@ -44,7 +53,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(pif_data: Vec<u8>, rom_data: Vec<u8>) -> Self {
+    pub fn new(options: DeviceOptions<impl wgpu::WindowHandle>) -> Result<Self, Box<dyn Error>> {
         let mut memory_map = vec![Mapping::None; 512];
 
         memory_map[0x03f] = Mapping::RdramRegister;
@@ -63,7 +72,7 @@ impl Device {
         // Default RDRAM mapping (for ROMs that use simplified boot sequences)
         memory_map[0x000..=0x007].fill(Mapping::RdramData);
 
-        Self {
+        Ok(Self {
             cpu: Cpu::new(),
             bus: Bus {
                 memory_map,
@@ -71,15 +80,19 @@ impl Device {
                 rsp: Rsp::new(),
                 rdp: Rdp::new(),
                 mi: MipsInterface::new(),
-                vi: VideoInterface::new(),
+                vi: VideoInterface::new(options.display_target)?,
                 ai: AudioInterface::new(),
                 pi: PeripheralInterface::new(),
                 si: SerialInterface::new(),
-                rom: Memory::from_bytes(&rom_data),
-                pif: Pif::new(pif_data),
+                rom: Memory::from_bytes(&options.rom_data),
+                pif: Pif::new(options.pif_data),
             },
             extra_cycle: true,
-        }
+        })
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.bus.vi.resize(width, height);
     }
 
     pub fn step(&mut self) -> bool {

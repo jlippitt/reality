@@ -3,7 +3,8 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
-use system::Device;
+use std::sync::Arc;
+use system::{Device, DeviceOptions, DisplayTarget};
 use winit::dpi::Size;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -11,6 +12,9 @@ use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
 
 mod log;
+
+const MIN_DISPLAY_WIDTH: u32 = 640;
+const MIN_DISPLAY_HEIGHT: u32 = 480;
 
 #[derive(Deserialize, Debug)]
 struct Config {
@@ -44,12 +48,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let event_loop = EventLoop::new()?;
 
-    let window = WindowBuilder::new()
-        .with_title("Reality")
-        .with_min_inner_size(Size::Physical((640, 480).into()))
-        .build(&event_loop)?;
+    let window = Arc::new(
+        WindowBuilder::new()
+            .with_title("Reality")
+            .with_min_inner_size(Size::Physical((640, 480).into()))
+            .build(&event_loop)?,
+    );
 
-    let mut device = Device::new(pif_data, rom_data);
+    let mut device = Device::new(DeviceOptions {
+        display_target: DisplayTarget {
+            window: window.clone(),
+            width: MIN_DISPLAY_WIDTH,
+            height: MIN_DISPLAY_HEIGHT,
+        },
+        pif_data,
+        rom_data,
+    })?;
 
     event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
@@ -69,6 +83,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ..
                 } => {
                     elwt.exit();
+                }
+                WindowEvent::Resized(size) => {
+                    device.resize(size.width, size.height);
                 }
                 WindowEvent::RedrawRequested => {
                     println!("Redraw");
