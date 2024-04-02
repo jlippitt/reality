@@ -35,15 +35,11 @@ enum DcState {
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
     StoreDoubleword { value: u64, addr: u32 },
-    MfHi { reg: usize },
-    MfLo { reg: usize },
     Nop,
 }
 
 enum WbOperation {
     Cp0Write { reg: Cp0Register, value: i64 },
-    MfHi { reg: usize },
-    MfLo { reg: usize },
 }
 
 struct WbState {
@@ -113,14 +109,6 @@ impl Cpu {
             match *op {
                 WbOperation::Cp0Write { reg, value } => {
                     self.cp0.write_reg(reg, value);
-                }
-                WbOperation::MfHi { reg } => {
-                    self.regs[reg] = self.hi;
-                    trace!("  {}: {:016X}", Self::REG_NAMES[reg], self.hi);
-                }
-                WbOperation::MfLo { reg } => {
-                    self.regs[reg] = self.lo;
-                    trace!("  {}: {:016X}", Self::REG_NAMES[reg], self.lo);
                 }
             }
         }
@@ -228,16 +216,6 @@ impl Cpu {
                 self.wb.op = None;
                 trace!("  [{:08X} <= {:016X}]", addr, value);
                 self.write_dword(bus, addr, value);
-            }
-            DcState::MfHi { reg } => {
-                self.wb.reg = 0;
-                // self.wb.value doesn't matter
-                self.wb.op = Some(WbOperation::MfHi { reg });
-            }
-            DcState::MfLo { reg } => {
-                self.wb.reg = 0;
-                // self.wb.value doesn't matter
-                self.wb.op = Some(WbOperation::MfLo { reg });
             }
             DcState::Nop => {
                 self.wb.reg = 0;

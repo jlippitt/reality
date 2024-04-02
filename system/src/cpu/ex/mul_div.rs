@@ -45,14 +45,20 @@ pub fn multu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     DcState::Nop
 }
 
-pub fn mfhi(_cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mfhi(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rd = ((word >> 11) & 31) as usize;
     trace!("{:08X}: MFHI {}", pc, Cpu::REG_NAMES[rd],);
-    DcState::MfHi { reg: rd }
+    DcState::RegWrite {
+        reg: rd,
+        value: cpu.hi,
+    }
 }
 
-pub fn mflo(_cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mflo(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rd = ((word >> 11) & 31) as usize;
     trace!("{:08X}: MFLO {}", pc, Cpu::REG_NAMES[rd],);
-    DcState::MfLo { reg: rd }
+    DcState::RegWrite {
+        reg: rd,
+        value: cpu.lo,
+    }
 }
