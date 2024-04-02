@@ -9,6 +9,7 @@ const MEM_SIZE: usize = 8192;
 pub struct Rsp {
     mem: Memory,
     status: Status,
+    pc: u32,
 }
 
 impl Rsp {
@@ -16,24 +17,36 @@ impl Rsp {
         Self {
             mem: Memory::with_byte_len(MEM_SIZE),
             status: Status::new().with_halted(true),
+            pc: 0,
         }
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         if (address as usize) < MEM_SIZE {
-            self.mem.read(address)
-        } else if address >= 0x0004_0000 {
-            T::from_u32(self.read_register(address))
+            return self.mem.read(address);
+        }
+
+        T::from_u32(if (address & 0x0004_0000) == 0x0004_0000 {
+            self.read_register(address)
+        } else if address == 0x0008_0000 {
+            self.pc
         } else {
             panic!("Read from unmapped RSP address: {:08X}", address);
-        }
+        })
     }
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
         if (address as usize) < MEM_SIZE {
-            self.mem.write(address, value);
-        } else if address >= 0x0004_0000 {
-            self.write_register(address, WriteMask::new(address, value));
+            return self.mem.write(address, value);
+        }
+
+        let mask = WriteMask::new(address, value);
+
+        if (address & 0x0004_0000) == 0x0004_0000 {
+            self.write_register(address, mask);
+        } else if address == 0x0008_0000 {
+            mask.write_partial(&mut self.pc, 0x0000_0ffc);
+            trace!("RSP PC: {:08X}", self.pc);
         } else {
             panic!("Write to unmapped RSP address: {:08X}", address);
         }
