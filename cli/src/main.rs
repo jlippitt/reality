@@ -5,8 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 use system::Device;
 use winit::dpi::Size;
-use winit::event::{Event, WindowEvent};
+use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::EventLoop;
+use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
 
 mod log;
@@ -55,11 +56,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             event: window_event,
             ..
         } => match window_event {
-            WindowEvent::CloseRequested => {
+            WindowEvent::CloseRequested
+            | WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        logical_key: Key::Named(NamedKey::Escape),
+                        ..
+                    },
+                ..
+            } => {
                 elwt.exit();
             }
             WindowEvent::RedrawRequested => {
-                // TODO
+                println!("Redraw");
             }
             _ => (),
         },
