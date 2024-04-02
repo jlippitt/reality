@@ -1,6 +1,7 @@
 use crate::memory::{Mapping, Memory, Size, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
+use std::array;
 use tracing::{trace, warn};
 
 mod regs;
@@ -39,7 +40,11 @@ pub struct Rdram {
 impl Rdram {
     pub fn new() -> Self {
         Self {
-            banks: Default::default(),
+            // Default bank configuration (to support ROMs that use simplified
+            // booting sequences)
+            banks: array::from_fn(|index| Bank {
+                offset: (index * BANK_SIZE) as u32,
+            }),
             data: Memory::with_byte_len(8 * BANK_SIZE),
             modules: (0..4)
                 .map(|_| Module {

@@ -60,6 +60,9 @@ impl Device {
         memory_map[0x100..=0x1fb].fill(Mapping::CartridgeRom);
         memory_map[0x1fc] = Mapping::Pif;
 
+        // Default RDRAM mapping (for ROMs that use simplified boot sequences)
+        memory_map[0x000..=0x007].fill(Mapping::RdramData);
+
         Self {
             cpu: Cpu::new(),
             bus: Bus {
