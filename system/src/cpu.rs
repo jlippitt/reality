@@ -107,10 +107,6 @@ impl Cpu {
 
         if self.wb.reg != 0 {
             trace!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
-
-            if self.wb.reg == 30 && self.regs[30] != 0 {
-                println!("R30: {}", self.regs[30]);
-            }
         }
 
         if let Some(op) = &self.wb.op {
