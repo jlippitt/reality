@@ -10,3 +10,15 @@ pub struct Mode {
     #[bits(22)]
     __: u32,
 }
+
+#[bitfield(u32)]
+pub struct Mask {
+    pub sp: bool,
+    pub si: bool,
+    pub ai: bool,
+    pub vi: bool,
+    pub pi: bool,
+    pub dp: bool,
+    #[bits(26)]
+    __: u32,
+}

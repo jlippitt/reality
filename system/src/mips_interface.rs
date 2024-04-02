@@ -1,16 +1,20 @@
 use crate::memory::{Size, WriteMask};
-use regs::Mode;
+use regs::{Mask, Mode};
 use tracing::{trace, warn};
 
 mod regs;
 
 pub struct MipsInterface {
     mode: Mode,
+    mask: Mask,
 }
 
 impl MipsInterface {
     pub fn new() -> Self {
-        Self { mode: Mode::new() }
+        Self {
+            mode: Mode::new(),
+            mask: Mask::new(),
+        }
     }
 
     pub fn is_upper(&self) -> bool {
@@ -53,6 +57,15 @@ impl MipsInterface {
                 if (mask.raw() & 0x0800) != 0 {
                     warn!("TODO: Acknowledge MI interrupt")
                 }
+            }
+            3 => {
+                mask.set_or_clear(&mut self.mask, Mask::set_sp, 1, 0);
+                mask.set_or_clear(&mut self.mask, Mask::set_si, 3, 2);
+                mask.set_or_clear(&mut self.mask, Mask::set_ai, 5, 4);
+                mask.set_or_clear(&mut self.mask, Mask::set_vi, 7, 6);
+                mask.set_or_clear(&mut self.mask, Mask::set_pi, 9, 8);
+                mask.set_or_clear(&mut self.mask, Mask::set_dp, 11, 10);
+                trace!("MI_MASK: {:?}", self.mask);
             }
             _ => todo!("MI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
