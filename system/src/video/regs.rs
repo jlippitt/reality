@@ -125,11 +125,11 @@ pub struct Range {
 #[bitfield(u32)]
 pub struct Scale {
     #[bits(12)]
-    pub x_scale: u32,
+    pub scale: u32,
     #[bits(4)]
     __: u32,
     #[bits(12)]
-    pub x_offset: u32,
+    pub offset: u32,
     #[bits(4)]
     __: u32,
 }
