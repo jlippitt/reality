@@ -1,10 +1,11 @@
 use super::memory::{Size, WriteMask};
-use regs::{HVideo, VIntr};
+use regs::{Ctrl, HVideo, VIntr};
 use tracing::{trace, warn};
 
 mod regs;
 
 pub struct VideoInterface {
+    ctrl: Ctrl,
     v_intr: VIntr,
     h_video: HVideo,
 }
@@ -12,6 +13,7 @@ pub struct VideoInterface {
 impl VideoInterface {
     pub fn new() -> Self {
         Self {
+            ctrl: Ctrl::new(),
             v_intr: VIntr::new(),
             h_video: HVideo::new(),
         }
@@ -25,6 +27,10 @@ impl VideoInterface {
         let mask = WriteMask::new(address, value);
 
         match address >> 2 {
+            0 => {
+                mask.write(&mut self.ctrl);
+                trace!("VI_CTRL: {:?}", self.ctrl);
+            }
             3 => {
                 mask.write(&mut self.v_intr);
                 trace!("VI_V_INTR: {:?}", self.v_intr);
