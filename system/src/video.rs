@@ -1,6 +1,6 @@
 use super::memory::{Size, WriteMask};
 use regs::{Burst, Ctrl, HSync, HSyncLeap, HVideo, Origin, VIntr, VSync, Width};
-use tracing::{trace, warn};
+use tracing::warn;
 
 mod regs;
 
@@ -39,43 +39,16 @@ impl VideoInterface {
         let mask = WriteMask::new(address, value);
 
         match address >> 2 {
-            0 => {
-                mask.write(&mut self.ctrl);
-                trace!("VI_CTRL: {:?}", self.ctrl);
-            }
-            1 => {
-                mask.write(&mut self.origin);
-                trace!("VI_ORIGIN: {:08X?}", self.origin);
-            }
-            2 => {
-                mask.write(&mut self.width);
-                trace!("VI_WIDTH: {:?}", self.width);
-            }
-            3 => {
-                mask.write(&mut self.v_intr);
-                trace!("VI_V_INTR: {:?}", self.v_intr);
-            }
+            0 => mask.write_reg("VI_CTRL", &mut self.ctrl),
+            1 => mask.write_reg_hex("VI_ORIGIN", &mut self.origin),
+            2 => mask.write_reg("VI_WIDTH", &mut self.width),
+            3 => mask.write_reg("VI_V_INTR", &mut self.v_intr),
             4 => warn!("TODO: Acknowledge VI interrupt"),
-            5 => {
-                mask.write(&mut self.burst);
-                trace!("VI_BURST: {:?}", self.burst);
-            }
-            6 => {
-                mask.write(&mut self.v_sync);
-                trace!("VI_V_SYNC: {:?}", self.v_sync);
-            }
-            7 => {
-                mask.write(&mut self.h_sync);
-                trace!("VI_H_SYNC: {:?}", self.h_sync);
-            }
-            8 => {
-                mask.write(&mut self.h_sync_leap);
-                trace!("VI_H_SYNC_LEAP: {:?}", self.h_sync_leap);
-            }
-            9 => {
-                mask.write(&mut self.h_video);
-                trace!("VI_H_VIDEO: {:?}", self.h_video);
-            }
+            5 => mask.write_reg("VI_BURST", &mut self.burst),
+            6 => mask.write_reg("VI_V_SYNC", &mut self.v_sync),
+            7 => mask.write_reg("VI_H_SYNC", &mut self.h_sync),
+            8 => mask.write_reg("VI_H_SYNC_LEAP", &mut self.h_sync_leap),
+            9 => mask.write_reg("VI_H_VIDEO", &mut self.h_video),
             _ => todo!("VI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }

@@ -1,5 +1,7 @@
 use bytemuck::Pod;
+use std::fmt::Debug;
 use std::mem;
+use tracing::trace;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Mapping {
@@ -158,6 +160,26 @@ impl WriteMask {
     pub fn write_partial<T: Copy + From<u32> + Into<u32>>(&self, dst: &mut T, partial_mask: u32) {
         let mask = self.mask & partial_mask;
         *dst = T::from(((*dst).into() & !mask) | (self.value & mask));
+    }
+
+    // Convenience method for outputting debug information
+    pub fn write_reg<T: Copy + From<u32> + Into<u32> + Debug>(
+        &self,
+        name: &'static str,
+        dst: &mut T,
+    ) {
+        self.write(dst);
+        trace!("{}: {:?}", name, *dst);
+    }
+
+    // Convenience method for outputting debug information
+    pub fn write_reg_hex<T: Copy + From<u32> + Into<u32> + Debug>(
+        &self,
+        name: &'static str,
+        dst: &mut T,
+    ) {
+        self.write(dst);
+        trace!("{}: {:08X?}", name, *dst);
     }
 
     pub fn set_or_clear<T, F>(&self, dst: &mut T, setter: F, set_bit: u32, clr_bit: u32)
