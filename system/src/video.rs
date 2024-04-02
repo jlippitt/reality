@@ -17,7 +17,7 @@ pub struct VideoInterface {
     v_counter: u32,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
-    _queue: wgpu::Queue,
+    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
 }
 
@@ -33,7 +33,7 @@ impl VideoInterface {
         let surface = instance.create_surface(display_target.window)?;
 
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
+            power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         }))
@@ -42,7 +42,7 @@ impl VideoInterface {
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: wgpu::Limits::default().using_resolution(adapter.limits()),
                 label: None,
             },
             None,
@@ -62,7 +62,7 @@ impl VideoInterface {
             format: output_format,
             width: display_target.width,
             height: display_target.height,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -76,7 +76,7 @@ impl VideoInterface {
             h_counter: 0,
             surface,
             device,
-            _queue: queue,
+            queue,
             config,
         })
     }
@@ -89,6 +89,45 @@ impl VideoInterface {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
+    }
+
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        {
+            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.8,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
     }
 
     pub fn step(&mut self) -> bool {

@@ -95,6 +95,10 @@ impl Device {
         self.bus.vi.resize(width, height);
     }
 
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.bus.vi.render()
+    }
+
     pub fn step(&mut self) -> bool {
         self.cpu.step(&mut self.bus);
 

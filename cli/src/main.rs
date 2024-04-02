@@ -13,9 +13,6 @@ use winit::window::WindowBuilder;
 
 mod log;
 
-const MIN_DISPLAY_WIDTH: u32 = 640;
-const MIN_DISPLAY_HEIGHT: u32 = 480;
-
 #[derive(Deserialize, Debug)]
 struct Config {
     pif_data_path: String,
@@ -58,8 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut device = Device::new(DeviceOptions {
         display_target: DisplayTarget {
             window: window.clone(),
-            width: MIN_DISPLAY_WIDTH,
-            height: MIN_DISPLAY_HEIGHT,
+            width: window.inner_size().width,
+            height: window.inner_size().height,
         },
         pif_data,
         rom_data,
@@ -67,6 +64,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
+
         match event {
             Event::WindowEvent {
                 event: window_event,
@@ -88,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     device.resize(size.width, size.height);
                 }
                 WindowEvent::RedrawRequested => {
-                    println!("Redraw");
+                    device.render().unwrap();
                 }
                 _ => (),
             },
