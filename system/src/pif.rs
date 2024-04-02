@@ -1,5 +1,4 @@
-use super::memory::Memory;
-use crate::cpu::Size;
+use super::memory::{Memory, Size};
 use tracing::trace;
 
 const PIF_DATA_SIZE: usize = 2048;
@@ -12,7 +11,7 @@ pub struct Pif {
 impl Pif {
     pub fn new(data: Vec<u8>) -> Self {
         assert!(data.len() == PIF_DATA_SIZE);
-        let mut mem: Memory = data.into();
+        let mut mem = Memory::from_bytes(&data);
         mem.write(0x7e4, 0u32);
         mem.write(0x7ff, 0u8);
         Self {

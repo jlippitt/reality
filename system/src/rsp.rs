@@ -1,5 +1,4 @@
-use super::memory::{Memory, WriteMask};
-use crate::cpu::Size;
+use super::memory::{Memory, Size, WriteMask};
 use regs::Status;
 use tracing::{trace, warn};
 
@@ -15,7 +14,7 @@ pub struct Rsp {
 impl Rsp {
     pub fn new() -> Self {
         Self {
-            mem: Memory::new(MEM_SIZE),
+            mem: Memory::with_byte_len(MEM_SIZE),
             status: Status::new().with_halted(true),
         }
     }

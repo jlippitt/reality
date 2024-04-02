@@ -1,6 +1,8 @@
+use crate::memory::{Memory, Size};
+use std::array;
 use tracing::trace;
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Clone, Default, Debug)]
 struct ICacheLine {
     data: [u32; 8],
     ptag: u32,
@@ -14,7 +16,7 @@ pub struct ICache {
 impl ICache {
     pub fn new() -> Self {
         Self {
-            lines: [Default::default(); 512],
+            lines: array::from_fn(|_| Default::default()),
         }
     }
 
@@ -32,7 +34,7 @@ impl ICache {
             .then(|| line.data[((address >> 2) & 7) as usize])
     }
 
-    pub fn insert_line(&mut self, address: u32, data: [u32; 8]) {
+    pub fn insert_line(&mut self, address: u32, data: [u32; 8]) -> u32 {
         assert_eq!(
             0x8000_0000,
             address & 0xc000_0000,
@@ -47,6 +49,8 @@ impl ICache {
         line.valid = true;
 
         trace!("ICache Line {}: {:08X?}", index, line);
+
+        line.data[(address & 0x1f) as usize]
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool) {
@@ -58,9 +62,9 @@ impl ICache {
     }
 }
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Clone, Default, Debug)]
 struct DCacheLine {
-    _data: [u32; 4],
+    data: Memory<[u32; 4]>,
     ptag: u32,
     valid: bool,
     dirty: bool,
@@ -73,8 +77,44 @@ pub struct DCache {
 impl DCache {
     pub fn new() -> Self {
         Self {
-            lines: [Default::default(); 512],
+            lines: array::from_fn(|_| Default::default()),
         }
+    }
+
+    pub fn read<T: Size>(&self, address: u32) -> Option<T> {
+        assert_eq!(
+            0x8000_0000,
+            address & 0xc000_0000,
+            "TLB not yet implemented"
+        );
+
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &self.lines[index];
+
+        (line.valid && line.ptag == (address >> 12)).then(|| line.data.read(address & 0x0f))
+    }
+
+    pub fn insert_line<T: Size>(&mut self, address: u32, data: [u32; 4]) -> T {
+        assert_eq!(
+            0x8000_0000,
+            address & 0xc000_0000,
+            "TLB not yet implemented"
+        );
+
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &mut self.lines[index];
+
+        if line.dirty {
+            todo!("DCache writeback");
+        }
+
+        line.data = data.into();
+        line.ptag = address >> 12;
+        line.valid = true;
+
+        trace!("DCache Line {}: {:08X?}", index, line);
+
+        line.data.read(address & 0x0f)
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool, dirty: bool) {
@@ -83,6 +123,6 @@ impl DCache {
         line.ptag = ptag;
         line.valid = valid;
         line.dirty = dirty;
-        trace!("DCache Line {}: {:?}", index, line);
+        trace!("DCache Line {}: {:08X?}", index, line);
     }
 }

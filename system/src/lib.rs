@@ -1,6 +1,6 @@
 use audio::AudioInterface;
-use cpu::{Cpu, Size};
-use memory::{Mapping, Memory};
+use cpu::Cpu;
+use memory::{Mapping, Memory, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use pif::Pif;
@@ -72,7 +72,7 @@ impl Device {
                 ai: AudioInterface::new(),
                 pi: PeripheralInterface::new(),
                 si: SerialInterface::new(),
-                rom: rom_data.into(),
+                rom: Memory::from_bytes(&rom_data),
                 pif: Pif::new(pif_data),
             },
             extra_cycle: true,

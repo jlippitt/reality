@@ -1,4 +1,3 @@
-use crate::cpu::Size;
 use bytemuck::Pod;
 use std::mem;
 
@@ -20,57 +19,106 @@ pub enum Mapping {
     Pif,
 }
 
-pub struct Memory {
-    vec: Vec<u32>,
+pub trait Size: Pod {
+    fn from_u32(value: u32) -> Self;
+    fn to_u32(self) -> u32;
 }
 
-impl Memory {
-    pub fn new(len: usize) -> Self {
-        assert!((len & 3) == 0);
-        Self {
-            vec: vec![0; len >> 2],
-        }
+impl Size for u8 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
     }
 
-    pub fn read<T: Pod>(&self, address: u32) -> T {
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+impl Size for u16 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
+    }
+
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+}
+
+impl Size for u32 {
+    fn from_u32(value: u32) -> Self {
+        value as Self
+    }
+
+    fn to_u32(self) -> u32 {
+        self
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Memory<T: AsRef<[u32]> + AsMut<[u32]> = Vec<u32>> {
+    data: T,
+}
+
+impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
+    pub fn read<U: Size>(&self, address: u32) -> U {
         let mem_size = mem::size_of::<u32>();
-        let data_size = mem::size_of::<T>();
+        let data_size = mem::size_of::<U>();
         debug_assert!((mem_size % data_size) == 0);
         let index = address as usize >> data_size.ilog2();
-        let slice: &[T] = bytemuck::must_cast_slice(&self.vec);
+        let slice: &[U] = bytemuck::must_cast_slice(self.data.as_ref());
         slice[index ^ ((mem_size / data_size) - 1)]
     }
 
-    pub fn write<T: Pod>(&mut self, address: u32, value: T) {
+    pub fn write<U: Size>(&mut self, address: u32, value: U) {
         let mem_size = mem::size_of::<u32>();
-        let data_size = mem::size_of::<T>();
+        let data_size = mem::size_of::<U>();
         debug_assert!((mem_size % data_size) == 0);
         let index = address as usize >> data_size.ilog2();
-        let slice: &mut [T] = bytemuck::must_cast_slice_mut(&mut self.vec);
+        let slice: &mut [U] = bytemuck::must_cast_slice_mut(self.data.as_mut());
         slice[index ^ ((mem_size / data_size) - 1)] = value;
     }
 
     pub fn read_block(&self, address: u32, data: &mut [u32]) {
         assert!((address & 3) == 0);
         let index = (address >> 2) as usize;
-        data.copy_from_slice(&self.vec[index..(index + data.len())]);
+        data.copy_from_slice(&self.data.as_ref()[index..(index + data.len())]);
     }
 
     pub fn write_block(&mut self, address: u32, data: &[u32]) {
         assert!((address & 3) == 0);
         let index = (address >> 2) as usize;
-        self.vec[index..(index + data.len())].copy_from_slice(data);
+        self.data.as_mut()[index..(index + data.len())].copy_from_slice(data);
     }
 }
 
-impl From<Vec<u8>> for Memory {
-    fn from(value: Vec<u8>) -> Self {
-        let vec = value
+impl<T: AsRef<[u32]> + AsMut<[u32]> + Default> Default for Memory<T> {
+    fn default() -> Self {
+        Self { data: T::default() }
+    }
+}
+
+impl<T: AsRef<[u32]> + AsMut<[u32]>> From<T> for Memory<T> {
+    fn from(value: T) -> Self {
+        Self { data: value }
+    }
+}
+
+impl Memory<Vec<u32>> {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        assert!((bytes.len() & 3) == 0);
+        let data = bytes
             .chunks_exact(4)
             .map(|chunks| u32::from_be_bytes([chunks[0], chunks[1], chunks[2], chunks[3]]))
             .collect();
 
-        Self { vec }
+        Self { data }
+    }
+
+    pub fn with_byte_len(len: usize) -> Self {
+        assert!((len & 3) == 0);
+        Self {
+            data: vec![0; len >> 2],
+        }
     }
 }
 

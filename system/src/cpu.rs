@@ -1,7 +1,6 @@
-use bytemuck::Pod;
+use crate::memory::Size;
 use cache::{DCache, ICache};
 use cp0::{Cp0, Cp0Register};
-use std::mem;
 use tracing::trace;
 
 mod cache;
@@ -48,41 +47,6 @@ struct WbState {
     reg: usize,
     value: i64,
     op: Option<WbOperation>,
-}
-
-pub trait Size: Pod {
-    fn from_u32(value: u32) -> Self;
-    fn to_u32(self) -> u32;
-}
-
-impl Size for u8 {
-    fn from_u32(value: u32) -> Self {
-        value as Self
-    }
-
-    fn to_u32(self) -> u32 {
-        self as u32
-    }
-}
-
-impl Size for u16 {
-    fn from_u32(value: u32) -> Self {
-        value as Self
-    }
-
-    fn to_u32(self) -> u32 {
-        self as u32
-    }
-}
-
-impl Size for u32 {
-    fn from_u32(value: u32) -> Self {
-        value as Self
-    }
-
-    fn to_u32(self) -> u32 {
-        self
-    }
 }
 
 pub trait Bus {
@@ -279,7 +243,7 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(4);
     }
 
-    fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
+    fn read<T: Size>(&mut self, bus: &mut impl Bus, address: u32) -> T {
         let segment = address >> 29;
 
         if (segment & 6) != 4 {
@@ -287,32 +251,12 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self.icache.read(self.pc).unwrap_or_else(|| {
+            return self.dcache.read(address).unwrap_or_else(|| {
                 // TODO: Timing
-                let mut data = [0u32; 8];
-                bus.read_block(self.pc & 0x1fff_ffe0, &mut data);
-                let value = data[(self.pc & 0x1f) as usize];
-                self.icache.insert_line(self.pc, data);
-                value
+                let mut data = [0u32; 4];
+                bus.read_block(address & 0x1fff_ffe0, &mut data);
+                self.dcache.insert_line(address, data)
             });
-        }
-
-        bus.read_single(address & 0x1fff_ffff)
-    }
-
-    fn read<T: Size>(&self, bus: &mut impl Bus, address: u32) -> T {
-        let segment = address >> 29;
-
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
-        }
-
-        if segment == 4 {
-            todo!("Cached reads");
-        }
-
-        if mem::size_of::<T>() > 4 {
-            todo!("Block reads");
         }
 
         bus.read_single(address & 0x1fff_ffff)
@@ -329,10 +273,25 @@ impl Cpu {
             todo!("Cached writes");
         }
 
-        if mem::size_of::<T>() > 4 {
-            todo!("Block writes");
+        bus.write_single(address & 0x1fff_ffff, value);
+    }
+
+    fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
+        let segment = address >> 29;
+
+        if (segment & 6) != 4 {
+            todo!("TLB lookups");
         }
 
-        bus.write_single(address & 0x1fff_ffff, value);
+        if segment == 4 {
+            return self.icache.read(address).unwrap_or_else(|| {
+                // TODO: Timing
+                let mut data = [0u32; 8];
+                bus.read_block(address & 0x1fff_ffe0, &mut data);
+                self.icache.insert_line(address, data)
+            });
+        }
+
+        bus.read_single(address & 0x1fff_ffff)
     }
 }

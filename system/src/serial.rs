@@ -1,5 +1,4 @@
-use crate::cpu::Size;
-use crate::memory::WriteMask;
+use crate::memory::{Size, WriteMask};
 use regs::{DramAddr, Status};
 use tracing::trace;
 

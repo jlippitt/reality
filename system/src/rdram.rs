@@ -1,5 +1,4 @@
-use crate::cpu::Size;
-use crate::memory::{Mapping, Memory, WriteMask};
+use crate::memory::{Mapping, Memory, Size, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
 use tracing::{trace, warn};
@@ -41,7 +40,7 @@ impl Rdram {
     pub fn new() -> Self {
         Self {
             banks: Default::default(),
-            data: Memory::new(8 * BANK_SIZE),
+            data: Memory::with_byte_len(8 * BANK_SIZE),
             modules: (0..4)
                 .map(|_| Module {
                     device_id: 0xffff,

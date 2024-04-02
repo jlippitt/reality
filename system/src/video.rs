@@ -1,5 +1,4 @@
-use super::memory::WriteMask;
-use crate::cpu::Size;
+use super::memory::{Size, WriteMask};
 use regs::{HVideo, VIntr};
 use tracing::{trace, warn};
 
