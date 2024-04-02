@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use system::Device;
+use tracing::debug;
 
 mod log;
 
@@ -40,6 +41,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut device = Device::new(pif_data, rom_data);
 
     loop {
-        device.step();
+        while !device.step() {}
+
+        debug!("Frame complete");
     }
 }

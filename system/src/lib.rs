@@ -82,7 +82,7 @@ impl Device {
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> bool {
         self.cpu.step(&mut self.bus);
 
         if self.extra_cycle {
@@ -90,6 +90,7 @@ impl Device {
         }
 
         self.bus.pi.step(&mut self.bus.rdram, &mut self.bus.rom);
+        self.bus.vi.step()
     }
 }
 

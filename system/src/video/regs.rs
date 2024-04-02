@@ -80,7 +80,7 @@ pub struct Burst {
 
 #[bitfield(u32)]
 pub struct VSync {
-    #[bits(10)]
+    #[bits(10, default = 525)]
     pub v_sync: u32,
     #[bits(22)]
     __: u32,
@@ -88,7 +88,7 @@ pub struct VSync {
 
 #[bitfield(u32)]
 pub struct HSync {
-    #[bits(12)]
+    #[bits(12, default = 3093)]
     pub h_sync: u32,
     #[bits(4)]
     __: u32,

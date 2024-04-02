@@ -6,13 +6,39 @@ mod regs;
 
 pub struct VideoInterface {
     regs: Regs,
+    h_counter: u32,
+    v_counter: u32,
 }
 
 impl VideoInterface {
     pub fn new() -> Self {
         Self {
             regs: Regs::default(),
+            v_counter: 0,
+            h_counter: 0,
         }
+    }
+
+    pub fn step(&mut self) -> bool {
+        let mut frame_done = false;
+        let h_sync = self.regs.h_sync.h_sync();
+
+        self.h_counter += 1;
+
+        if self.h_counter >= h_sync {
+            self.v_counter += 1;
+            self.h_counter -= h_sync;
+
+            if self.v_counter >= self.regs.v_sync.v_sync() {
+                self.v_counter = 0;
+                frame_done = true;
+            }
+
+            // TODO: Set V_CURRENT
+            // TODO: VI interrupt
+        }
+
+        frame_done
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
