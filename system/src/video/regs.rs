@@ -22,6 +22,22 @@ pub struct Ctrl {
 }
 
 #[bitfield(u32)]
+pub struct Origin {
+    #[bits(24)]
+    pub origin: u32,
+    #[bits(8)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct Width {
+    #[bits(12)]
+    pub width: u32,
+    #[bits(20)]
+    __: u32,
+}
+
+#[bitfield(u32)]
 pub struct VIntr {
     #[bits(10)]
     pub v_intr: u32,
