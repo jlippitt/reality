@@ -63,6 +63,9 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o11 => control::jr::<true>(cpu, pc, word),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o22 => mul_div::mflo(cpu, pc, word),
+        0o24 => shift::variable::<shift::Dsll>(cpu, pc, word),
+        0o26 => shift::variable::<shift::Dsrl>(cpu, pc, word),
+        0o27 => shift::variable::<shift::Dsra>(cpu, pc, word),
         0o30 => mul_div::mult(cpu, pc, word),
         0o31 => mul_div::multu(cpu, pc, word),
         0o40 => arithmetic::r_type_checked::<arithmetic::Add>(cpu, pc, word),
@@ -79,6 +82,12 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o55 => arithmetic::r_type_unchecked::<arithmetic::Dadd>(cpu, pc, word),
         0o56 => arithmetic::r_type_checked::<arithmetic::Dsub>(cpu, pc, word),
         0o57 => arithmetic::r_type_unchecked::<arithmetic::Dsub>(cpu, pc, word),
+        0o70 => shift::fixed::<shift::Dsll>(cpu, pc, word),
+        0o72 => shift::fixed::<shift::Dsrl>(cpu, pc, word),
+        0o73 => shift::fixed::<shift::Dsra>(cpu, pc, word),
+        0o74 => shift::fixed32::<shift::Dsll>(cpu, pc, word),
+        0o76 => shift::fixed32::<shift::Dsrl>(cpu, pc, word),
+        0o77 => shift::fixed32::<shift::Dsra>(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }
