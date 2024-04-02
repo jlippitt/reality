@@ -32,6 +32,9 @@ impl SerialInterface {
                 mask.write(&mut self.dram_addr);
                 trace!("SI_DRAM_ADDR: {:?}", self.dram_addr);
             }
+            6 => {
+                // TODO: Acknowledge SI interrupt
+            }
             _ => todo!("SI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }

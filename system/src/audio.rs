@@ -37,6 +37,9 @@ impl AudioInterface {
                     todo!("AI DMA Transfers");
                 }
             }
+            3 => {
+                // TODO: Acknowledge AI interrupt
+            }
             _ => todo!("AI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
