@@ -149,4 +149,12 @@ impl cpu::Bus for Bus {
 
         self.rdram.read_block(address, data);
     }
+
+    fn write_block(&mut self, address: u32, data: &[u32]) {
+        if self.memory_map[address as usize >> 20] != Mapping::RdramData {
+            panic!("Only RDRAM data is supported for block writes");
+        }
+
+        self.rdram.write_block(address, data);
+    }
 }

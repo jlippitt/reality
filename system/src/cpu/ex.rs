@@ -38,10 +38,13 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o43 => load::load::<load::Lw>(cpu, pc, word),
         0o44 => load::load::<load::Lbu>(cpu, pc, word),
         0o45 => load::load::<load::Lhu>(cpu, pc, word),
+        0o47 => load::load::<load::Lwu>(cpu, pc, word),
         0o50 => store::store::<store::Sb>(cpu, pc, word),
         0o51 => store::store::<store::Sh>(cpu, pc, word),
         0o53 => store::store::<store::Sw>(cpu, pc, word),
         0o57 => Cp0::cache(cpu, pc, word),
+        0o67 => load::load::<load::Ld>(cpu, pc, word),
+        0o77 => store::store::<store::Sd>(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }

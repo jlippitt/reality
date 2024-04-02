@@ -34,7 +34,7 @@ impl ICache {
             .then(|| line.data[((address >> 2) & 7) as usize])
     }
 
-    pub fn insert_line(&mut self, address: u32, data: [u32; 8]) -> u32 {
+    pub fn insert_line(&mut self, address: u32, data: [u32; 8]) -> &mut [u32; 8] {
         assert_eq!(
             0x8000_0000,
             address & 0xc000_0000,
@@ -50,7 +50,7 @@ impl ICache {
 
         trace!("ICache Line {}: {:08X?}", index, line);
 
-        line.data[((address >> 2) & 7) as usize]
+        &mut line.data
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool) {
@@ -94,7 +94,25 @@ impl DCache {
         (line.valid && line.ptag == (address >> 12)).then(|| line.data.read(address & 0x0f))
     }
 
-    pub fn insert_line<T: Size>(&mut self, address: u32, data: [u32; 4]) -> T {
+    pub fn read_block(&self, address: u32, data: &mut [u32]) -> bool {
+        assert_eq!(
+            0x8000_0000,
+            address & 0xc000_0000,
+            "TLB not yet implemented"
+        );
+
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &self.lines[index];
+
+        if line.valid && line.ptag == (address >> 12) {
+            line.data.read_block(address & 0x0f, data);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn insert_line(&mut self, address: u32, data: [u32; 4]) -> &mut Memory<[u32; 4]> {
         assert_eq!(
             0x8000_0000,
             address & 0xc000_0000,
@@ -114,7 +132,7 @@ impl DCache {
 
         trace!("DCache Line {}: {:08X?}", index, line);
 
-        line.data.read(address & 0x0f)
+        &mut line.data
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool, dirty: bool) {

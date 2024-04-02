@@ -29,9 +29,12 @@ enum DcState {
     LoadHalfword { reg: usize, addr: u32 },
     LoadHalfwordUnsigned { reg: usize, addr: u32 },
     LoadWord { reg: usize, addr: u32 },
+    LoadWordUnsigned { reg: usize, addr: u32 },
+    LoadDoubleword { reg: usize, addr: u32 },
     StoreByte { value: u8, addr: u32 },
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
+    StoreDoubleword { value: u64, addr: u32 },
     MfHi { reg: usize },
     MfLo { reg: usize },
     Nop,
@@ -53,6 +56,7 @@ pub trait Bus {
     fn read_single<T: Size>(&self, address: u32) -> T;
     fn write_single<T: Size>(&mut self, address: u32, value: T);
     fn read_block(&self, address: u32, data: &mut [u32]);
+    fn write_block(&mut self, address: u32, data: &[u32]);
 }
 
 pub struct Cpu {
@@ -151,8 +155,8 @@ impl Cpu {
             }
             DcState::LoadHalfword { reg, addr } => {
                 // TODO: Stall cycles
-                let value = self.read::<u16>(bus, addr) as i16 as i64;
                 assert!((addr & 1) == 0);
+                let value = self.read::<u16>(bus, addr) as i16 as i64;
                 self.wb.reg = reg;
                 self.wb.value = value as i16 as i64;
                 self.wb.op = None;
@@ -160,8 +164,8 @@ impl Cpu {
             }
             DcState::LoadHalfwordUnsigned { reg, addr } => {
                 // TODO: Stall cycles
-                let value = self.read::<u16>(bus, addr);
                 assert!((addr & 1) == 0);
+                let value = self.read::<u16>(bus, addr);
                 self.wb.reg = reg;
                 self.wb.value = value as i64;
                 self.wb.op = None;
@@ -169,12 +173,30 @@ impl Cpu {
             }
             DcState::LoadWord { reg, addr } => {
                 // TODO: Stall cycles
-                let value = self.read::<u32>(bus, addr);
                 assert!((addr & 3) == 0);
+                let value = self.read::<u32>(bus, addr);
                 self.wb.reg = reg;
                 self.wb.value = value as i32 as i64;
                 self.wb.op = None;
                 trace!("  [{:08X} => {:08X}]", addr, value);
+            }
+            DcState::LoadWordUnsigned { reg, addr } => {
+                // TODO: Stall cycles
+                assert!((addr & 3) == 0);
+                let value = self.read::<u32>(bus, addr);
+                self.wb.reg = reg;
+                self.wb.value = value as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:08X}]", addr, value);
+            }
+            DcState::LoadDoubleword { reg, addr } => {
+                // TODO: Stall cycles
+                assert!((addr & 7) == 0);
+                let value = self.read_dword(bus, addr);
+                self.wb.reg = reg;
+                self.wb.value = value as i64;
+                self.wb.op = None;
+                trace!("  [{:08X} => {:016X}]", addr, value);
             }
             DcState::StoreByte { value, addr } => {
                 // TODO: Stall cycles
@@ -198,6 +220,14 @@ impl Cpu {
                 self.wb.op = None;
                 trace!("  [{:08X} <= {:08X}]", addr, value);
                 self.write(bus, addr, value);
+            }
+            DcState::StoreDoubleword { value, addr } => {
+                // TODO: Stall cycles
+                assert!((addr & 3) == 0);
+                self.wb.reg = 0;
+                self.wb.op = None;
+                trace!("  [{:08X} <= {:016X}]", addr, value);
+                self.write_dword(bus, addr, value);
             }
             DcState::MfHi { reg } => {
                 self.wb.reg = 0;
@@ -255,7 +285,8 @@ impl Cpu {
                 // TODO: Timing
                 let mut data = [0u32; 4];
                 bus.read_block(address & 0x1fff_ffe0, &mut data);
-                self.dcache.insert_line(address, data)
+                let line = self.dcache.insert_line(address, data);
+                line.read(address & 0x0f)
             });
         }
 
@@ -276,6 +307,45 @@ impl Cpu {
         bus.write_single(address & 0x1fff_ffff, value);
     }
 
+    fn read_dword(&mut self, bus: &mut impl Bus, address: u32) -> u64 {
+        let segment = address >> 29;
+
+        if (segment & 6) != 4 {
+            todo!("TLB lookups");
+        }
+
+        let mut dword = [0u32; 2];
+
+        if segment == 4 {
+            if !self.dcache.read_block(address, &mut dword) {
+                // TODO: Timing
+                let mut data = [0u32; 4];
+                bus.read_block(address & 0x1fff_ffe0, &mut data);
+                let line = self.dcache.insert_line(address, data);
+                line.read_block(address & 0x0f, &mut dword);
+            }
+        } else {
+            bus.read_block(address & 0x1fff_ffff, &mut dword);
+        }
+
+        ((dword[0] as u64) << 32) | (dword[1] as u64)
+    }
+
+    fn write_dword(&mut self, bus: &mut impl Bus, address: u32, value: u64) {
+        let segment = address >> 29;
+
+        if (segment & 6) != 4 {
+            todo!("TLB lookups");
+        }
+
+        if segment == 4 {
+            todo!("Cached writes");
+        }
+
+        let dword = [(value >> 32) as u32, value as u32];
+        bus.write_block(address & 0x1fff_ffff, &dword);
+    }
+
     fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
         let segment = address >> 29;
 
@@ -288,7 +358,8 @@ impl Cpu {
                 // TODO: Timing
                 let mut data = [0u32; 8];
                 bus.read_block(address & 0x1fff_ffe0, &mut data);
-                self.icache.insert_line(address, data)
+                let line = self.icache.insert_line(address, data);
+                line[((address >> 2) & 7) as usize]
             });
         }
 
