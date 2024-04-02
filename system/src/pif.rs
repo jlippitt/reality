@@ -1,5 +1,5 @@
 use super::memory::{Memory, Size};
-use tracing::trace;
+use tracing::{trace, warn};
 
 const PIF_DATA_SIZE: usize = 2048;
 
@@ -58,7 +58,7 @@ impl Pif {
         }
 
         if (cmd & 0x08) != 0 {
-            todo!("PIF Terminate Boot Process");
+            warn!("TODO: PIF Terminate Boot Process");
         }
 
         if (cmd & 0x10) != 0 {
