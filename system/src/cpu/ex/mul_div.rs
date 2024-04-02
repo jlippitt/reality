@@ -39,7 +39,7 @@ pub fn multu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     cpu.hi = (result as i64) >> 32;
     trace!("  HI: {:016X}", cpu.hi);
 
-    cpu.lo = (result as u32) as i64;
+    cpu.lo = (result as u32) as i32 as i64;
     trace!("  LO: {:016X}", cpu.lo);
 
     DcState::Nop
