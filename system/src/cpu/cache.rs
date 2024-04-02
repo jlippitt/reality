@@ -50,7 +50,7 @@ impl ICache {
 
         trace!("ICache Line {}: {:08X?}", index, line);
 
-        line.data[(address & 0x1f) as usize]
+        line.data[((address >> 2) & 7) as usize]
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool) {
