@@ -33,6 +33,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o25 => control::bne::<true>(cpu, pc, word),
         0o26 => control::blez::<true>(cpu, pc, word),
         0o27 => control::bgtz::<true>(cpu, pc, word),
+        0o30 => arithmetic::i_type_checked::<arithmetic::Dadd>(cpu, pc, word),
+        0o31 => arithmetic::i_type_unchecked::<arithmetic::Dadd>(cpu, pc, word),
         0o40 => load::load::<load::Lb>(cpu, pc, word),
         0o41 => load::load::<load::Lh>(cpu, pc, word),
         0o43 => load::load::<load::Lw>(cpu, pc, word),
@@ -73,6 +75,10 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o47 => bitwise::r_type::<bitwise::Nor>(cpu, pc, word),
         0o52 => compare::slt(cpu, pc, word),
         0o53 => compare::sltu(cpu, pc, word),
+        0o54 => arithmetic::r_type_checked::<arithmetic::Dadd>(cpu, pc, word),
+        0o55 => arithmetic::r_type_unchecked::<arithmetic::Dadd>(cpu, pc, word),
+        0o56 => arithmetic::r_type_checked::<arithmetic::Dsub>(cpu, pc, word),
+        0o57 => arithmetic::r_type_unchecked::<arithmetic::Dsub>(cpu, pc, word),
         opcode => todo!("CPU Special Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }

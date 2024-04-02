@@ -8,7 +8,9 @@ pub trait ArithmeticOperator {
 }
 
 pub struct Add;
+pub struct Dadd;
 pub struct Sub;
+pub struct Dsub;
 
 impl ArithmeticOperator for Add {
     const NAME: &'static str = "ADD";
@@ -24,6 +26,18 @@ impl ArithmeticOperator for Add {
     }
 }
 
+impl ArithmeticOperator for Dadd {
+    const NAME: &'static str = "DADD";
+
+    fn apply_checked(lhs: i64, rhs: i64) -> Option<i64> {
+        lhs.checked_add(rhs)
+    }
+
+    fn apply_unchecked(lhs: i64, rhs: i64) -> i64 {
+        lhs.wrapping_add(rhs)
+    }
+}
+
 impl ArithmeticOperator for Sub {
     const NAME: &'static str = "SUB";
 
@@ -35,6 +49,18 @@ impl ArithmeticOperator for Sub {
 
     fn apply_unchecked(lhs: i64, rhs: i64) -> i64 {
         (lhs as i32).wrapping_sub(rhs as i32) as i64
+    }
+}
+
+impl ArithmeticOperator for Dsub {
+    const NAME: &'static str = "DSUB";
+
+    fn apply_checked(lhs: i64, rhs: i64) -> Option<i64> {
+        lhs.checked_sub(rhs)
+    }
+
+    fn apply_unchecked(lhs: i64, rhs: i64) -> i64 {
+        lhs.wrapping_sub(rhs)
     }
 }
 
