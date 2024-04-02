@@ -4,7 +4,10 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use system::Device;
-use tracing::debug;
+use winit::dpi::Size;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::EventLoop;
+use winit::window::WindowBuilder;
 
 mod log;
 
@@ -38,11 +41,34 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let _guard = log::init()?;
 
+    let event_loop = EventLoop::new()?;
+
+    let window = WindowBuilder::new()
+        .with_title("Reality")
+        .with_min_inner_size(Size::Physical((640, 480).into()))
+        .build(&event_loop)?;
+
     let mut device = Device::new(pif_data, rom_data);
 
-    loop {
-        while !device.step() {}
+    event_loop.run(move |event, elwt| match event {
+        Event::WindowEvent {
+            event: window_event,
+            ..
+        } => match window_event {
+            WindowEvent::CloseRequested => {
+                elwt.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                // TODO
+            }
+            _ => (),
+        },
+        Event::AboutToWait => {
+            while !device.step() {}
+            window.request_redraw();
+        }
+        _ => (),
+    })?;
 
-        debug!("Frame complete");
-    }
+    Ok(())
 }

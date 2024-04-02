@@ -13,3 +13,4 @@ toml = "0.8.12"
 system = { path = "../system" }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = { version = "0.1.40", features = ["release_max_level_info"] }
+winit = "0.29.15"
