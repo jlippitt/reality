@@ -19,16 +19,18 @@ pub struct Regs {
     pub staged_data: u32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum AntiAliasMode {
+    #[default]
     FetchAlways = 0,
     FetchOnDemand,
     ResampleOnly,
     Off,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum DisplayMode {
+    #[default]
     Blank = 0,
     Reserved,
     Color16,
@@ -38,7 +40,7 @@ pub enum DisplayMode {
 #[bitfield(u32)]
 pub struct Ctrl {
     #[bits(2)]
-    pub mode: DisplayMode,
+    pub display_mode: DisplayMode,
     pub gamma_dither_enable: bool,
     pub gamma_enable: bool,
     pub divot_enable: bool,

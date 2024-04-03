@@ -96,7 +96,7 @@ impl Device {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.bus.vi.render()
+        self.bus.vi.render(&self.bus.rdram)
     }
 
     pub fn step(&mut self) -> bool {

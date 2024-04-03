@@ -1,9 +1,14 @@
 use super::memory::{Size, WriteMask};
+use crate::rdram::Rdram;
+use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
 use tracing::warn;
+use upscaler::Upscaler;
 
+mod framebuffer;
 mod regs;
+mod upscaler;
 
 pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
     pub window: T,
@@ -19,6 +24,8 @@ pub struct VideoInterface {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    upscaler: Upscaler,
+    frame_buffer: Framebuffer,
 }
 
 impl VideoInterface {
@@ -70,6 +77,10 @@ impl VideoInterface {
 
         surface.configure(&device, &config);
 
+        let upscaler = Upscaler::new(&device, output_format);
+
+        let frame_buffer = Framebuffer::new(&device, upscaler.texture_bind_group_layout());
+
         Ok(Self {
             regs: Regs::default(),
             v_counter: 0,
@@ -78,6 +89,8 @@ impl VideoInterface {
             device,
             queue,
             config,
+            upscaler,
+            frame_buffer,
         })
     }
 
@@ -91,7 +104,33 @@ impl VideoInterface {
         self.surface.configure(&self.device, &self.config);
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, rdram: &Rdram) -> Result<(), wgpu::SurfaceError> {
+        let video_width = (self.regs.h_video.end() - self.regs.h_video.start())
+            * self.regs.x_scale.scale()
+            / 1024;
+
+        let video_height = ((self.regs.v_video.end() - self.regs.v_video.start()) >> 1)
+            * self.regs.y_scale.scale()
+            / 1024;
+
+        self.frame_buffer.resize(
+            &self.device,
+            self.upscaler.texture_bind_group_layout(),
+            self.regs.ctrl.aa_mode(),
+            video_width,
+            video_height,
+        );
+
+        // TODO: We should technically upload each display pixel as it occurs
+        // rather than doing things all at once at the end of the frame.
+        self.frame_buffer.upload(
+            &self.queue,
+            rdram,
+            self.regs.ctrl.display_mode(),
+            self.regs.origin.origin(),
+            self.regs.width.width(),
+        );
+
         let output = self.surface.get_current_texture()?;
 
         let view = output
@@ -102,27 +141,8 @@ impl VideoInterface {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.8,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-        }
+        self.upscaler
+            .render(&mut encoder, &view, self.frame_buffer.bind_group());
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
