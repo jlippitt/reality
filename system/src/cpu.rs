@@ -343,10 +343,6 @@ impl Cpu {
             });
         }
 
-        // if address < 0xa4001000 {
-        //     println!("{:08X}", address);
-        // }
-
         bus.read_single(address & 0x1fff_ffff)
     }
 }
