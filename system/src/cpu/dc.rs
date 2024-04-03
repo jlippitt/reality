@@ -23,6 +23,8 @@ pub enum DcState {
     StoreWordLeft { value: u32, addr: u32 },
     StoreWordRight { value: u32, addr: u32 },
     StoreDoubleword { value: u64, addr: u32 },
+    StoreDoublewordLeft { value: u64, addr: u32 },
+    StoreDoublewordRight { value: u64, addr: u32 },
     Nop,
 }
 
@@ -199,6 +201,66 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} <= {:016X}]", addr, value);
             cpu.write_dword(bus, addr, value);
+        }
+        DcState::StoreDoublewordLeft { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:08X}]", addr, value);
+
+            match addr & 7 {
+                0 => cpu.write_dword(bus, addr & !7, value),
+                1 => {
+                    cpu.write(bus, addr & !7 | 1, (value >> 56) as u8);
+                    cpu.write(bus, addr & !7 | 2, (value >> 40) as u16);
+                    cpu.write(bus, addr & !7 | 4, (value >> 8) as u32);
+                }
+                2 => {
+                    cpu.write(bus, addr & !7 | 2, (value >> 48) as u16);
+                    cpu.write(bus, addr & !7 | 4, (value >> 16) as u32);
+                }
+                3 => {
+                    cpu.write(bus, addr & !7 | 3, (value >> 56) as u8);
+                    cpu.write(bus, addr & !7 | 4, (value >> 24) as u32);
+                }
+                4 => cpu.write(bus, addr & !7 | 4, (value >> 32) as u32),
+                5 => {
+                    cpu.write(bus, addr & !7 | 5, (value >> 56) as u8);
+                    cpu.write(bus, addr & !7 | 6, (value >> 40) as u16);
+                }
+                6 => cpu.write(bus, addr & !7 | 6, (value >> 48) as u16),
+                _ => cpu.write(bus, addr & !7 | 7, (value >> 56) as u8),
+            }
+        }
+        DcState::StoreDoublewordRight { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:08X}]", addr, value);
+
+            match addr & 7 {
+                0 => cpu.write(bus, addr & !7, value as u8),
+                1 => cpu.write(bus, addr & !7, value as u16),
+                2 => {
+                    cpu.write(bus, addr & !7, (value >> 8) as u16);
+                    cpu.write(bus, addr & !7 | 2, value as u8);
+                }
+                3 => cpu.write(bus, addr & !7, value as u32),
+                4 => {
+                    cpu.write(bus, addr & !7, (value >> 8) as u32);
+                    cpu.write(bus, addr & !7 | 4, value as u8);
+                }
+                5 => {
+                    cpu.write(bus, addr & !7, (value >> 16) as u32);
+                    cpu.write(bus, addr & !7 | 4, value as u16);
+                }
+                6 => {
+                    cpu.write(bus, addr & !7, (value >> 24) as u32);
+                    cpu.write(bus, addr & !7 | 4, (value >> 8) as u16);
+                    cpu.write(bus, addr & !7 | 6, value as u8);
+                }
+                _ => cpu.write_dword(bus, addr & !7, value),
+            }
         }
         DcState::Nop => {
             cpu.wb.reg = 0;

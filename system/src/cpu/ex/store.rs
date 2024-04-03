@@ -12,6 +12,8 @@ pub struct Sw;
 pub struct Swl;
 pub struct Swr;
 pub struct Sd;
+pub struct Sdl;
+pub struct Sdr;
 
 impl StoreOperator for Sb {
     const NAME: &'static str = "SB";
@@ -73,6 +75,28 @@ impl StoreOperator for Sd {
 
     fn apply(value: i64, addr: u32) -> DcState {
         DcState::StoreDoubleword {
+            value: value as u64,
+            addr,
+        }
+    }
+}
+
+impl StoreOperator for Sdl {
+    const NAME: &'static str = "SDL";
+
+    fn apply(value: i64, addr: u32) -> DcState {
+        DcState::StoreDoublewordLeft {
+            value: value as u64,
+            addr,
+        }
+    }
+}
+
+impl StoreOperator for Sdr {
+    const NAME: &'static str = "SDR";
+
+    fn apply(value: i64, addr: u32) -> DcState {
+        DcState::StoreDoublewordRight {
             value: value as u64,
             addr,
         }

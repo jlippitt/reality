@@ -49,6 +49,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o51 => store::store::<store::Sh>(cpu, pc, word),
         0o52 => store::store::<store::Swl>(cpu, pc, word),
         0o53 => store::store::<store::Sw>(cpu, pc, word),
+        0o54 => store::store::<store::Sdl>(cpu, pc, word),
+        0o55 => store::store::<store::Sdr>(cpu, pc, word),
         0o56 => store::store::<store::Swr>(cpu, pc, word),
         0o57 => Cp0::cache(cpu, pc, word),
         0o67 => load::load::<load::Ld>(cpu, pc, word),
