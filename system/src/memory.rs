@@ -62,6 +62,14 @@ pub struct Memory<T: AsRef<[u32]> + AsMut<[u32]> = Vec<u32>> {
 }
 
 impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
+    pub fn as_slice(&self) -> &[u32] {
+        self.data.as_ref()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [u32] {
+        self.data.as_mut()
+    }
+
     pub fn read<U: Size>(&self, address: u32) -> U {
         let mem_size = mem::size_of::<u32>();
         let data_size = mem::size_of::<U>();

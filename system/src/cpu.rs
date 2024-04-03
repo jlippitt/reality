@@ -1,7 +1,7 @@
 use crate::memory::Size;
-use cache::{DCache, ICache};
+use cache::{DCache, DCacheLine, ICache};
 use cp0::{Cp0, Cp0Register};
-use tracing::{trace, warn};
+use tracing::trace;
 
 mod cache;
 mod cp0;
@@ -259,13 +259,9 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self.dcache.read(address).unwrap_or_else(|| {
-                // TODO: Timing
-                let mut data = [0u32; 4];
-                bus.read_block(address & 0x1fff_fff0, &mut data);
-                let line = self.dcache.insert_line(address, data);
-                line.read(address & 0x0f)
-            });
+            return self
+                .dcache
+                .read(address, |line| Self::dcache_reload(bus, line, address));
         }
 
         bus.read_single(address & 0x1fff_ffff)
@@ -279,8 +275,9 @@ impl Cpu {
         }
 
         if segment == 4 {
-            warn!("TODO: Cached writes");
-            //todo!("Cached writes");
+            return self.dcache.write(address, value, |line| {
+                Self::dcache_reload(bus, line, address)
+            });
         }
 
         bus.write_single(address & 0x1fff_ffff, value);
@@ -296,13 +293,9 @@ impl Cpu {
         let mut dword = [0u32; 2];
 
         if segment == 4 {
-            if !self.dcache.read_block(address, &mut dword) {
-                // TODO: Timing
-                let mut data = [0u32; 4];
-                bus.read_block(address & 0x1fff_fff0, &mut data);
-                let line = self.dcache.insert_line(address, data);
-                line.read_block(address & 0x0f, &mut dword);
-            }
+            self.dcache.read_block(address, &mut dword, |line| {
+                Self::dcache_reload(bus, line, address)
+            });
         } else {
             bus.read_block(address & 0x1fff_ffff, &mut dword);
         }
@@ -317,12 +310,14 @@ impl Cpu {
             todo!("TLB lookups");
         }
 
+        let dword = [(value >> 32) as u32, value as u32];
+
         if segment == 4 {
-            warn!("TODO: Cached writes");
-            //todo!("Cached writes");
+            return self.dcache.write_block(address, &dword, |line| {
+                Self::dcache_reload(bus, line, address)
+            });
         }
 
-        let dword = [(value >> 32) as u32, value as u32];
         bus.write_block(address & 0x1fff_ffff, &dword);
     }
 
@@ -334,15 +329,20 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self.icache.read(address).unwrap_or_else(|| {
-                // TODO: Timing
-                let mut data = [0u32; 8];
-                bus.read_block(address & 0x1fff_ffe0, &mut data);
-                let line = self.icache.insert_line(address, data);
-                line[((address >> 2) & 7) as usize]
+            return self.icache.read(address, |line| {
+                bus.read_block(address & 0x1fff_ffe0, line.data_mut());
             });
         }
 
         bus.read_single(address & 0x1fff_ffff)
+    }
+
+    fn dcache_reload(bus: &mut impl Bus, line: &mut DCacheLine, address: u32) {
+        // TODO: Timing
+        if line.is_dirty() {
+            bus.write_block(address & 0x1fff_fff0, line.data());
+        }
+
+        bus.read_block(address & 0x1fff_fff0, line.data_mut());
     }
 }
