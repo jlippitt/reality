@@ -105,13 +105,9 @@ impl VideoInterface {
     }
 
     pub fn render(&mut self, rdram: &Rdram) -> Result<(), wgpu::SurfaceError> {
-        let video_width = (self.regs.h_video.end() - self.regs.h_video.start())
-            * self.regs.x_scale.scale()
-            / 1024;
+        let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
 
-        let video_height = ((self.regs.v_video.end() - self.regs.v_video.start()) >> 1)
-            * self.regs.y_scale.scale()
-            / 1024;
+        let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;
 
         self.frame_buffer.resize(
             &self.device,

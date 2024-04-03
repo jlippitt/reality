@@ -191,3 +191,9 @@ impl DisplayMode {
         }
     }
 }
+
+impl Range {
+    pub fn width(&self) -> u32 {
+        self.end() - self.start()
+    }
+}
