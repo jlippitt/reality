@@ -257,32 +257,33 @@ impl Rdram {
         }
     }
 
-    fn remap(&mut self, memory_map: &mut [Mapping]) {
-        let mut bank_active = [false; 8];
+    fn remap(&mut self, _memory_map: &mut [Mapping]) {
+        // TODO: Re-enable
+        // let mut bank_active = [false; 8];
 
-        // Assume 2MiB modules
-        for module in self.modules.iter().rev() {
-            let device_id = (module.device_id & !1) as usize;
+        // // Assume 2MiB modules
+        // for module in self.modules.iter().rev() {
+        //     let device_id = (module.device_id & !1) as usize;
 
-            if device_id >= 8 {
-                continue;
-            }
+        //     if device_id >= 8 {
+        //         continue;
+        //     }
 
-            let memory_start = device_id * BANK_SIZE;
-            self.banks[device_id].offset = memory_start as u32;
-            self.banks[device_id | 1].offset = (memory_start + BANK_SIZE) as u32;
-            bank_active[device_id] = true;
-            bank_active[device_id | 1] = true;
-        }
+        //     let memory_start = device_id * BANK_SIZE;
+        //     self.banks[device_id].offset = memory_start as u32;
+        //     self.banks[device_id | 1].offset = (memory_start + BANK_SIZE) as u32;
+        //     bank_active[device_id] = true;
+        //     bank_active[device_id | 1] = true;
+        // }
 
-        for (index, &active) in bank_active.iter().enumerate() {
-            memory_map[index] = if active {
-                trace!("Bank {}: {}", index, self.banks[index].offset);
-                Mapping::RdramData
-            } else {
-                trace!("Bank {}: Unmapped", index);
-                Mapping::None
-            }
-        }
+        // for (index, &active) in bank_active.iter().enumerate() {
+        //     memory_map[index] = if active {
+        //         trace!("Bank {}: {}", index, self.banks[index].offset);
+        //         Mapping::RdramData
+        //     } else {
+        //         trace!("Bank {}: Unmapped", index);
+        //         Mapping::None
+        //     }
+        // }
     }
 }
