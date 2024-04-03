@@ -93,10 +93,14 @@ impl Framebuffer {
                 let mut dst = 0;
 
                 for _ in 0..video_height {
-                    rdram.read_block(
-                        src,
-                        bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]),
-                    );
+                    let draw_area: &mut [u32] =
+                        bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
+
+                    rdram.read_block(src, draw_area);
+
+                    for pixel in draw_area {
+                        *pixel = pixel.swap_bytes();
+                    }
 
                     self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
 
