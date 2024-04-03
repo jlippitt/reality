@@ -19,10 +19,26 @@ pub struct Regs {
     pub staged_data: u32,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum AntiAliasMode {
+    FetchAlways = 0,
+    FetchOnDemand,
+    ResampleOnly,
+    Off,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DisplayMode {
+    Blank = 0,
+    Reserved,
+    Color16,
+    Color32,
+}
+
 #[bitfield(u32)]
 pub struct Ctrl {
     #[bits(2)]
-    pub color_mode: u32,
+    pub mode: DisplayMode,
     pub gamma_dither_enable: bool,
     pub gamma_enable: bool,
     pub divot_enable: bool,
@@ -30,7 +46,7 @@ pub struct Ctrl {
     pub serrate: bool,
     pub test_mode: bool,
     #[bits(2)]
-    pub aa_mode: u32,
+    pub aa_mode: AntiAliasMode,
     __: bool,
     pub kill_we: bool,
     #[bits(4)]
@@ -140,4 +156,36 @@ pub struct TestAddr {
     pub test_addr: u32,
     #[bits(25)]
     __: u32,
+}
+
+impl AntiAliasMode {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value {
+            0 => Self::FetchAlways,
+            1 => Self::FetchOnDemand,
+            2 => Self::ResampleOnly,
+            3 => Self::Off,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl DisplayMode {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value {
+            0 => Self::Blank,
+            1 => Self::Reserved,
+            2 => Self::Color16,
+            3 => Self::Color32,
+            _ => unreachable!(),
+        }
+    }
 }
