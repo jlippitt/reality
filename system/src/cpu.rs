@@ -1,7 +1,7 @@
 use crate::memory::Size;
 use cache::{DCache, ICache};
 use cp0::{Cp0, Cp0Register};
-use tracing::trace;
+use tracing::{trace, warn};
 
 mod cache;
 mod cp0;
@@ -317,7 +317,8 @@ impl Cpu {
         }
 
         if segment == 4 {
-            todo!("Cached writes");
+            warn!("TODO: Cached writes");
+            //todo!("Cached writes");
         }
 
         let dword = [(value >> 32) as u32, value as u32];
@@ -340,6 +341,10 @@ impl Cpu {
                 line[((address >> 2) & 7) as usize]
             });
         }
+
+        // if address < 0xa4001000 {
+        //     println!("{:08X}", address);
+        // }
 
         bus.read_single(address & 0x1fff_ffff)
     }
