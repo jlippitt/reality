@@ -258,16 +258,15 @@ impl Cpu {
             todo!("TLB lookups");
         }
 
-        // TODO: Re-enable
-        // if segment == 4 {
-        //     return self.dcache.read(address).unwrap_or_else(|| {
-        //         // TODO: Timing
-        //         let mut data = [0u32; 4];
-        //         bus.read_block(address & 0x1fff_ffe0, &mut data);
-        //         let line = self.dcache.insert_line(address, data);
-        //         line.read(address & 0x0f)
-        //     });
-        // }
+        if segment == 4 {
+            return self.dcache.read(address).unwrap_or_else(|| {
+                // TODO: Timing
+                let mut data = [0u32; 4];
+                bus.read_block(address & 0x1fff_fff0, &mut data);
+                let line = self.dcache.insert_line(address, data);
+                line.read(address & 0x0f)
+            });
+        }
 
         bus.read_single(address & 0x1fff_ffff)
     }
@@ -280,7 +279,8 @@ impl Cpu {
         }
 
         if segment == 4 {
-            todo!("Cached writes");
+            warn!("TODO: Cached writes");
+            //todo!("Cached writes");
         }
 
         bus.write_single(address & 0x1fff_ffff, value);
@@ -295,18 +295,17 @@ impl Cpu {
 
         let mut dword = [0u32; 2];
 
-        // TODO: Re-enable
-        // if segment == 4 {
-        //     if !self.dcache.read_block(address, &mut dword) {
-        //         // TODO: Timing
-        //         let mut data = [0u32; 4];
-        //         bus.read_block(address & 0x1fff_ffe0, &mut data);
-        //         let line = self.dcache.insert_line(address, data);
-        //         line.read_block(address & 0x0f, &mut dword);
-        //     }
-        // } else {
-        bus.read_block(address & 0x1fff_ffff, &mut dword);
-        //}
+        if segment == 4 {
+            if !self.dcache.read_block(address, &mut dword) {
+                // TODO: Timing
+                let mut data = [0u32; 4];
+                bus.read_block(address & 0x1fff_fff0, &mut data);
+                let line = self.dcache.insert_line(address, data);
+                line.read_block(address & 0x0f, &mut dword);
+            }
+        } else {
+            bus.read_block(address & 0x1fff_ffff, &mut dword);
+        }
 
         ((dword[0] as u64) << 32) | (dword[1] as u64)
     }
