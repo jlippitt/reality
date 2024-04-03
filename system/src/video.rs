@@ -20,6 +20,7 @@ pub struct VideoInterface {
     regs: Regs,
     h_counter: u32,
     v_counter: u32,
+    field: bool,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -85,6 +86,7 @@ impl VideoInterface {
             regs: Regs::default(),
             v_counter: 0,
             h_counter: 0,
+            field: false,
             surface,
             device,
             queue,
@@ -158,10 +160,16 @@ impl VideoInterface {
 
             if self.v_counter >= self.regs.v_sync.v_sync() {
                 self.v_counter = 0;
+                self.field ^= self.regs.ctrl.serrate();
                 frame_done = true;
             }
 
-            // TODO: Set V_CURRENT
+            // VCurrent & VSync are given in half lines, with the low bit
+            // representing the field in interlace mode
+            self.regs
+                .v_current
+                .set_half_line((self.v_counter & !1) | self.field as u32);
+
             // TODO: VI interrupt
         }
 
@@ -169,7 +177,25 @@ impl VideoInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        todo!("VI Register Read: {:08X}", address);
+        T::from_u32(match address >> 2 {
+            0 => self.regs.ctrl.into(),
+            1 => self.regs.origin.into(),
+            2 => self.regs.width.into(),
+            3 => self.regs.v_intr.into(),
+            4 => self.regs.v_current.into(),
+            5 => self.regs.burst.into(),
+            6 => self.regs.v_sync.into(),
+            7 => self.regs.h_sync.into(),
+            8 => self.regs.h_sync_leap.into(),
+            9 => self.regs.h_video.into(),
+            10 => self.regs.v_video.into(),
+            11 => self.regs.v_burst.into(),
+            12 => self.regs.x_scale.into(),
+            13 => self.regs.y_scale.into(),
+            14 => self.regs.test_addr.into(),
+            15 => todo!("VI_STAGED_DATA read"),
+            _ => unimplemented!("VI Register Read: {:08X}", address),
+        })
     }
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
@@ -192,7 +218,7 @@ impl VideoInterface {
             13 => mask.write_reg("VI_Y_SCALE", &mut self.regs.y_scale),
             14 => mask.write_reg("VI_TEST_ADDR", &mut self.regs.test_addr),
             15 => mask.write_reg("VI_STAGED_DATA", &mut self.regs.staged_data),
-            _ => todo!("VI Register Write: {:08X} <= {:08X}", address, mask.raw()),
+            _ => unimplemented!("VI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
 }

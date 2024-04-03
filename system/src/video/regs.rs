@@ -5,7 +5,8 @@ pub struct Regs {
     pub ctrl: Ctrl,
     pub origin: Origin,
     pub width: Width,
-    pub v_intr: VIntr,
+    pub v_intr: LineCounter,
+    pub v_current: LineCounter,
     pub burst: Burst,
     pub v_sync: VSync,
     pub h_sync: HSync,
@@ -75,9 +76,9 @@ pub struct Width {
 }
 
 #[bitfield(u32)]
-pub struct VIntr {
+pub struct LineCounter {
     #[bits(10)]
-    pub v_intr: u32,
+    pub half_line: u32,
     #[bits(22)]
     __: u32,
 }
