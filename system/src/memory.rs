@@ -206,6 +206,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn memory_read() {
+        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        assert_eq!(0x00112233, memory.read::<u32>(0));
+        assert_eq!(0x44556677, memory.read::<u32>(4));
+        assert_eq!(0x0011, memory.read::<u16>(0));
+        assert_eq!(0x2233, memory.read::<u16>(2));
+        assert_eq!(0x4455, memory.read::<u16>(4));
+        assert_eq!(0x6677, memory.read::<u16>(6));
+        assert_eq!(0x00, memory.read::<u8>(0));
+        assert_eq!(0x11, memory.read::<u8>(1));
+        assert_eq!(0x22, memory.read::<u8>(2));
+        assert_eq!(0x33, memory.read::<u8>(3));
+        assert_eq!(0x44, memory.read::<u8>(4));
+        assert_eq!(0x55, memory.read::<u8>(5));
+        assert_eq!(0x66, memory.read::<u8>(6));
+        assert_eq!(0x77, memory.read::<u8>(7));
+    }
+
+    #[test]
+    fn memory_read_block() {
+        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let mut block = [0u32; 2];
+        memory.read_block(0, &mut block);
+        assert_eq!([0x00112233, 0x44556677], block);
+    }
+
+    #[test]
     fn write_mask_u8() {
         let mut dst = 0x00112233u32;
         let mask = WriteMask::new(0, 0x44u8);
