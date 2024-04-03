@@ -20,6 +20,8 @@ pub enum DcState {
     StoreByte { value: u8, addr: u32 },
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
+    StoreWordLeft { value: u32, addr: u32 },
+    StoreWordRight { value: u32, addr: u32 },
     StoreDoubleword { value: u64, addr: u32 },
     Nop,
 }
@@ -157,6 +159,38 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             cpu.write(bus, addr, value);
+        }
+        DcState::StoreWordLeft { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:08X}]", addr, value);
+
+            match addr & 3 {
+                0 => cpu.write(bus, addr & !3, value),
+                1 => {
+                    cpu.write(bus, addr & !3 | 1, (value >> 24) as u8);
+                    cpu.write(bus, addr & !3 | 2, (value >> 8) as u16);
+                }
+                2 => cpu.write(bus, addr & !3 | 2, (value >> 16) as u16),
+                _ => cpu.write(bus, addr & !3 | 3, (value >> 24) as u8),
+            }
+        }
+        DcState::StoreWordRight { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:08X}]", addr, value);
+
+            match addr & 3 {
+                0 => cpu.write(bus, addr & !3, value as u8),
+                1 => cpu.write(bus, addr & !3, value as u16),
+                2 => {
+                    cpu.write(bus, addr & !3, (value >> 8) as u16);
+                    cpu.write(bus, addr & !3 | 2, value as u8);
+                }
+                _ => cpu.write(bus, addr & !3, value),
+            }
         }
         DcState::StoreDoubleword { value, addr } => {
             // TODO: Stall cycles

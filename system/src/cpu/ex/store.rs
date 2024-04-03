@@ -9,6 +9,8 @@ pub trait StoreOperator {
 pub struct Sb;
 pub struct Sh;
 pub struct Sw;
+pub struct Swl;
+pub struct Swr;
 pub struct Sd;
 
 impl StoreOperator for Sb {
@@ -38,6 +40,28 @@ impl StoreOperator for Sw {
 
     fn apply(value: i64, addr: u32) -> DcState {
         DcState::StoreWord {
+            value: value as u32,
+            addr,
+        }
+    }
+}
+
+impl StoreOperator for Swl {
+    const NAME: &'static str = "SWL";
+
+    fn apply(value: i64, addr: u32) -> DcState {
+        DcState::StoreWordLeft {
+            value: value as u32,
+            addr,
+        }
+    }
+}
+
+impl StoreOperator for Swr {
+    const NAME: &'static str = "SWR";
+
+    fn apply(value: i64, addr: u32) -> DcState {
+        DcState::StoreWordRight {
             value: value as u32,
             addr,
         }
