@@ -25,7 +25,7 @@ impl ShiftOperator for Dsll {
     const NAME: &'static str = "DSLL";
 
     fn apply(lhs: i64, amount: u32) -> i64 {
-        lhs.wrapping_shl(amount)
+        (lhs as u64).wrapping_shl(amount) as i64
     }
 }
 
@@ -41,7 +41,7 @@ impl ShiftOperator for Dsrl {
     const NAME: &'static str = "DSRL";
 
     fn apply(lhs: i64, amount: u32) -> i64 {
-        lhs.wrapping_shr(amount)
+        (lhs as u64).wrapping_shr(amount) as i64
     }
 }
 
