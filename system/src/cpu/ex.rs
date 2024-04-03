@@ -35,6 +35,8 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o27 => control::bgtz::<true>(cpu, pc, word),
         0o30 => arithmetic::i_type_checked::<arithmetic::Dadd>(cpu, pc, word),
         0o31 => arithmetic::i_type_unchecked::<arithmetic::Dadd>(cpu, pc, word),
+        0o32 => load::load::<load::Ldl>(cpu, pc, word),
+        0o33 => load::load::<load::Ldr>(cpu, pc, word),
         0o40 => load::load::<load::Lb>(cpu, pc, word),
         0o41 => load::load::<load::Lh>(cpu, pc, word),
         0o42 => load::load::<load::Lwl>(cpu, pc, word),

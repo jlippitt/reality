@@ -15,6 +15,8 @@ pub enum DcState {
     LoadWordLeft { reg: usize, addr: u32 },
     LoadWordRight { reg: usize, addr: u32 },
     LoadDoubleword { reg: usize, addr: u32 },
+    LoadDoublewordLeft { reg: usize, addr: u32 },
+    LoadDoublewordRight { reg: usize, addr: u32 },
     StoreByte { value: u8, addr: u32 },
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
@@ -80,22 +82,20 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         DcState::LoadWordLeft { reg, addr } => {
             // TODO: Stall cycles
             let value = cpu.read::<u32>(bus, addr & !3);
-            let mask = u32::MAX;
             let shift = (addr & 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
-                (cpu.regs[reg] as u32 & !(mask << shift) | (value << shift)) as i32 as i64;
+                (cpu.regs[reg] as u32 & !(u32::MAX << shift) | (value << shift)) as i32 as i64;
             cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcState::LoadWordRight { reg, addr } => {
             // TODO: Stall cycles
             let value = cpu.read::<u32>(bus, addr & !3);
-            let mask = u32::MAX;
             let shift = (addr & 3 ^ 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
-                (cpu.regs[reg] as u32 & !(mask >> shift) | (value >> shift)) as i32 as i64;
+                (cpu.regs[reg] as u32 & !(u32::MAX >> shift) | (value >> shift)) as i32 as i64;
             cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
@@ -114,6 +114,24 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             let value = cpu.read_dword(bus, addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:016X}]", addr, value);
+        }
+        DcState::LoadDoublewordLeft { reg, addr } => {
+            // TODO: Stall cycles
+            let value = cpu.read_dword(bus, addr & !7);
+            let shift = (addr & 7) << 3;
+            cpu.wb.reg = reg;
+            cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX << shift) | (value << shift)) as i64;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:016X}]", addr, value);
+        }
+        DcState::LoadDoublewordRight { reg, addr } => {
+            // TODO: Stall cycles
+            let value = cpu.read_dword(bus, addr & !7);
+            let shift = (addr & 7 ^ 7) << 3;
+            cpu.wb.reg = reg;
+            cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX >> shift) | (value >> shift)) as i64;
             cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }

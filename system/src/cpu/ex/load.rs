@@ -15,6 +15,8 @@ pub struct Lwu;
 pub struct Lwl;
 pub struct Lwr;
 pub struct Ld;
+pub struct Ldl;
+pub struct Ldr;
 
 impl LoadOperator for Lb {
     const NAME: &'static str = "LB";
@@ -85,6 +87,22 @@ impl LoadOperator for Ld {
 
     fn apply(reg: usize, addr: u32) -> DcState {
         DcState::LoadDoubleword { reg, addr }
+    }
+}
+
+impl LoadOperator for Ldl {
+    const NAME: &'static str = "LDL";
+
+    fn apply(reg: usize, addr: u32) -> DcState {
+        DcState::LoadDoublewordLeft { reg, addr }
+    }
+}
+
+impl LoadOperator for Ldr {
+    const NAME: &'static str = "LDR";
+
+    fn apply(reg: usize, addr: u32) -> DcState {
+        DcState::LoadDoublewordRight { reg, addr }
     }
 }
 
