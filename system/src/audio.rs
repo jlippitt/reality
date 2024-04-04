@@ -1,6 +1,6 @@
 use crate::memory::{Size, WriteMask};
 use regs::{DramAddr, Length};
-use tracing::trace;
+use tracing::debug;
 
 mod regs;
 
@@ -27,11 +27,11 @@ impl AudioInterface {
         match address >> 2 {
             0 => {
                 mask.write(&mut self.dram_addr);
-                trace!("AI_DRAM_ADDR: {:?}", self.dram_addr);
+                debug!("AI_DRAM_ADDR: {:?}", self.dram_addr);
             }
             1 => {
                 mask.write(&mut self.length);
-                trace!("AI_LENGTH: {:?}", self.length);
+                debug!("AI_LENGTH: {:?}", self.length);
 
                 if self.length.length() > 0 {
                     todo!("AI DMA Transfers");

@@ -1,6 +1,6 @@
 use super::memory::{Memory, Size, WriteMask};
 use regs::Status;
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 mod regs;
 
@@ -46,7 +46,7 @@ impl Rsp {
             self.write_register(address, mask);
         } else if address == 0x0008_0000 {
             mask.write_partial(&mut self.pc, 0x0000_0ffc);
-            trace!("RSP PC: {:08X}", self.pc);
+            debug!("RSP PC: {:08X}", self.pc);
         } else {
             panic!("Write to unmapped RSP address: {:08X}", address);
         }
@@ -89,7 +89,7 @@ impl Rsp {
                 mask.set_or_clear(&mut self.status, Status::set_sig6, 22, 21);
                 mask.set_or_clear(&mut self.status, Status::set_sig7, 24, 23);
 
-                trace!("SP_STATUS: {:?}", self.status);
+                debug!("SP_STATUS: {:?}", self.status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

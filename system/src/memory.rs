@@ -1,7 +1,7 @@
 use bytemuck::Pod;
 use std::fmt::Debug;
 use std::mem;
-use tracing::trace;
+use tracing::debug;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Mapping {
@@ -177,7 +177,7 @@ impl WriteMask {
         dst: &mut T,
     ) {
         self.write(dst);
-        trace!("{}: {:?}", name, *dst);
+        debug!("{}: {:?}", name, *dst);
     }
 
     // Convenience method for outputting debug information
@@ -187,7 +187,7 @@ impl WriteMask {
         dst: &mut T,
     ) {
         self.write(dst);
-        trace!("{}: {:08X?}", name, *dst);
+        debug!("{}: {:08X?}", name, *dst);
     }
 
     pub fn set_or_clear<T, F>(&self, dst: &mut T, setter: F, set_bit: u32, clr_bit: u32)

@@ -1,6 +1,6 @@
 use crate::memory::{Size, WriteMask};
 use regs::{Mask, Mode};
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 mod regs;
 
@@ -45,7 +45,7 @@ impl MipsInterface {
                 mask.set_or_clear(&mut self.mode, Mode::set_repeat, 8, 7);
                 mask.set_or_clear(&mut self.mode, Mode::set_ebus, 10, 9);
                 mask.set_or_clear(&mut self.mode, Mode::set_upper, 13, 12);
-                trace!("MI_MODE: {:?}", self.mode);
+                debug!("MI_MODE: {:?}", self.mode);
 
                 assert!(
                     !self.mode.repeat() || self.mode.repeat_count() == 15,
@@ -65,7 +65,7 @@ impl MipsInterface {
                 mask.set_or_clear(&mut self.mask, Mask::set_vi, 7, 6);
                 mask.set_or_clear(&mut self.mask, Mask::set_pi, 9, 8);
                 mask.set_or_clear(&mut self.mask, Mask::set_dp, 11, 10);
-                trace!("MI_MASK: {:?}", self.mask);
+                debug!("MI_MASK: {:?}", self.mask);
             }
             _ => todo!("MI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

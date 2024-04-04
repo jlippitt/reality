@@ -1,6 +1,6 @@
 use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 struct Dma {
     len: u32,
@@ -37,21 +37,17 @@ impl PeripheralInterface {
                 rom.read_block(self.cart_addr & 0x00ff_ffff, data);
                 rdram.write_block(self.dram_addr & 0x00ff_ffff, data);
 
-                trace!(
+                debug!(
                     "PI DMA: {} bytes written from {:08X} to {:08X}",
-                    block_len,
-                    self.cart_addr,
-                    self.dram_addr,
+                    block_len, self.cart_addr, self.dram_addr,
                 );
             } else {
                 rdram.read_block(self.dram_addr, data);
                 rom.write_block(self.cart_addr, data);
 
-                trace!(
+                debug!(
                     "PI DMA: {} bytes read from {:08X} to {:08X}",
-                    block_len,
-                    self.cart_addr,
-                    self.dram_addr,
+                    block_len, self.cart_addr, self.dram_addr,
                 );
             }
 
@@ -88,11 +84,11 @@ impl PeripheralInterface {
         match address >> 2 {
             0 => {
                 mask.write(&mut self.dram_addr);
-                trace!("PI_DRAM_ADDR: {:08X}", self.dram_addr);
+                debug!("PI_DRAM_ADDR: {:08X}", self.dram_addr);
             }
             1 => {
                 mask.write(&mut self.cart_addr);
-                trace!("PI_CART_ADDR: {:08X}", self.cart_addr);
+                debug!("PI_CART_ADDR: {:08X}", self.cart_addr);
             }
             2 => {
                 self.dma = Some(Dma {

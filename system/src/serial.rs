@@ -1,6 +1,6 @@
 use crate::memory::{Size, WriteMask};
 use regs::{DramAddr, Status};
-use tracing::trace;
+use tracing::debug;
 
 mod regs;
 
@@ -30,7 +30,7 @@ impl SerialInterface {
         match address >> 2 {
             0 => {
                 mask.write(&mut self.dram_addr);
-                trace!("SI_DRAM_ADDR: {:?}", self.dram_addr);
+                debug!("SI_DRAM_ADDR: {:?}", self.dram_addr);
             }
             6 => {
                 // TODO: Acknowledge SI interrupt

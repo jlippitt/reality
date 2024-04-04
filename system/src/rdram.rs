@@ -2,7 +2,7 @@ use crate::memory::{Mapping, Memory, Size, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
 use std::array;
-use tracing::{trace, warn};
+use tracing::{debug, warn};
 
 mod regs;
 
@@ -150,25 +150,25 @@ impl Rdram {
         match address >> 2 {
             0 => {
                 mask.write(&mut self.ri.mode);
-                trace!("RI_MODE: {:?}", self.ri.mode);
+                debug!("RI_MODE: {:?}", self.ri.mode);
             }
             1 => {
                 mask.write(&mut self.ri.config);
-                trace!("RI_CONFIG: {:?}", self.ri.config);
+                debug!("RI_CONFIG: {:?}", self.ri.config);
             }
             2 => {
                 // This is a NOP as it's not real hardware...
-                trace!("RI_CURRENT_LOAD complete");
+                debug!("RI_CURRENT_LOAD complete");
             }
             3 => {
                 mask.write(&mut self.ri.select);
-                trace!("RI_SELECT: {:?}", self.ri.select);
+                debug!("RI_SELECT: {:?}", self.ri.select);
                 assert_eq!(0b0100, self.ri.select.rsel());
                 assert_eq!(0b0001, self.ri.select.tsel());
             }
             4 => {
                 mask.write(&mut self.ri.refresh);
-                trace!("RI_REFRESH: {:?}", self.ri.refresh);
+                debug!("RI_REFRESH: {:?}", self.ri.refresh);
             }
             _ => todo!("RI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
@@ -224,13 +224,13 @@ impl Rdram {
                     | ((device_id & 0xff00) >> 1)
                     | ((device_id & 0x0080) >> 8);
 
-                trace!("RDRAM{} Device ID: {:04X}", index, module.device_id);
+                debug!("RDRAM{} Device ID: {:04X}", index, module.device_id);
 
                 self.remap(memory_map);
             }
             2 => {
                 mask.write(&mut module.delay);
-                trace!("RDRAM{} Delay: {:?}", index, module.delay);
+                debug!("RDRAM{} Delay: {:?}", index, module.delay);
                 assert_eq!(1, module.delay.write_delay());
                 assert_eq!(3, module.delay.ack_delay());
                 assert_eq!(7, module.delay.read_delay());
@@ -238,15 +238,15 @@ impl Rdram {
             }
             3 => {
                 mask.write(&mut module.mode);
-                trace!("RDRAM{} Mode: {:?}", index, module.mode);
+                debug!("RDRAM{} Mode: {:?}", index, module.mode);
             }
             5 => {
                 mask.write(&mut module.ref_row);
-                trace!("RDRAM{} RefRow: {:?}", index, module.ref_row);
+                debug!("RDRAM{} RefRow: {:?}", index, module.ref_row);
             }
             6 => {
                 mask.write(&mut module.ras_interval);
-                trace!("RDRAM{} RasInterval: {:?}", index, module.ras_interval);
+                debug!("RDRAM{} RasInterval: {:?}", index, module.ras_interval);
             }
             _ => todo!(
                 "RDRAM{} Register Write: {:08X} <= {:08x}",
