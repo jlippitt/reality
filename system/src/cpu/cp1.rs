@@ -21,6 +21,7 @@ pub trait Format: Pod {
 }
 
 pub trait Float: Format + num_traits::Float {
+    fn round_ties_even(self) -> Self;
     fn to_i32(self) -> i32;
     fn to_i64(self) -> i64;
 }
@@ -148,6 +149,10 @@ impl Format for f32 {
 }
 
 impl Float for f32 {
+    fn round_ties_even(self) -> Self {
+        self.round_ties_even()
+    }
+
     fn to_i32(self) -> i32 {
         self as _
     }
@@ -193,6 +198,10 @@ impl Format for f64 {
 }
 
 impl Float for f64 {
+    fn round_ties_even(self) -> Self {
+        self.round_ties_even()
+    }
+
     fn to_i32(self) -> i32 {
         self as _
     }

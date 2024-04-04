@@ -21,6 +21,14 @@ pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 pub fn float<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word & 63 {
+        0o10 => convert::round_l::<F>(cpu, pc, word),
+        0o11 => convert::trunc_l::<F>(cpu, pc, word),
+        0o12 => convert::ceil_l::<F>(cpu, pc, word),
+        0o13 => convert::floor_l::<F>(cpu, pc, word),
+        0o14 => convert::round_w::<F>(cpu, pc, word),
+        0o15 => convert::trunc_w::<F>(cpu, pc, word),
+        0o16 => convert::ceil_w::<F>(cpu, pc, word),
+        0o17 => convert::floor_w::<F>(cpu, pc, word),
         0o40 => convert::cvt_s::<F>(cpu, pc, word),
         0o41 => convert::cvt_d::<F>(cpu, pc, word),
         0o44 => convert::cvt_w::<F>(cpu, pc, word),
