@@ -352,11 +352,11 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcState::DCacheWriteBack { addr } => {
-            let line = cpu.dcache.line_mut(addr);
-
-            if line.is_dirty() {
-                bus.write_block(addr & 0x1fff_fff0, line.data());
-                line.clear_dirty_flag();
+            if let Some(line) = cpu.dcache.find_mut(addr) {
+                if line.is_dirty() {
+                    bus.write_block(addr & 0x1fff_fff0, line.data());
+                    line.clear_dirty_flag();
+                }
             }
         }
         DcState::Nop => {

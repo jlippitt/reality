@@ -69,9 +69,10 @@ impl DCache {
         }
     }
 
-    pub fn line_mut(&mut self, address: u32) -> &mut DCacheLine {
+    pub fn find_mut(&mut self, address: u32) -> Option<&mut DCacheLine> {
         let index = ((address >> 4) & 0x01ff) as usize;
-        &mut self.lines[index]
+        let line = &mut self.lines[index];
+        (line.valid && line.ptag == (address >> 12)).then_some(line)
     }
 
     pub fn read<T: Size>(&mut self, address: u32, reload: impl FnMut(&mut DCacheLine)) -> T {
