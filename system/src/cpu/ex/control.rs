@@ -1,6 +1,12 @@
 use super::{Cpu, DcState};
 use tracing::trace;
 
+pub fn sync(_cpu: &mut Cpu, pc: u32) -> DcState {
+    trace!("{:08X}: SYNC", pc);
+    // This is a NOP on the VR4300
+    DcState::Nop
+}
+
 pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let offset = (word & 0x03ff_ffff) << 2;
     let target = (cpu.rf.pc & 0xf000_0000) | offset;

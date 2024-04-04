@@ -73,6 +73,7 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
         0o10 => control::jr::<false>(cpu, pc, word),
         0o11 => control::jr::<true>(cpu, pc, word),
+        0o17 => control::sync(cpu, pc),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o22 => mul_div::mflo(cpu, pc, word),
         0o24 => shift::variable::<shift::Dsll>(cpu, pc, word),
