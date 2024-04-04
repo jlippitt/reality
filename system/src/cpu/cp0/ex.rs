@@ -73,7 +73,7 @@ fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rd = ((word >> 11) & 31) as usize;
 
     trace!(
-        "{:08X}: MTC0 {}, {:?}",
+        "{:08X}: MTC0 {}, {}",
         pc,
         Cpu::REG_NAMES[rt],
         Cp0::REG_NAMES[rd]
@@ -90,7 +90,7 @@ fn mfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rd = ((word >> 11) & 31) as usize;
 
     trace!(
-        "{:08X}: MFC0 {}, {:?}",
+        "{:08X}: MFC0 {}, {}",
         pc,
         Cpu::REG_NAMES[rt],
         Cp0::REG_NAMES[rd]
