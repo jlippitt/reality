@@ -28,7 +28,8 @@ pub enum DcState {
     StoreDoublewordRight { value: u64, addr: u32 },
     StoreConditional { reg: usize, value: u32, addr: u32 },
     StoreConditionalDoubleword { reg: usize, value: u64, addr: u32 },
-    Cp0Write { reg: usize, value: i64 },
+    Cp0RegWrite { reg: usize, value: i64 },
+    Cp1ControlRegWrite { reg: usize, value: u32 },
     Cp1LoadWord { reg: usize, addr: u32 },
     Cp1LoadDoubleword { reg: usize, addr: u32 },
     Nop,
@@ -321,9 +322,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 cpu.write_dword(bus, addr, value);
             }
         }
-        DcState::Cp0Write { reg, value } => {
+        DcState::Cp0RegWrite { reg, value } => {
             cpu.wb.reg = 0;
             cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
+        }
+        DcState::Cp1ControlRegWrite { reg, value } => {
+            cpu.wb.reg = 0;
+            cpu.wb.op = Some(WbOperation::Cp1ControlRegWrite { reg, value });
         }
         DcState::Cp1LoadWord { reg, addr } => {
             // TODO: Stall cycles

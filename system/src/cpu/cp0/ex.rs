@@ -64,7 +64,7 @@ fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cp0::REG_NAMES[rd]
     );
 
-    DcState::Cp0Write {
+    DcState::Cp0RegWrite {
         reg: rd,
         value: cpu.regs[rt],
     }

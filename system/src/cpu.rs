@@ -27,6 +27,7 @@ struct ExState {
 
 enum WbOperation {
     Cp0RegWrite { reg: usize, value: i64 },
+    Cp1ControlRegWrite { reg: usize, value: u32 },
 }
 
 struct WbState {
@@ -53,7 +54,7 @@ pub struct Cpu {
     ll_bit: bool,
     regs: [i64; 64],
     cp0: Cp0,
-    _cp1: Cp1,
+    cp1: Cp1,
     icache: ICache,
     dcache: DCache,
 }
@@ -81,7 +82,7 @@ impl Cpu {
             ll_bit: false,
             regs: [0; 64],
             cp0: Cp0::new(),
-            _cp1: Cp1::new(),
+            cp1: Cp1::new(),
             icache: ICache::new(),
             dcache: DCache::new(),
         }
@@ -108,6 +109,9 @@ impl Cpu {
             match *op {
                 WbOperation::Cp0RegWrite { reg, value } => {
                     self.cp0.write_reg(reg, value);
+                }
+                WbOperation::Cp1ControlRegWrite { reg, value } => {
+                    self.cp1.write_control_reg(reg, value);
                 }
             }
         }

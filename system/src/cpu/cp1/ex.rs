@@ -1,6 +1,6 @@
 pub use transfer::{ldc1, lwc1, sdc1, swc1};
 
-use super::{Cpu, DcState, Float, Format, Int};
+use super::{Cp1, Cpu, DcState, Float, Format, Int};
 
 mod arithmetic;
 mod convert;
@@ -10,8 +10,10 @@ pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match (word >> 21) & 31 {
         0o00 => transfer::mfc1(cpu, pc, word),
         0o01 => transfer::dmfc1(cpu, pc, word),
+        0o02 => transfer::cfc1(cpu, pc, word),
         0o04 => transfer::mtc1(cpu, pc, word),
         0o05 => transfer::dmtc1(cpu, pc, word),
+        0o06 => transfer::ctc1(cpu, pc, word),
         0o20 => float::<f32>(cpu, pc, word),
         0o21 => float::<f64>(cpu, pc, word),
         0o24 => int::<i32>(cpu, pc, word),

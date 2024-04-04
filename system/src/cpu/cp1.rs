@@ -3,6 +3,7 @@ pub use ex::{cop1, ldc1, lwc1, sdc1, swc1};
 use super::{Cpu, DcState};
 use bytemuck::Pod;
 use regs::Status;
+use tracing::trace;
 
 mod ex;
 mod regs;
@@ -29,15 +30,43 @@ pub trait Float: Format + num_traits::Float {
 pub trait Int: Format + num_traits::PrimInt {}
 
 pub struct Cp1 {
-    _status: Status,
+    status: Status,
 }
 
 impl Cp1 {
     pub const REG_OFFSET: usize = 32;
 
+    pub const CONTROL_REG_NAMES: [&'static str; 32] = [
+        "Revision", "FCR1", "FCR2", "FCR3", "FCR4", "FCR5", "FCR6", "FCR7", "FCR8", "FCR9",
+        "FCR10", "FCR11", "FCR12", "FCR13", "FCR14", "FCR15", "FCR16", "FCR17", "FCR18", "FCR19",
+        "FCR20", "FCR21", "FCR22", "FCR23", "FCR24", "FCR25", "FCR26", "FCR27", "FCR28", "FCR29",
+        "FCR30", "Status",
+    ];
+
     pub fn new() -> Self {
         Self {
-            _status: Status::default(),
+            status: Status::default(),
+        }
+    }
+
+    pub fn read_control_reg(&self, reg: usize) -> u32 {
+        match reg {
+            31 => self.status.into(),
+            _ => unimplemented!("CP1 Control Reg Read: {:?}", Self::CONTROL_REG_NAMES[reg]),
+        }
+    }
+
+    pub fn write_control_reg(&mut self, reg: usize, value: u32) {
+        match reg {
+            31 => {
+                self.status = value.into();
+                trace!("  CP1 Status: {:?}", self.status);
+            }
+            _ => unimplemented!(
+                "CP1 Control Reg Write: {:?} <= {:08X}",
+                Self::CONTROL_REG_NAMES[reg],
+                value
+            ),
         }
     }
 }
