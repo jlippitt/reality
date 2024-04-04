@@ -137,9 +137,9 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self
-                .dcache
-                .read(address, |line| Self::dcache_reload(bus, line, address));
+            return self.dcache.read(address & 0x1fff_ffff, |line| {
+                Self::dcache_reload(bus, line, address)
+            });
         }
 
         bus.read_single(address & 0x1fff_ffff)
@@ -153,7 +153,7 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self.dcache.write(address, value, |line| {
+            return self.dcache.write(address & 0x1fff_ffff, value, |line| {
                 Self::dcache_reload(bus, line, address)
             });
         }
@@ -171,9 +171,10 @@ impl Cpu {
         let mut dword = [0u32; 2];
 
         if segment == 4 {
-            self.dcache.read_block(address, &mut dword, |line| {
-                Self::dcache_reload(bus, line, address)
-            });
+            self.dcache
+                .read_block(address & 0x1fff_ffff, &mut dword, |line| {
+                    Self::dcache_reload(bus, line, address)
+                });
         } else {
             bus.read_block(address & 0x1fff_ffff, &mut dword);
         }
@@ -191,9 +192,11 @@ impl Cpu {
         let dword = [(value >> 32) as u32, value as u32];
 
         if segment == 4 {
-            return self.dcache.write_block(address, &dword, |line| {
-                Self::dcache_reload(bus, line, address)
-            });
+            return self
+                .dcache
+                .write_block(address & 0x1fff_ffff, &dword, |line| {
+                    Self::dcache_reload(bus, line, address)
+                });
         }
 
         bus.write_block(address & 0x1fff_ffff, &dword);
@@ -207,7 +210,7 @@ impl Cpu {
         }
 
         if segment == 4 {
-            return self.icache.read(address, |line| {
+            return self.icache.read(address & 0x1fff_ffff, |line| {
                 bus.read_block(address & 0x1fff_ffe0, line.data_mut());
             });
         }
@@ -218,7 +221,7 @@ impl Cpu {
     fn dcache_reload(bus: &mut impl Bus, line: &mut DCacheLine, address: u32) {
         // TODO: Timing
         if line.is_dirty() {
-            bus.write_block(address & 0x1fff_fff0, line.data());
+            bus.write_block(((line.ptag() & !1) << 12) | (address & 0x1ff0), line.data());
         }
 
         bus.read_block(address & 0x1fff_fff0, line.data_mut());

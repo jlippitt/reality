@@ -21,12 +21,7 @@ impl ICache {
     }
 
     pub fn read(&mut self, address: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
-        assert_eq!(
-            0x8000_0000,
-            address & 0xc000_0000,
-            "ITLB and ICache banking not implemented"
-        );
-
+        // TODO: ITLB?
         let index = ((address >> 5) & 0x01ff) as usize;
         let line = &mut self.lines[index];
 
@@ -114,12 +109,6 @@ impl DCache {
         address: u32,
         mut reload: impl FnMut(&mut DCacheLine),
     ) -> &mut DCacheLine {
-        assert_eq!(
-            0x8000_0000,
-            address & 0xc000_0000,
-            "TLB not yet implemented"
-        );
-
         let index = ((address >> 4) & 0x01ff) as usize;
         let line = &mut self.lines[index];
 
@@ -142,6 +131,10 @@ impl DCacheLine {
 
     pub fn data_mut(&mut self) -> &mut [u32] {
         self.data.as_mut_slice()
+    }
+
+    pub fn ptag(&self) -> u32 {
+        self.ptag
     }
 
     pub fn is_dirty(&self) -> bool {
