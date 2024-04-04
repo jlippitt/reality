@@ -36,7 +36,7 @@ pub fn init() -> Result<DefaultGuard, Box<dyn Error>> {
     let writer = BufWriter::new(file);
 
     let env_filter = EnvFilter::builder()
-        .with_default_directive(LevelFilter::TRACE.into())
+        .with_default_directive(LevelFilter::INFO.into())
         .with_env_var("LOG_LEVEL")
         .from_env()?;
 
