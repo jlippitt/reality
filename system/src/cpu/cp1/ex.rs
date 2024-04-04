@@ -22,6 +22,10 @@ pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 pub fn float<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word & 63 {
+        0o00 => arithmetic::add::<F>(cpu, pc, word),
+        0o01 => arithmetic::sub::<F>(cpu, pc, word),
+        0o02 => arithmetic::mul::<F>(cpu, pc, word),
+        0o03 => arithmetic::div::<F>(cpu, pc, word),
         0o04 => arithmetic::sqrt::<F>(cpu, pc, word),
         0o05 => arithmetic::abs::<F>(cpu, pc, word),
         0o06 => arithmetic::mov::<F>(cpu, pc, word),
