@@ -1,4 +1,4 @@
-use super::cp0::{self, Cp0};
+use super::cp0::Cp0;
 use super::{Cpu, DcState};
 
 mod arithmetic;

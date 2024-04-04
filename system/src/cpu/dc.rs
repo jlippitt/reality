@@ -17,6 +17,8 @@ pub enum DcState {
     LoadDoubleword { reg: usize, addr: u32 },
     LoadDoublewordLeft { reg: usize, addr: u32 },
     LoadDoublewordRight { reg: usize, addr: u32 },
+    LoadLinked { reg: usize, addr: u32 },
+    LoadLinkedDoubleword { reg: usize, addr: u32 },
     StoreByte { value: u8, addr: u32 },
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
@@ -140,6 +142,38 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX >> shift) | (value >> shift)) as i64;
             cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
+        }
+        DcState::LoadLinked { reg, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 3) == 0);
+            let value = cpu.read::<u32>(bus, addr);
+            cpu.wb.reg = reg;
+            cpu.wb.value = value as i32 as i64;
+            trace!("  [{:08X} => {:08X}]", addr, value);
+
+            // LLAddr is set to physical address
+            // TODO: Remove this hack when TLB support is implemented
+            cpu.wb.op = Some(WbOperation::Cp0Write {
+                reg: Cp0Register::LLAddr,
+                value: ((addr & 0x1fff_ffff) >> 4) as i64,
+            });
+            cpu.cp0.ll_bit = true;
+        }
+        DcState::LoadLinkedDoubleword { reg, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 7) == 0);
+            let value = cpu.read_dword(bus, addr);
+            cpu.wb.reg = reg;
+            cpu.wb.value = value as i64;
+            trace!("  [{:08X} => {:016X}]", addr, value);
+
+            // LLAddr is set to physical address
+            // TODO: Remove this hack when TLB support is implemented
+            cpu.wb.op = Some(WbOperation::Cp0Write {
+                reg: Cp0Register::LLAddr,
+                value: ((addr & 0x1fff_ffff) >> 4) as i64,
+            });
+            cpu.cp0.ll_bit = true;
         }
         DcState::StoreByte { value, addr } => {
             // TODO: Stall cycles
