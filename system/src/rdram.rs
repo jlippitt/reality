@@ -278,10 +278,10 @@ impl Rdram {
 
         // for (index, &active) in bank_active.iter().enumerate() {
         //     memory_map[index] = if active {
-        //         trace!("Bank {}: {}", index, self.banks[index].offset);
+        //         debug!("Bank {}: {}", index, self.banks[index].offset);
         //         Mapping::RdramData
         //     } else {
-        //         trace!("Bank {}: Unmapped", index);
+        //         debug!("Bank {}: Unmapped", index);
         //         Mapping::None
         //     }
         // }
