@@ -1,4 +1,4 @@
-use super::cp0::Cp0;
+use super::cp0::{self, Cp0};
 use super::{Cpu, DcState};
 
 mod arithmetic;
@@ -53,7 +53,11 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o55 => store::store::<store::Sdr>(cpu, pc, word),
         0o56 => store::store::<store::Swr>(cpu, pc, word),
         0o57 => Cp0::cache(cpu, pc, word),
+        0o60 => load::load::<load::Ll>(cpu, pc, word),
+        0o64 => load::load::<load::Lld>(cpu, pc, word),
         0o67 => load::load::<load::Ld>(cpu, pc, word),
+        0o70 => store::store::<store::Sc>(cpu, pc, word),
+        0o74 => store::store::<store::Scd>(cpu, pc, word),
         0o77 => store::store::<store::Sd>(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }

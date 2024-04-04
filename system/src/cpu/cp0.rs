@@ -9,11 +9,29 @@ mod regs;
 #[derive(Debug)]
 pub struct Cp0 {
     regs: [i64; 32],
+    pub ll_bit: bool,
 }
 
 impl Cp0 {
     pub fn new() -> Self {
-        Self { regs: [0; 32] }
+        Self {
+            regs: [0; 32],
+            ll_bit: false,
+        }
+    }
+
+    pub fn read_reg(&mut self, reg: Cp0Register) -> i64 {
+        match reg {
+            Cp0Register::Count
+            | Cp0Register::Compare
+            | Cp0Register::Status
+            | Cp0Register::Cause
+            | Cp0Register::LLAddr
+            | Cp0Register::TagHi
+            | Cp0Register::EPC
+            | Cp0Register::ErrorEPC => self.regs[reg as usize],
+            _ => todo!("CP0 Register Read: {:?}", reg),
+        }
     }
 
     pub fn write_reg(&mut self, reg: Cp0Register, value: i64) {
@@ -52,6 +70,7 @@ impl Cp0 {
                     "Only the default transfer data pattern is supported"
                 );
             }
+            // TOOD: This register has special behaviour when read back
             Cp0Register::TagLo => {
                 let tag_lo = TagLo::from(value as u32);
                 trace!("  TagLo: {:?}", tag_lo);
@@ -64,16 +83,28 @@ impl Cp0 {
             Cp0Register::TagHi => {
                 assert_eq!(0, value);
             }
-            Cp0Register::Count | Cp0Register::Compare => {
+            Cp0Register::LLAddr => {
+                self.ll_bit = false;
                 trace!("  {:?}: {:08X}", reg, value as u32);
             }
-            _ => todo!("Write to {:?}", reg),
+            Cp0Register::Count
+            | Cp0Register::Compare
+            | Cp0Register::EPC
+            | Cp0Register::ErrorEPC => {
+                trace!("  {:?}: {:08X}", reg, value as u32);
+            }
+            _ => todo!("CP0 Register Write: {:?} <= {:016X}", reg, value),
         }
     }
 
     pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         match (word >> 21) & 31 {
+            0o00 => ex::mfc0(cpu, pc, word),
             0o04 => ex::mtc0(cpu, pc, word),
+            0o20..=0o37 => match word & 63 {
+                0o30 => ex::eret(cpu, pc),
+                func => todo!("CPU COP0 Function '{:02o}' at {:08X}", func, pc),
+            },
             opcode => todo!("CPU COP0 Opcode '{:02o}' at {:08X}", opcode, pc),
         }
     }

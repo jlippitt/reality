@@ -25,6 +25,8 @@ pub enum DcState {
     StoreDoubleword { value: u64, addr: u32 },
     StoreDoublewordLeft { value: u64, addr: u32 },
     StoreDoublewordRight { value: u64, addr: u32 },
+    StoreConditional { reg: usize, value: u32, addr: u32 },
+    StoreConditionalDoubleword { reg: usize, value: u64, addr: u32 },
     Nop,
 }
 
@@ -196,7 +198,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         }
         DcState::StoreDoubleword { value, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 3) == 0);
+            assert!((addr & 7) == 0);
             cpu.wb.reg = 0;
             cpu.wb.op = None;
             trace!("  [{:08X} <= {:016X}]", addr, value);
@@ -260,6 +262,34 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                     cpu.write(bus, addr & !7 | 6, value as u8);
                 }
                 _ => cpu.write_dword(bus, addr & !7, value),
+            }
+        }
+        DcState::StoreConditional { reg, value, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 3) == 0);
+            let ll_bit = cpu.cp0.ll_bit;
+            cpu.wb.reg = reg;
+            cpu.wb.value = ll_bit as i64;
+            cpu.wb.op = None;
+
+            if ll_bit {
+                trace!("  [{:08X} <= {:08X}]", addr, value);
+                cpu.write(bus, addr, value);
+            }
+        }
+        DcState::StoreConditionalDoubleword { reg, value, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 7) == 0);
+            let ll_bit = cpu.cp0.ll_bit;
+            cpu.wb.reg = reg;
+            cpu.wb.value = ll_bit as i64;
+            cpu.wb.op = None;
+
+            if ll_bit {
+                trace!("  [{:08X} <= {:016X}]", addr, value);
+                cpu.write_dword(bus, addr, value);
+                cpu.cp0
+                    .write_reg(Cp0Register::LLAddr, ((addr & 0x1fff_ffff) >> 4) as i64);
             }
         }
         DcState::Nop => {
