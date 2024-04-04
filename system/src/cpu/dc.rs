@@ -1,10 +1,10 @@
+use super::cp1::Format;
 use super::{Bus, Cp0, Cpu, WbOperation};
 use tracing::trace;
 
 #[derive(Debug)]
 pub enum DcState {
     RegWrite { reg: usize, value: i64 },
-    Cp0Write { reg: usize, value: i64 },
     LoadByte { reg: usize, addr: u32 },
     LoadByteUnsigned { reg: usize, addr: u32 },
     LoadHalfword { reg: usize, addr: u32 },
@@ -28,6 +28,9 @@ pub enum DcState {
     StoreDoublewordRight { value: u64, addr: u32 },
     StoreConditional { reg: usize, value: u32, addr: u32 },
     StoreConditionalDoubleword { reg: usize, value: u64, addr: u32 },
+    Cp0Write { reg: usize, value: i64 },
+    Cp1LoadWord { reg: usize, addr: u32 },
+    Cp1LoadDoubleword { reg: usize, addr: u32 },
     Nop,
 }
 
@@ -37,11 +40,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
             cpu.wb.op = None;
-        }
-        DcState::Cp0Write { reg, value } => {
-            cpu.wb.reg = 0;
-            // cpu.wb.value doesn't matter
-            cpu.wb.op = Some(WbOperation::Cp0Write { reg, value });
         }
         DcState::LoadByte { reg, addr } => {
             // TODO: Stall cycles
@@ -152,7 +150,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
 
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
-            cpu.wb.op = Some(WbOperation::Cp0Write {
+            cpu.wb.op = Some(WbOperation::Cp0RegWrite {
                 reg: Cp0::LL_ADDR,
                 value: ((addr & 0x1fff_ffff) >> 4) as i64,
             });
@@ -168,7 +166,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
 
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
-            cpu.wb.op = Some(WbOperation::Cp0Write {
+            cpu.wb.op = Some(WbOperation::Cp0RegWrite {
                 reg: Cp0::LL_ADDR,
                 value: ((addr & 0x1fff_ffff) >> 4) as i64,
             });
@@ -322,6 +320,30 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 trace!("  [{:08X} <= {:016X}]", addr, value);
                 cpu.write_dword(bus, addr, value);
             }
+        }
+        DcState::Cp0Write { reg, value } => {
+            cpu.wb.reg = 0;
+            cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
+        }
+        DcState::Cp1LoadWord { reg, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 3) == 0);
+            let value = cpu.read::<u32>(bus, addr);
+            let reg_write = i32::set_cp1_reg(cpu, reg, value as i32);
+            cpu.wb.reg = reg_write.reg;
+            cpu.wb.value = reg_write.value;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:08X}]", addr, value);
+        }
+        DcState::Cp1LoadDoubleword { reg, addr } => {
+            // TODO: Stall cycles
+            assert!((addr & 7) == 0);
+            let value = cpu.read_dword(bus, addr);
+            let reg_write = i64::set_cp1_reg(cpu, reg, value as i64);
+            cpu.wb.reg = reg_write.reg;
+            cpu.wb.value = reg_write.value;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcState::Nop => {
             cpu.wb.reg = 0;

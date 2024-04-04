@@ -20,6 +20,10 @@ impl Cp0 {
         }
     }
 
+    pub fn is_fr(&self) -> bool {
+        self.regs.status.fr()
+    }
+
     pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
             9 => self.regs.count as i64,

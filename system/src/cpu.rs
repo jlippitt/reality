@@ -1,11 +1,14 @@
 use crate::memory::Size;
 use cache::{DCache, DCacheLine, ICache};
 use cp0::Cp0;
+use cp1::Cp1;
 use dc::DcState;
+use ex::{load, store};
 use tracing::trace;
 
 mod cache;
 mod cp0;
+mod cp1;
 mod dc;
 mod ex;
 
@@ -24,7 +27,7 @@ struct ExState {
 }
 
 enum WbOperation {
-    Cp0Write { reg: usize, value: i64 },
+    Cp0RegWrite { reg: usize, value: i64 },
 }
 
 struct WbState {
@@ -49,8 +52,9 @@ pub struct Cpu {
     hi: i64,
     lo: i64,
     ll_bit: bool,
-    regs: [i64; 32],
+    regs: [i64; 64],
     cp0: Cp0,
+    _cp1: Cp1,
     icache: ICache,
     dcache: DCache,
 }
@@ -76,8 +80,9 @@ impl Cpu {
             hi: 0,
             lo: 0,
             ll_bit: false,
-            regs: [0; 32],
+            regs: [0; 64],
             cp0: Cp0::new(),
+            _cp1: Cp1::new(),
             icache: ICache::new(),
             dcache: DCache::new(),
         }
@@ -89,12 +94,20 @@ impl Cpu {
         self.regs[0] = 0;
 
         if self.wb.reg != 0 {
-            trace!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
+            if self.wb.reg < Cp1::REG_OFFSET {
+                trace!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
+            } else {
+                trace!(
+                    "  F{}: {:016X}",
+                    self.wb.reg - Cp1::REG_OFFSET,
+                    self.wb.value
+                );
+            }
         }
 
         if let Some(op) = &self.wb.op {
             match *op {
-                WbOperation::Cp0Write { reg, value } => {
+                WbOperation::Cp0RegWrite { reg, value } => {
                     self.cp0.write_reg(reg, value);
                 }
             }
