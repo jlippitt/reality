@@ -2,6 +2,7 @@ pub use transfer::{ldc1, lwc1, sdc1, swc1};
 
 use super::{Cpu, DcState, Float, Format, Int};
 
+mod arithmetic;
 mod convert;
 mod transfer;
 
@@ -21,6 +22,10 @@ pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
 pub fn float<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word & 63 {
+        0o04 => arithmetic::sqrt::<F>(cpu, pc, word),
+        0o05 => arithmetic::abs::<F>(cpu, pc, word),
+        0o06 => arithmetic::mov::<F>(cpu, pc, word),
+        0o07 => arithmetic::neg::<F>(cpu, pc, word),
         0o10 => convert::round_l::<F>(cpu, pc, word),
         0o11 => convert::trunc_l::<F>(cpu, pc, word),
         0o12 => convert::ceil_l::<F>(cpu, pc, word),
