@@ -1,7 +1,5 @@
-pub use ex::{cop1, Ldc1, Lwc1, Sdc1, Swc1};
+pub use ex::{cop1, ldc1, lwc1, sdc1, swc1};
 
-use super::load;
-use super::store;
 use super::{Cpu, DcState};
 use bytemuck::Pod;
 use regs::Status;

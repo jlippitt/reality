@@ -1,50 +1,5 @@
-use super::LoadOperator;
-use super::StoreOperator;
 use super::{Cpu, DcState, Format};
 use tracing::trace;
-
-pub struct Lwc1;
-pub struct Ldc1;
-pub struct Swc1;
-pub struct Sdc1;
-
-impl LoadOperator for Lwc1 {
-    const NAME: &'static str = "LWC1";
-
-    fn apply(reg: usize, addr: u32) -> DcState {
-        DcState::Cp1LoadWord { reg, addr }
-    }
-}
-
-impl LoadOperator for Ldc1 {
-    const NAME: &'static str = "LDC1";
-
-    fn apply(reg: usize, addr: u32) -> DcState {
-        DcState::Cp1LoadDoubleword { reg, addr }
-    }
-}
-
-impl StoreOperator for Swc1 {
-    const NAME: &'static str = "SWC1";
-
-    fn apply(cpu: &Cpu, reg: usize, addr: u32) -> DcState {
-        DcState::StoreWord {
-            value: i32::cp1_reg(cpu, reg) as u32,
-            addr,
-        }
-    }
-}
-
-impl StoreOperator for Sdc1 {
-    const NAME: &'static str = "SDC1";
-
-    fn apply(cpu: &Cpu, reg: usize, addr: u32) -> DcState {
-        DcState::StoreDoubleword {
-            value: i64::cp1_reg(cpu, reg) as u64,
-            addr,
-        }
-    }
-}
 
 pub fn mfc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rt = ((word >> 16) & 31) as usize;
@@ -86,4 +41,80 @@ pub fn dmtc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     trace!("{:08X}: DMTC1 {}, F{}", pc, Cpu::REG_NAMES[rt], rd,);
 
     i64::set_cp1_reg(cpu, rd, cpu.regs[rt]).into()
+}
+
+pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let base = ((word >> 21) & 31) as usize;
+    let rt = ((word >> 16) & 31) as usize;
+    let offset = (word & 0xffff) as i16 as i64;
+
+    trace!(
+        "{:08X}: LWC1 F{}, {}({})",
+        pc,
+        rt,
+        offset,
+        Cpu::REG_NAMES[base],
+    );
+
+    DcState::Cp1LoadWord {
+        reg: rt,
+        addr: cpu.regs[base].wrapping_add(offset) as u32,
+    }
+}
+
+pub fn ldc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let base = ((word >> 21) & 31) as usize;
+    let rt = ((word >> 16) & 31) as usize;
+    let offset = (word & 0xffff) as i16 as i64;
+
+    trace!(
+        "{:08X}: LDC1 F{}, {}({})",
+        pc,
+        rt,
+        offset,
+        Cpu::REG_NAMES[base],
+    );
+
+    DcState::Cp1LoadDoubleword {
+        reg: rt,
+        addr: cpu.regs[base].wrapping_add(offset) as u32,
+    }
+}
+
+pub fn swc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let base = ((word >> 21) & 31) as usize;
+    let rt = ((word >> 16) & 31) as usize;
+    let offset = (word & 0xffff) as i16 as i64;
+
+    trace!(
+        "{:08X}: SWC1 F{}, {}({})",
+        pc,
+        rt,
+        offset,
+        Cpu::REG_NAMES[base],
+    );
+
+    DcState::StoreWord {
+        value: i32::cp1_reg(cpu, rt) as u32,
+        addr: cpu.regs[base].wrapping_add(offset) as u32,
+    }
+}
+
+pub fn sdc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let base = ((word >> 21) & 31) as usize;
+    let rt = ((word >> 16) & 31) as usize;
+    let offset = (word & 0xffff) as i16 as i64;
+
+    trace!(
+        "{:08X}: SDC1 F{}, {}({})",
+        pc,
+        rt,
+        offset,
+        Cpu::REG_NAMES[base],
+    );
+
+    DcState::StoreDoubleword {
+        value: i64::cp1_reg(cpu, rt) as u64,
+        addr: cpu.regs[base].wrapping_add(offset) as u32,
+    }
 }

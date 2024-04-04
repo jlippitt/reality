@@ -3,7 +3,6 @@ use cache::{DCache, DCacheLine, ICache};
 use cp0::Cp0;
 use cp1::Cp1;
 use dc::DcState;
-use ex::{load, store};
 use tracing::trace;
 
 mod cache;

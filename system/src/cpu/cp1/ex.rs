@@ -1,7 +1,5 @@
-pub use transfer::{Ldc1, Lwc1, Sdc1, Swc1};
+pub use transfer::{ldc1, lwc1, sdc1, swc1};
 
-use super::load::LoadOperator;
-use super::store::StoreOperator;
 use super::{Cpu, DcState, Float, Format, Int};
 
 mod convert;

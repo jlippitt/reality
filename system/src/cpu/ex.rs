@@ -2,15 +2,14 @@ use super::cp0::Cp0;
 use super::cp1;
 use super::{Cpu, DcState};
 
-pub mod load;
-pub mod store;
-
 mod arithmetic;
 mod bitwise;
 mod compare;
 mod control;
+mod load;
 mod mul_div;
 mod shift;
+mod store;
 
 pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     match word >> 26 {
@@ -57,14 +56,14 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o56 => store::store::<store::Swr>(cpu, pc, word),
         0o57 => Cp0::cache(cpu, pc, word),
         0o60 => load::load::<load::Ll>(cpu, pc, word),
-        0o61 => load::load::<cp1::Lwc1>(cpu, pc, word),
+        0o61 => cp1::lwc1(cpu, pc, word),
         0o64 => load::load::<load::Lld>(cpu, pc, word),
-        0o65 => load::load::<cp1::Ldc1>(cpu, pc, word),
+        0o65 => cp1::ldc1(cpu, pc, word),
         0o67 => load::load::<load::Ld>(cpu, pc, word),
         0o70 => store::store::<store::Sc>(cpu, pc, word),
-        0o71 => store::store::<cp1::Swc1>(cpu, pc, word),
+        0o71 => cp1::swc1(cpu, pc, word),
         0o74 => store::store::<store::Scd>(cpu, pc, word),
-        0o75 => store::store::<cp1::Sdc1>(cpu, pc, word),
+        0o75 => cp1::sdc1(cpu, pc, word),
         0o77 => store::store::<store::Sd>(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
