@@ -69,6 +69,11 @@ impl DCache {
         }
     }
 
+    pub fn line_mut(&mut self, address: u32) -> &mut DCacheLine {
+        let index = ((address >> 4) & 0x01ff) as usize;
+        &mut self.lines[index]
+    }
+
     pub fn read<T: Size>(&mut self, address: u32, reload: impl FnMut(&mut DCacheLine)) -> T {
         let line = self.fetch_line(address, reload);
         line.data.read(address & 0x0f)
@@ -139,5 +144,9 @@ impl DCacheLine {
 
     pub fn is_dirty(&self) -> bool {
         self.valid && self.dirty
+    }
+
+    pub fn clear_dirty_flag(&mut self) {
+        self.dirty = false;
     }
 }

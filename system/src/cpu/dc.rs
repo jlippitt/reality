@@ -32,6 +32,7 @@ pub enum DcState {
     Cp1ControlRegWrite { reg: usize, value: u32 },
     Cp1LoadWord { reg: usize, addr: u32 },
     Cp1LoadDoubleword { reg: usize, addr: u32 },
+    DCacheWriteBack { addr: u32 },
     Nop,
 }
 
@@ -349,6 +350,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.value = reg_write.value;
             cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
+        }
+        DcState::DCacheWriteBack { addr } => {
+            let line = cpu.dcache.line_mut(addr);
+
+            if line.is_dirty() {
+                bus.write_block(addr & 0x1fff_fff0, line.data());
+                line.clear_dirty_flag();
+            }
         }
         DcState::Nop => {
             cpu.wb.reg = 0;

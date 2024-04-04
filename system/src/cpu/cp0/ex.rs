@@ -39,6 +39,7 @@ pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
             let ptag = tag.ptag_lo();
             let valid = (tag.pstate() & 0b10) != 0;
             cpu.icache.index_store_tag(address, ptag, valid);
+            DcState::Nop
         }
         0b01001 => {
             let tag = &cpu.cp0.regs.tag_lo;
@@ -46,11 +47,11 @@ pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
             let valid = (tag.pstate() & 0b10) != 0;
             let dirty = (tag.pstate() & 0b01) != 0;
             cpu.dcache.index_store_tag(address, ptag, valid, dirty);
+            DcState::Nop
         }
+        0b11001 => DcState::DCacheWriteBack { addr: address },
         op => todo!("Cache Operation: {:05b}", op),
     }
-
-    DcState::Nop
 }
 
 fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
