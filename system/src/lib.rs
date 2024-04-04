@@ -106,6 +106,8 @@ impl Device {
             self.cpu.step(&mut self.bus);
         }
 
+        self.extra_cycle ^= true;
+
         self.bus.pi.step(&mut self.bus.rdram, &mut self.bus.rom);
         self.bus.vi.step()
     }
