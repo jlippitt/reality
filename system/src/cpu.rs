@@ -1,6 +1,6 @@
 use crate::memory::Size;
 use cache::{DCache, DCacheLine, ICache};
-use cp0::{Cp0, Cp0Register};
+use cp0::Cp0;
 use dc::DcState;
 use tracing::trace;
 
@@ -24,7 +24,7 @@ struct ExState {
 }
 
 enum WbOperation {
-    Cp0Write { reg: Cp0Register, value: i64 },
+    Cp0Write { reg: usize, value: i64 },
 }
 
 struct WbState {
@@ -48,6 +48,7 @@ pub struct Cpu {
     pc: u32,
     hi: i64,
     lo: i64,
+    ll_bit: bool,
     regs: [i64; 32],
     cp0: Cp0,
     icache: ICache,
@@ -74,6 +75,7 @@ impl Cpu {
             pc: COLD_RESET_VECTOR,
             hi: 0,
             lo: 0,
+            ll_bit: false,
             regs: [0; 32],
             cp0: Cp0::new(),
             icache: ICache::new(),

@@ -1,11 +1,10 @@
-use super::cp0::Cp0Register;
-use super::{Bus, Cpu, WbOperation};
+use super::{Bus, Cp0, Cpu, WbOperation};
 use tracing::trace;
 
 #[derive(Debug)]
 pub enum DcState {
     RegWrite { reg: usize, value: i64 },
-    Cp0Write { reg: Cp0Register, value: i64 },
+    Cp0Write { reg: usize, value: i64 },
     LoadByte { reg: usize, addr: u32 },
     LoadByteUnsigned { reg: usize, addr: u32 },
     LoadHalfword { reg: usize, addr: u32 },
@@ -154,10 +153,10 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
             cpu.wb.op = Some(WbOperation::Cp0Write {
-                reg: Cp0Register::LLAddr,
+                reg: Cp0::LL_ADDR,
                 value: ((addr & 0x1fff_ffff) >> 4) as i64,
             });
-            cpu.cp0.ll_bit = true;
+            cpu.ll_bit = true;
         }
         DcState::LoadLinkedDoubleword { reg, addr } => {
             // TODO: Stall cycles
@@ -170,10 +169,10 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
             cpu.wb.op = Some(WbOperation::Cp0Write {
-                reg: Cp0Register::LLAddr,
+                reg: Cp0::LL_ADDR,
                 value: ((addr & 0x1fff_ffff) >> 4) as i64,
             });
-            cpu.cp0.ll_bit = true;
+            cpu.ll_bit = true;
         }
         DcState::StoreByte { value, addr } => {
             // TODO: Stall cycles
@@ -301,7 +300,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         DcState::StoreConditional { reg, value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let ll_bit = cpu.cp0.ll_bit;
+            let ll_bit = cpu.ll_bit;
             cpu.wb.reg = reg;
             cpu.wb.value = ll_bit as i64;
             cpu.wb.op = None;
@@ -314,7 +313,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         DcState::StoreConditionalDoubleword { reg, value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let ll_bit = cpu.cp0.ll_bit;
+            let ll_bit = cpu.ll_bit;
             cpu.wb.reg = reg;
             cpu.wb.value = ll_bit as i64;
             cpu.wb.op = None;
@@ -322,8 +321,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             if ll_bit {
                 trace!("  [{:08X} <= {:016X}]", addr, value);
                 cpu.write_dword(bus, addr, value);
-                cpu.cp0
-                    .write_reg(Cp0Register::LLAddr, ((addr & 0x1fff_ffff) >> 4) as i64);
             }
         }
         DcState::Nop => {

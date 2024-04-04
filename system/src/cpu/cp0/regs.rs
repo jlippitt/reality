@@ -1,49 +1,52 @@
 use bitfield_struct::bitfield;
-use std::mem;
 
-#[allow(dead_code, clippy::upper_case_acronyms)]
-#[repr(u32)]
-#[derive(Copy, Clone, Debug)]
-pub enum Cp0Register {
-    Index = 0,
-    Random,
-    EntryLo0,
-    EntryLo1,
-    Context,
-    PageMask,
-    Wired,
-    R7,
-    BadVAddr,
-    Count,
-    EntryHi,
-    Compare,
-    Status,
-    Cause,
-    EPC,
-    PRId,
-    Config,
-    LLAddr,
-    WatchLo,
-    WatchHi,
-    XContext,
-    R21,
-    R22,
-    R23,
-    R24,
-    R25,
-    ParityError,
-    CacheError,
-    TagLo,
-    TagHi,
-    ErrorEPC,
-    R31,
-}
+pub const REG_NAMES: [&str; 32] = [
+    "Index",
+    "Random",
+    "EntryLo0",
+    "EntryLo1",
+    "Context",
+    "PageMask",
+    "Wired",
+    "R7",
+    "BadVAddr",
+    "Count",
+    "EntryHi",
+    "Compare",
+    "Status",
+    "Cause",
+    "EPC",
+    "PRId",
+    "Config",
+    "LLAddr",
+    "WatchLo",
+    "WatchHi",
+    "XContext",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R25",
+    "ParityError",
+    "CacheError",
+    "TagLo",
+    "TagHi",
+    "ErrorEPC",
+    "R31",
+];
 
-impl From<u32> for Cp0Register {
-    fn from(value: u32) -> Self {
-        assert!(value <= 31);
-        unsafe { mem::transmute::<u32, Self>(value) }
-    }
+#[derive(Default, Debug)]
+pub struct Regs {
+    pub count: u32,
+    pub compare: u32,
+    pub status: Status,
+    pub cause: Cause,
+    pub epc: u32,
+    pub config: Config,
+    pub ll_addr: u32,
+    pub tag_lo: TagLo,
+    pub tag_hi: u32,
+    pub error_epc: u32,
 }
 
 #[bitfield(u32)]

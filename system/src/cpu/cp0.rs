@@ -1,6 +1,5 @@
 use super::{Cpu, DcState};
-pub use regs::Cp0Register;
-use regs::{Cause, Config, Status, TagLo};
+use regs::{Regs, REG_NAMES};
 use tracing::trace;
 
 mod ex;
@@ -8,89 +7,110 @@ mod regs;
 
 #[derive(Debug)]
 pub struct Cp0 {
-    regs: [i64; 32],
-    pub ll_bit: bool,
+    regs: Regs,
 }
 
 impl Cp0 {
+    pub const REG_NAMES: [&'static str; 32] = REG_NAMES;
+    pub const LL_ADDR: usize = 17;
+
     pub fn new() -> Self {
         Self {
-            regs: [0; 32],
-            ll_bit: false,
+            regs: Regs::default(),
         }
     }
 
-    pub fn read_reg(&mut self, reg: Cp0Register) -> i64 {
+    pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
-            Cp0Register::Count
-            | Cp0Register::Compare
-            | Cp0Register::Status
-            | Cp0Register::Cause
-            | Cp0Register::LLAddr
-            | Cp0Register::TagHi
-            | Cp0Register::EPC
-            | Cp0Register::ErrorEPC => self.regs[reg as usize],
+            9 => self.regs.count as i64,
+            11 => self.regs.compare as i64,
+            12 => u32::from(self.regs.status) as i64,
+            13 => u32::from(self.regs.cause) as i64,
+            14 => self.regs.epc as i64,
+            17 => self.regs.ll_addr as i64,
+            29 => self.regs.tag_hi as i64,
+            30 => self.regs.error_epc as i64,
             _ => todo!("CP0 Register Read: {:?}", reg),
         }
     }
 
-    pub fn write_reg(&mut self, reg: Cp0Register, value: i64) {
-        self.regs[reg as usize] = value;
-
+    pub fn write_reg(&mut self, reg: usize, value: i64) {
         match reg {
-            Cp0Register::Status => {
-                let status = Status::from(value as u32);
-                trace!("  Status: {:?}", status);
-                assert_eq!(0, status.ksu(), "Only kernel mode is supported");
-                assert!(!status.kx(), "Only 32-bit addressing is supported");
-                assert_eq!(0, status.ds(), "Diagnostics are not supported");
-                assert!(!status.rp(), "Low power mode is not supported");
+            9 => {
+                self.regs.count = value as u32;
+                trace!("  Count: {:?}", self.regs.count);
+            }
+            11 => {
+                self.regs.compare = value as u32;
+                trace!("  Compare: {:?}", self.regs.compare);
+            }
+            12 => {
+                self.regs.status = (value as u32).into();
+                trace!("  Status: {:?}", self.regs.status);
+                assert_eq!(0, self.regs.status.ksu(), "Only kernel mode is supported");
+                assert!(
+                    !self.regs.status.kx(),
+                    "Only 32-bit addressing is supported"
+                );
+                assert_eq!(0, self.regs.status.ds(), "Diagnostics are not supported");
+                assert!(!self.regs.status.rp(), "Low power mode is not supported");
 
-                if status.im() != 0 {
+                if self.regs.status.im() != 0 {
                     todo!("Interrupt checks");
                 }
             }
-            Cp0Register::Cause => {
-                let cause = Cause::from(value as u32);
-                trace!("  Cause: {:?}", cause);
+            13 => {
+                self.regs.cause = (value as u32).into();
+                trace!("  Cause: {:?}", self.regs.cause);
 
-                if cause.ip() != 0 {
+                if self.regs.cause.ip() != 0 {
                     todo!("Manual interrupts");
                 }
             }
+            14 => {
+                self.regs.epc = value as u32;
+                trace!("  EPC: {:08X}", self.regs.epc);
+            }
             // TOOD: This register has special behaviour when read back
-            Cp0Register::Config => {
-                let config = Config::from(value as u32);
-                trace!("  Config: {:?}", config);
-                assert_ne!(2, config.k0(), "Uncached KSEG0 is not supported");
-                assert!(config.be(), "Little-endian mode is not supported");
+            16 => {
+                self.regs.config = (value as u32).into();
+                trace!("  Config: {:?}", self.regs.config);
+                assert_ne!(2, self.regs.config.k0(), "Uncached KSEG0 is not supported");
+                assert!(self.regs.config.be(), "Little-endian mode is not supported");
                 assert_eq!(
                     0,
-                    config.ep(),
+                    self.regs.config.ep(),
                     "Only the default transfer data pattern is supported"
                 );
             }
+            17 => {
+                self.regs.ll_addr = value as u32;
+                trace!("  LLAddr: {:08X}", self.regs.ll_addr);
+            }
             // TOOD: This register has special behaviour when read back
-            Cp0Register::TagLo => {
-                let tag_lo = TagLo::from(value as u32);
-                trace!("  TagLo: {:?}", tag_lo);
+            28 => {
+                self.regs.tag_lo = (value as u32).into();
+                trace!("  TagLo: {:?}", self.regs.tag_lo);
                 assert_eq!(
                     0,
                     value & 0xf000_003f,
                     "Bits 0-5 and 28-31 must be written as zero"
                 );
             }
-            Cp0Register::TagHi => {
-                assert_eq!(0, value);
+            29 => {
+                self.regs.tag_hi = value as u32;
+                trace!("  TagHi: {:08X}", self.regs.tag_hi);
+                assert_eq!(0, self.regs.tag_hi);
             }
-            Cp0Register::Count
-            | Cp0Register::Compare
-            | Cp0Register::EPC
-            | Cp0Register::ErrorEPC
-            | Cp0Register::LLAddr => {
-                trace!("  {:?}: {:08X}", reg, value as u32);
+            30 => {
+                self.regs.error_epc = value as u32;
+                trace!("  ErrorEPC: {:08X}", self.regs.error_epc);
             }
-            _ => todo!("CP0 Register Write: {:?} <= {:016X}", reg, value),
+            _ => todo!(
+                "CP0 Register Write: {} <= {:016X}",
+                Self::REG_NAMES[reg],
+                value
+            ),
         }
     }
 
@@ -127,13 +147,13 @@ impl Cp0 {
 
         match (word >> 16) & 31 {
             0b01000 => {
-                let tag = TagLo::from(cpu.cp0.regs[Cp0Register::TagLo as usize] as u32);
+                let tag = &cpu.cp0.regs.tag_lo;
                 let ptag = tag.ptag_lo();
                 let valid = (tag.pstate() & 0b10) != 0;
                 cpu.icache.index_store_tag(address, ptag, valid);
             }
             0b01001 => {
-                let tag = TagLo::from(cpu.cp0.regs[Cp0Register::TagLo as usize] as u32);
+                let tag = &cpu.cp0.regs.tag_lo;
                 let ptag = tag.ptag_lo();
                 let valid = (tag.pstate() & 0b10) != 0;
                 let dirty = (tag.pstate() & 0b01) != 0;
