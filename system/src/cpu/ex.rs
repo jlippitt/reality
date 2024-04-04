@@ -1,4 +1,4 @@
-use super::cp0::Cp0;
+use super::cp0;
 use super::cp1;
 use super::{Cpu, DcState};
 
@@ -29,7 +29,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
         0o16 => bitwise::i_type::<bitwise::Xor>(cpu, pc, word),
         0o17 => load::lui(cpu, pc, word),
-        0o20 => Cp0::cop0(cpu, pc, word),
+        0o20 => cp0::cop0(cpu, pc, word),
         0o21 => cp1::cop1(cpu, pc, word),
         0o24 => control::beq::<true>(cpu, pc, word),
         0o25 => control::bne::<true>(cpu, pc, word),
@@ -54,7 +54,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o54 => store::store::<store::Sdl>(cpu, pc, word),
         0o55 => store::store::<store::Sdr>(cpu, pc, word),
         0o56 => store::store::<store::Swr>(cpu, pc, word),
-        0o57 => Cp0::cache(cpu, pc, word),
+        0o57 => cp0::cache(cpu, pc, word),
         0o60 => load::load::<load::Ll>(cpu, pc, word),
         0o61 => cp1::lwc1(cpu, pc, word),
         0o64 => load::load::<load::Lld>(cpu, pc, word),
