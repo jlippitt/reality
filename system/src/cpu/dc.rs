@@ -356,6 +356,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 if line.is_dirty() {
                     bus.write_block(addr & 0x1fff_fff0, line.data());
                     line.clear_dirty_flag();
+                    trace!("DCache Line at {:08X} written back to memory", addr);
                 }
             }
         }

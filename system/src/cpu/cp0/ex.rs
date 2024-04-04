@@ -49,6 +49,20 @@ pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
             cpu.dcache.index_store_tag(address, ptag, valid, dirty);
             DcState::Nop
         }
+        0b10000 => {
+            if let Some(line) = cpu.icache.find_mut(address) {
+                line.clear_valid_flag();
+                trace!("ICache Line at {:08X} invalidated", address);
+            }
+            DcState::Nop
+        }
+        0b10001 => {
+            if let Some(line) = cpu.dcache.find_mut(address) {
+                line.clear_valid_flag();
+                trace!("DCache Line at {:08X} invalidated", address);
+            }
+            DcState::Nop
+        }
         0b11001 => DcState::DCacheWriteBack { addr: address },
         op => todo!("Cache Operation: {:05b}", op),
     }

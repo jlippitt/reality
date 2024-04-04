@@ -20,6 +20,12 @@ impl ICache {
         }
     }
 
+    pub fn find_mut(&mut self, address: u32) -> Option<&mut ICacheLine> {
+        let index = ((address >> 5) & 0x01ff) as usize;
+        let line = &mut self.lines[index];
+        (line.valid && line.ptag == (address >> 12)).then_some(line)
+    }
+
     pub fn read(&mut self, address: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
         // TODO: ITLB?
         let index = ((address >> 5) & 0x01ff) as usize;
@@ -47,6 +53,10 @@ impl ICache {
 impl ICacheLine {
     pub fn data_mut(&mut self) -> &mut [u32] {
         &mut self.data
+    }
+
+    pub fn clear_valid_flag(&mut self) {
+        self.valid = false;
     }
 }
 
@@ -145,6 +155,10 @@ impl DCacheLine {
 
     pub fn is_dirty(&self) -> bool {
         self.valid && self.dirty
+    }
+
+    pub fn clear_valid_flag(&mut self) {
+        self.valid = false;
     }
 
     pub fn clear_dirty_flag(&mut self) {
