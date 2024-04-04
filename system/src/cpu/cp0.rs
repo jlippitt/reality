@@ -83,14 +83,11 @@ impl Cp0 {
             Cp0Register::TagHi => {
                 assert_eq!(0, value);
             }
-            Cp0Register::LLAddr => {
-                self.ll_bit = false;
-                trace!("  {:?}: {:08X}", reg, value as u32);
-            }
             Cp0Register::Count
             | Cp0Register::Compare
             | Cp0Register::EPC
-            | Cp0Register::ErrorEPC => {
+            | Cp0Register::ErrorEPC
+            | Cp0Register::LLAddr => {
                 trace!("  {:?}: {:08X}", reg, value as u32);
             }
             _ => todo!("CP0 Register Write: {:?} <= {:016X}", reg, value),
