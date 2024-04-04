@@ -10,6 +10,10 @@ pub struct Mult;
 pub struct Dmult;
 pub struct Multu;
 pub struct Dmultu;
+pub struct Div;
+pub struct Divu;
+pub struct Ddiv;
+pub struct Ddivu;
 
 impl MulDivOperator for Mult {
     const NAME: &'static str = "MULT";
@@ -44,6 +48,63 @@ impl MulDivOperator for Dmultu {
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         let result = lhs as u64 as u128 * rhs as u64 as u128;
         ((result >> 64) as i64, result as i64)
+    }
+}
+
+impl MulDivOperator for Div {
+    const NAME: &'static str = "DIV";
+
+    fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
+        if rhs != 0 {
+            (
+                (lhs as i32).wrapping_rem(rhs as i32) as i64,
+                (lhs as i32).wrapping_div(rhs as i32) as i64,
+            )
+        } else {
+            (lhs as i32 as i64, if lhs < 0 { 1 } else { u32::MAX as i64 })
+        }
+    }
+}
+
+impl MulDivOperator for Ddiv {
+    const NAME: &'static str = "DDIV";
+
+    fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
+        if rhs != 0 {
+            (lhs.wrapping_rem(rhs), lhs.wrapping_div(rhs))
+        } else {
+            (lhs, if lhs < 0 { 1 } else { u64::MAX as i64 })
+        }
+    }
+}
+
+impl MulDivOperator for Divu {
+    const NAME: &'static str = "DIVU";
+
+    fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
+        if rhs != 0 {
+            (
+                (lhs as u32 % rhs as u32) as i64,
+                (lhs as u32 / rhs as u32) as i64,
+            )
+        } else {
+            (lhs as u32 as i64, u32::MAX as i64)
+        }
+    }
+}
+
+impl MulDivOperator for Ddivu {
+    const NAME: &'static str = "DDIVU";
+
+    fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
+        if rhs != 0 {
+            (
+                (lhs as u64 % rhs as u64) as i64,
+                (lhs as u64 / rhs as u64) as i64,
+            )
+        } else {
+            (lhs, u64::MAX as i64)
+        }
     }
 }
 
