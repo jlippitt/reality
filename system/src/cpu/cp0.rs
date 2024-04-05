@@ -6,6 +6,9 @@ use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{debug, trace};
 
+const TIMER_INT: u8 = 0x80;
+const SOFTWARE_INT: u8 = 0x03;
+
 const EXCEPTION_VECTOR: u32 = 0x8000_0180;
 
 mod ex;
@@ -85,6 +88,13 @@ impl Cp0 {
             11 => {
                 self.regs.compare = value as u32;
                 trace!("  Compare: {:?}", self.regs.compare);
+
+                let prev_ip = self.regs.cause.ip();
+                self.regs.cause.set_ip(prev_ip & !TIMER_INT);
+
+                if (prev_ip & TIMER_INT) != 0 {
+                    debug!("CP0 Timer Interrupt Cleared");
+                }
             }
             12 => {
                 self.regs.status = (value as u32).into();
@@ -154,14 +164,20 @@ impl Cp0 {
 }
 
 pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
-    // TODO: Counter update/check
     let regs = &mut cpu.cp0.regs;
+
+    regs.count = regs.count.wrapping_add(1);
+
+    if regs.count == regs.compare {
+        regs.cause.set_ip(regs.cause.ip() | TIMER_INT);
+        debug!("CP0 Timer Interrupt Raised");
+    }
 
     if !regs.status.ie() || regs.status.erl() || regs.status.exl() {
         return;
     }
 
-    let pending = (regs.cause.ip() & 0x83) | bus.poll();
+    let pending = (regs.cause.ip() & (TIMER_INT | SOFTWARE_INT)) | bus.poll();
     regs.cause.set_ip(pending);
 
     let active = pending & regs.status.im();
