@@ -95,12 +95,12 @@ impl Framebuffer {
                     let draw_area: &mut [u32] =
                         bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
 
-                    let read_len = draw_area.len().div_ceil(2);
+                    let read_start = draw_area.len() / 2;
 
-                    rdram.read_block(src, &mut draw_area[0..read_len]);
+                    rdram.read_block(src, &mut draw_area[read_start..]);
 
-                    for index in (0..draw_area.len()).rev() {
-                        let mut word = draw_area[index / 2];
+                    for index in 0..draw_area.len() {
+                        let mut word = draw_area[read_start + (index / 2)];
 
                         if (index & 1) == 0 {
                             word >>= 16;
