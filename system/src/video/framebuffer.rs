@@ -102,7 +102,7 @@ impl Framebuffer {
                     for index in (0..draw_area.len()).rev() {
                         let mut word = draw_area[index / 2];
 
-                        if (index & 1) != 0 {
+                        if (index & 1) == 0 {
                             word >>= 16;
                         }
 
@@ -111,7 +111,7 @@ impl Framebuffer {
                         let blue = ((word >> 1) & 31) << 3;
                         let alpha = (word & 1) * 255;
 
-                        draw_area[index] = (red << 24) | (green << 16) | (blue << 8) | alpha;
+                        draw_area[index] = (alpha << 24) | (blue << 16) | (green << 8) | red;
                     }
 
                     self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
