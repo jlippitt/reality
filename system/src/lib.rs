@@ -6,7 +6,6 @@ use interrupt::{CpuInterrupt, RcpInterrupt};
 use memory::{Mapping, Memory, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
-use pif::Pif;
 use rdp::Rdp;
 use rdram::Rdram;
 use rsp::Rsp;
@@ -21,7 +20,6 @@ mod interrupt;
 mod memory;
 mod mips_interface;
 mod peripheral;
-mod pif;
 mod rdp;
 mod rdram;
 mod rsp;
@@ -40,7 +38,6 @@ struct Bus {
     pi: PeripheralInterface,
     si: SerialInterface,
     rom: Memory,
-    pif: Pif,
 }
 
 pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
@@ -89,10 +86,9 @@ impl Device {
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(options.display_target)?,
                 ai: AudioInterface::new(rcp_int.clone()),
-                pi: PeripheralInterface::new(rcp_int),
-                si: SerialInterface::new(),
+                pi: PeripheralInterface::new(rcp_int.clone()),
+                si: SerialInterface::new(rcp_int, options.pif_data),
                 rom: Memory::from_bytes(&options.rom_data),
-                pif: Pif::new(options.pif_data),
             },
             extra_cycle: true,
         })
@@ -136,7 +132,7 @@ impl cpu::Bus for Bus {
             Mapping::RdramInterface => self.rdram.read_interface(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
             Mapping::CartridgeRom => self.rom.read(address & 0x0fff_ffff),
-            Mapping::Pif => self.pif.read(address & 0x000f_ffff),
+            Mapping::Pif => self.si.read_pif(address & 0x000f_ffff),
             Mapping::None => {
                 warn!("Unmapped read: {:08X}", address);
                 T::zeroed()
@@ -165,7 +161,7 @@ impl cpu::Bus for Bus {
             Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
             Mapping::CartridgeRom => panic!("Write to Cartridge ROM: {:08X}", address),
-            Mapping::Pif => self.pif.write(address & 0x000f_ffff, value),
+            Mapping::Pif => self.si.write_pif(address & 0x000f_ffff, value),
             Mapping::None => warn!("Unmapped write: {:08X}", address),
         }
     }

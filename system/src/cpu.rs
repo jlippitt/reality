@@ -53,6 +53,7 @@ pub struct Cpu {
     hi: i64,
     lo: i64,
     ll_bit: bool,
+    delay: bool,
     regs: [i64; 64],
     cp0: Cp0,
     cp1: Cp1,
@@ -81,6 +82,7 @@ impl Cpu {
             hi: 0,
             lo: 0,
             ll_bit: false,
+            delay: false,
             regs: [0; 64],
             cp0: Cp0::new(),
             cp1: Cp1::new(),
@@ -131,6 +133,8 @@ impl Cpu {
         // TODO: Re-review this decision
         cp0::step(self, bus);
 
+        self.delay = false;
+
         // EX
         if self.ex.word != 0 {
             // Operand forwarding from DC stage
@@ -163,6 +167,7 @@ impl Cpu {
         if condition {
             trace!("Branch taken");
             self.pc = (self.rf.pc as i64).wrapping_add(offset) as u32;
+            self.delay = true;
         } else {
             trace!("Branch not taken");
 

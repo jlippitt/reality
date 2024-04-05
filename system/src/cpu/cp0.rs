@@ -182,8 +182,8 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
 
     regs.status.set_exl(true);
     regs.cause.set_exc_code(0); // 0 = Interrupt
-    regs.cause.set_bd(is_delay_slot);
-    regs.epc = if is_delay_slot {
+    regs.cause.set_bd(cpu.delay);
+    regs.epc = if cpu.delay {
         cpu.ex.pc.wrapping_sub(4)
     } else {
         cpu.ex.pc

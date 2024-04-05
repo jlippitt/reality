@@ -13,6 +13,7 @@ pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.pc = target;
+    cpu.delay = true;
     link::<LINK>(cpu)
 }
 
@@ -27,6 +28,7 @@ pub fn jr<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.pc = cpu.regs[rs] as u32;
+    cpu.delay = true;
     link::<LINK>(cpu)
 }
 

@@ -1,4 +1,4 @@
-use super::memory::{Memory, Size};
+use crate::memory::{Memory, Size};
 use tracing::{trace, warn};
 
 const PIF_DATA_SIZE: usize = 2048;
