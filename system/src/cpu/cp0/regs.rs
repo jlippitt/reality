@@ -37,7 +37,10 @@ pub const REG_NAMES: [&str; 32] = [
 
 #[derive(Default, Debug)]
 pub struct Regs {
+    pub entry_lo0: EntryLo,
+    pub entry_lo1: EntryLo,
     pub count: u32,
+    pub entry_hi: EntryHi,
     pub compare: u32,
     pub status: Status,
     pub cause: Cause,
@@ -47,6 +50,29 @@ pub struct Regs {
     pub tag_lo: TagLo,
     pub tag_hi: u32,
     pub error_epc: u32,
+}
+
+#[bitfield(u32)]
+pub struct EntryLo {
+    global: bool,
+    valid: bool,
+    dirty: bool,
+    #[bits(3)]
+    cache: u32,
+    #[bits(20)]
+    pfn: u32,
+    #[bits(6)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct EntryHi {
+    #[bits(8)]
+    asid: u32,
+    #[bits(5)]
+    __: u32,
+    #[bits(19)]
+    vpn2: u32,
 }
 
 #[bitfield(u32)]

@@ -28,7 +28,10 @@ impl Cp0 {
 
     pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
+            2 => u32::from(self.regs.entry_lo0) as i64,
+            3 => u32::from(self.regs.entry_lo1) as i64,
             9 => self.regs.count as i64,
+            10 => u32::from(self.regs.entry_hi) as i64,
             11 => self.regs.compare as i64,
             12 => u32::from(self.regs.status) as i64,
             13 => u32::from(self.regs.cause) as i64,
@@ -42,9 +45,21 @@ impl Cp0 {
 
     pub fn write_reg(&mut self, reg: usize, value: i64) {
         match reg {
+            2 => {
+                self.regs.entry_lo0 = (value as u32).into();
+                trace!("  EntryLo0: {:?}", self.regs.entry_lo0);
+            }
+            3 => {
+                self.regs.entry_lo1 = (value as u32).into();
+                trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
+            }
             9 => {
                 self.regs.count = value as u32;
                 trace!("  Count: {:?}", self.regs.count);
+            }
+            10 => {
+                self.regs.entry_hi = (value as u32).into();
+                trace!("  EntryHi: {:?}", self.regs.entry_hi);
             }
             11 => {
                 self.regs.compare = value as u32;
