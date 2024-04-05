@@ -1,3 +1,4 @@
+use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use regs::Regs;
 use tracing::{trace, warn};
@@ -11,15 +12,17 @@ pub struct AudioInterface {
     dac_counter: i32,
     dma_count: u32,
     sample_count: [i32; 2],
+    rcp_int: RcpInterrupt,
 }
 
 impl AudioInterface {
-    pub fn new() -> Self {
+    pub fn new(rcp_int: RcpInterrupt) -> Self {
         Self {
             regs: Regs::default(),
             dac_counter: 0,
             dma_count: 0,
             sample_count: [0; 2],
+            rcp_int,
         }
     }
 
@@ -41,7 +44,7 @@ impl AudioInterface {
         let frequency = DAC_FREQUENCY / (self.regs.dacrate.dacrate() as i32 + 1);
         self.dac_counter = (125000000 * self.sample_count[0]) / frequency;
         trace!("AI Counter: {}", self.dac_counter);
-        // TODO: Raise AI interrupt
+        self.rcp_int.raise(RcpIntType::AI);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
@@ -95,9 +98,7 @@ impl AudioInterface {
                     warn!("TODO: AI DMA Transfers");
                 }
             }
-            3 => {
-                // TODO: Acknowledge AI interrupt
-            }
+            3 => self.rcp_int.clear(RcpIntType::AI),
             4 => mask.write_reg("AI_DACRATE", &mut self.regs.dacrate),
             5 => mask.write_reg("AI_BITRATE", &mut self.regs.bitrate),
             _ => todo!("AI Register Write: {:08X} <= {:08X}", address, mask.raw()),

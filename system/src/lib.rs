@@ -88,7 +88,7 @@ impl Device {
                 rdp: Rdp::new(),
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(options.display_target)?,
-                ai: AudioInterface::new(),
+                ai: AudioInterface::new(rcp_int.clone()),
                 pi: PeripheralInterface::new(rcp_int),
                 si: SerialInterface::new(),
                 rom: Memory::from_bytes(&options.rom_data),
