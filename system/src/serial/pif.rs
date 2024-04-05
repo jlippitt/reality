@@ -59,8 +59,10 @@ impl Pif {
         let mut result: u8 = 0;
 
         if (cmd & 0x01) != 0 {
-            let byte_mem: &mut [u8] = bytemuck::must_cast_slice_mut(self.mem.as_mut_slice());
-            joybus.execute(&mut byte_mem[PIF_RAM_START as usize..]);
+            let mut ram = [0u8; 64];
+            self.mem.read_be_bytes(PIF_RAM_START, &mut ram);
+            joybus.execute(&mut ram);
+            self.mem.write_be_bytes(PIF_RAM_START, &ram);
         }
 
         if (cmd & 0x02) != 0 {

@@ -100,6 +100,32 @@ impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
         let index = (address >> 2) as usize;
         self.data.as_mut()[index..(index + data.len())].copy_from_slice(data);
     }
+
+    pub fn read_be_bytes(&self, address: u32, data: &mut [u8]) {
+        assert!((address & 3) == 0);
+        let index = (address >> 2) as usize;
+
+        let iter = self.data.as_ref()[index..]
+            .iter()
+            .flat_map(|word| word.to_be_bytes());
+
+        for (dst, src) in data.iter_mut().zip(iter) {
+            *dst = src;
+        }
+    }
+
+    pub fn write_be_bytes(&mut self, address: u32, data: &[u8]) {
+        assert!((address & 3) == 0);
+        let index = (address >> 2) as usize;
+
+        let iter = data
+            .chunks_exact(4)
+            .map(|chunk| u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+
+        for (dst, src) in self.data.as_mut()[index..].iter_mut().zip(iter) {
+            *dst = src;
+        }
+    }
 }
 
 impl<T: AsRef<[u32]> + AsMut<[u32]> + Default> Default for Memory<T> {
