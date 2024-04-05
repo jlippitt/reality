@@ -32,6 +32,7 @@ impl MipsInterface {
     pub fn read<T: Size>(&self, address: u32) -> T {
         T::from_u32(match address >> 2 {
             1 => 0x0202_0102,
+            3 => self.mask.into(),
             _ => todo!("MI Register Read: {:08X}", address),
         })
     }
