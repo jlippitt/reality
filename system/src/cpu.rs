@@ -147,6 +147,19 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(4);
     }
 
+    fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
+        if condition {
+            trace!("Branch taken");
+            self.pc = (self.rf.pc as i64).wrapping_add(offset) as u32;
+        } else {
+            trace!("Branch not taken");
+
+            if LIKELY {
+                self.rf.word = 0;
+            }
+        }
+    }
+
     fn read<T: Size>(&mut self, bus: &mut impl Bus, address: u32) -> T {
         let segment = address >> 29;
 

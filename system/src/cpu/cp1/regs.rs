@@ -27,17 +27,17 @@ impl RoundingMode {
 #[bitfield(u32)]
 pub struct Status {
     #[bits(2)]
-    rm: RoundingMode,
+    pub rm: RoundingMode,
     #[bits(5)]
-    flags: u32,
+    pub flags: u32,
     #[bits(5)]
-    enables: u32,
+    pub enables: u32,
     #[bits(6)]
-    cause: u32,
+    pub cause: u32,
     #[bits(5)]
     __: u32,
-    c: bool,
-    fs: bool,
+    pub c: bool,
+    pub fs: bool,
     #[bits(7)]
     __: u32,
 }

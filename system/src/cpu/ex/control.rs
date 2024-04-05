@@ -50,7 +50,7 @@ pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] == cpu.regs[rt], offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] == cpu.regs[rt], offset);
     DcState::Nop
 }
 
@@ -68,7 +68,7 @@ pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] != cpu.regs[rt], offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] != cpu.regs[rt], offset);
     DcState::Nop
 }
 
@@ -84,7 +84,7 @@ pub fn blez<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] <= 0, offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] <= 0, offset);
     DcState::Nop
 }
 
@@ -100,7 +100,7 @@ pub fn bgtz<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] > 0, offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] > 0, offset);
     DcState::Nop
 }
 
@@ -117,7 +117,7 @@ pub fn bltz<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: 
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] < 0, offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] < 0, offset);
     link::<LINK>(cpu)
 }
 
@@ -134,21 +134,8 @@ pub fn bgez<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: 
         offset
     );
 
-    branch::<LIKELY>(cpu, cpu.regs[rs] >= 0, offset);
+    cpu.branch::<LIKELY>(cpu.regs[rs] >= 0, offset);
     link::<LINK>(cpu)
-}
-
-fn branch<const LIKELY: bool>(cpu: &mut Cpu, condition: bool, offset: i64) {
-    if condition {
-        trace!("Branch taken");
-        cpu.pc = (cpu.rf.pc as i64).wrapping_add(offset) as u32;
-    } else {
-        trace!("Branch not taken");
-
-        if LIKELY {
-            cpu.rf.word = 0;
-        }
-    }
 }
 
 fn link<const LINK: bool>(cpu: &Cpu) -> DcState {
