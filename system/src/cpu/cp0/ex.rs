@@ -32,6 +32,7 @@ fn eret(cpu: &mut Cpu, pc: u32) -> DcState {
     }
 
     cpu.ll_bit = false;
+    cpu.rf.pc = cpu.pc;
     cpu.rf.word = 0;
 
     DcState::Nop

@@ -185,7 +185,9 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         cpu.ex.pc
     };
     cpu.pc = EXCEPTION_VECTOR;
+    cpu.ex.pc = cpu.pc;
     cpu.ex.word = 0;
+    cpu.rf.pc = cpu.pc;
     cpu.rf.word = 0;
 
     trace!("  Status: {:?}", regs.status);
