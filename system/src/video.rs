@@ -4,6 +4,7 @@ use crate::rdram::Rdram;
 use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
+use tracing::{debug, trace};
 use upscaler::Upscaler;
 
 mod framebuffer;
@@ -165,7 +166,10 @@ impl VideoInterface {
                 self.v_counter = 0;
                 self.field ^= self.regs.ctrl.serrate();
                 frame_done = true;
+                debug!("Frame: {}", self.field);
             }
+
+            trace!("Line: {}", self.v_counter);
 
             // VCurrent & VSync are given in half lines, with the low bit
             // representing the field in interlace mode
