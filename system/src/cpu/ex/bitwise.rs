@@ -52,8 +52,8 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
         "{:08X}: {}I {}, {}, 0x{:04X}",
         pc,
         Op::NAME,
-        Cpu::REG_NAMES[rs],
         Cpu::REG_NAMES[rt],
+        Cpu::REG_NAMES[rs],
         imm
     );
 
