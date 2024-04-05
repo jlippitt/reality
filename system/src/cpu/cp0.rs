@@ -4,7 +4,7 @@ pub use regs::TagLo;
 use super::{Bus, Cpu, DcState};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
-use tracing::{trace, warn};
+use tracing::{debug, trace};
 
 const EXCEPTION_VECTOR: u32 = 0x8000_0180;
 
@@ -96,10 +96,6 @@ impl Cp0 {
                 );
                 assert_eq!(0, self.regs.status.ds(), "Diagnostics are not supported");
                 assert!(!self.regs.status.rp(), "Low power mode is not supported");
-
-                if self.regs.status.im() != 0 {
-                    warn!("TODO: Interrupt checks");
-                }
             }
             13 => {
                 self.regs.cause = (value as u32).into();
@@ -174,7 +170,7 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         return;
     }
 
-    trace!("-- Exception: {:08b} --", active);
+    debug!("-- Exception: {:08b} --", active);
 
     regs.status.set_exl(true);
     regs.cause.set_exc_code(0); // 0 = Interrupt
