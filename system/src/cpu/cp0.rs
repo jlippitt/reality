@@ -6,6 +6,8 @@ use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{trace, warn};
 
+const EXCEPTION_VECTOR: u32 = 0x8000_0180;
+
 mod ex;
 mod regs;
 mod tlb;
@@ -163,21 +165,34 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         return;
     }
 
-    // TODO: Handle internally-generated interrupts (timer, etc.)
-    let pending = bus.poll();
-
+    let pending = (regs.cause.ip() & 0x83) | bus.poll();
     regs.cause.set_ip(pending);
 
     let active = pending & regs.status.im();
 
-    if active != 0 {
-        todo!("Interrupt");
-        // trace!("-- Exception: {:08b} --", active);
-        // regs.status.set_exl(true);
-        // regs.cause.set_exc_code(0); // 0 = Interrupt
-        // regs.cause.set_bd(core.is_delay());
-        // regs.epc = core.restart_location();
-        // cpu.pc = EXCEPTION_HANDLER;
-        // cpu.rf.word = 0;
+    if active == 0 {
+        return;
     }
+
+    trace!("-- Exception: {:08b} --", active);
+
+    // If next instruction does not follow on from currently execution instruction,
+    // assume we're in a branch delay slot
+    let is_delay_slot = cpu.rf.pc != cpu.ex.pc.wrapping_add(4);
+
+    regs.status.set_exl(true);
+    regs.cause.set_exc_code(0); // 0 = Interrupt
+    regs.cause.set_bd(is_delay_slot);
+    regs.epc = if is_delay_slot {
+        cpu.ex.pc.wrapping_sub(4)
+    } else {
+        cpu.ex.pc
+    };
+    cpu.pc = EXCEPTION_VECTOR;
+    cpu.ex.word = 0;
+    cpu.rf.word = 0;
+
+    trace!("  Status: {:?}", regs.status);
+    trace!("  Cause: {:?}", regs.cause);
+    trace!("  EPC: {:08X}", regs.epc);
 }

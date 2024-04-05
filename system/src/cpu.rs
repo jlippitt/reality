@@ -117,11 +117,19 @@ impl Cpu {
             }
         }
 
-        // Check for interrupts *after* WB
-        cp0::step(self, bus);
-
         // DC
         dc::execute(self, bus);
+
+        // The official documentation says that:
+        // > When an NMI or interrupt exception occurs, all pipeline stages
+        // > except the WB are aborted
+        // This implies restarting from the DC stage. However, the instruction
+        // in the DC stage will have already passed through the EX stage, and
+        // this could lead to weird bugs if care isn't taken. So, for now we
+        // check for interrupts just before the EX stage, pending further view
+        // at a later date.
+        // TODO: Re-review this decision
+        cp0::step(self, bus);
 
         // EX
         if self.ex.word != 0 {
