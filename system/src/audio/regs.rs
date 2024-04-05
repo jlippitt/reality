@@ -35,7 +35,7 @@ pub struct Control {
 #[bitfield(u32)]
 pub struct Dacrate {
     #[bits(14)]
-    pub length: u32,
+    pub dacrate: u32,
     #[bits(18)]
     __: u32,
 }
@@ -43,7 +43,7 @@ pub struct Dacrate {
 #[bitfield(u32)]
 pub struct Bitrate {
     #[bits(4)]
-    pub length: u32,
+    pub bitrate: u32,
     #[bits(28)]
     __: u32,
 }
