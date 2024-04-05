@@ -83,7 +83,43 @@ impl Framebuffer {
         match display_mode {
             DisplayMode::Blank => self.pixel_buf.fill(0),
             DisplayMode::Reserved => panic!("Use of reserved display mode"),
-            DisplayMode::Color16 => todo!("16-bit framebuffer output"),
+            DisplayMode::Color16 => {
+                let src_pitch = buffer_width * 2;
+                let dst_pitch = video_width as usize * 4;
+                let dst_display = dst_pitch.min(buffer_width as usize * 4);
+
+                let mut src = origin;
+                let mut dst = 0;
+
+                for _ in 0..video_height {
+                    let draw_area: &mut [u32] =
+                        bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
+
+                    let read_len = draw_area.len().div_ceil(2);
+
+                    rdram.read_block(src, &mut draw_area[0..read_len]);
+
+                    for index in (0..draw_area.len()).rev() {
+                        let mut word = draw_area[index / 2];
+
+                        if (index & 1) != 0 {
+                            word >>= 16;
+                        }
+
+                        let red = ((word >> 11) & 31) << 3;
+                        let green = ((word >> 6) & 31) << 3;
+                        let blue = ((word >> 1) & 31) << 3;
+                        let alpha = (word & 1) * 255;
+
+                        draw_area[index] = (red << 24) | (green << 16) | (blue << 8) | alpha;
+                    }
+
+                    self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
+
+                    src += src_pitch;
+                    dst += dst_pitch;
+                }
+            }
             DisplayMode::Color32 => {
                 let src_pitch = buffer_width * 4;
                 let dst_pitch = video_width as usize * 4;
