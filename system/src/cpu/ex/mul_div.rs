@@ -145,3 +145,19 @@ pub fn mflo(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         value: cpu.lo,
     }
 }
+
+pub fn mthi(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rs = ((word >> 21) & 31) as usize;
+    trace!("{:08X}: MTHI {}", pc, Cpu::REG_NAMES[rs],);
+    cpu.hi = cpu.regs[rs];
+    trace!("  HI: {:016X}", cpu.hi);
+    DcState::Nop
+}
+
+pub fn mtlo(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rs = ((word >> 21) & 31) as usize;
+    trace!("{:08X}: MTLO {}", pc, Cpu::REG_NAMES[rs],);
+    cpu.lo = cpu.regs[rs];
+    trace!("  LO: {:016X}", cpu.lo);
+    DcState::Nop
+}
