@@ -23,7 +23,7 @@ impl ICache {
     pub fn find_mut(&mut self, address: u32) -> Option<&mut ICacheLine> {
         let index = ((address >> 5) & 0x01ff) as usize;
         let line = &mut self.lines[index];
-        (line.valid && line.ptag == (address >> 12)).then_some(line)
+        line.matches(address).then_some(line)
     }
 
     pub fn read(&mut self, address: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
@@ -51,6 +51,10 @@ impl ICache {
 }
 
 impl ICacheLine {
+    pub fn matches(&self, address: u32) -> bool {
+        self.valid && self.ptag == (address >> 12)
+    }
+
     pub fn data_mut(&mut self) -> &mut [u32] {
         &mut self.data
     }
@@ -82,7 +86,7 @@ impl DCache {
     pub fn find_mut(&mut self, address: u32) -> Option<&mut DCacheLine> {
         let index = ((address >> 4) & 0x01ff) as usize;
         let line = &mut self.lines[index];
-        (line.valid && line.ptag == (address >> 12)).then_some(line)
+        line.matches(address).then_some(line)
     }
 
     pub fn read<T: Size>(&mut self, address: u32, reload: impl FnMut(&mut DCacheLine)) -> T {
@@ -120,6 +124,20 @@ impl DCache {
         line.dirty = dirty;
     }
 
+    pub fn create_dirty_exclusive(&mut self, address: u32, mut store: impl FnMut(&DCacheLine)) {
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &mut self.lines[index];
+
+        if line.is_dirty() && line.ptag() != (address >> 12) {
+            store(line);
+        }
+
+        line.ptag = address >> 20;
+        line.valid = true;
+        line.dirty = true;
+        trace!("DCache Line {}: {:08X?}", index, line);
+    }
+
     fn fetch_line(
         &mut self,
         address: u32,
@@ -128,7 +146,7 @@ impl DCache {
         let index = ((address >> 4) & 0x01ff) as usize;
         let line = &mut self.lines[index];
 
-        if !line.valid || line.ptag != (address >> 12) {
+        if !line.matches(address) {
             reload(line);
             line.ptag = address >> 12;
             line.valid = true;
@@ -141,6 +159,10 @@ impl DCache {
 }
 
 impl DCacheLine {
+    pub fn matches(&self, address: u32) -> bool {
+        self.valid && self.ptag == (address >> 12)
+    }
+
     pub fn data(&self) -> &[u32] {
         self.data.as_slice()
     }

@@ -7,6 +7,7 @@ mod bitwise;
 mod compare;
 mod control;
 mod load;
+mod misc;
 mod mul_div;
 mod shift;
 mod store;
@@ -54,7 +55,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o54 => store::store::<store::Sdl>(cpu, pc, word),
         0o55 => store::store::<store::Sdr>(cpu, pc, word),
         0o56 => store::store::<store::Swr>(cpu, pc, word),
-        0o57 => cp0::cache(cpu, pc, word),
+        0o57 => misc::cache(cpu, pc, word),
         0o60 => load::load::<load::Ll>(cpu, pc, word),
         0o61 => cp1::lwc1(cpu, pc, word),
         0o64 => load::load::<load::Lld>(cpu, pc, word),
@@ -79,7 +80,7 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
         0o10 => control::jr::<false>(cpu, pc, word),
         0o11 => control::jr::<true>(cpu, pc, word),
-        0o17 => control::sync(cpu, pc),
+        0o17 => misc::sync(cpu, pc),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o21 => mul_div::mthi(cpu, pc, word),
         0o22 => mul_div::mflo(cpu, pc, word),

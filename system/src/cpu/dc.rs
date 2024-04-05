@@ -32,7 +32,7 @@ pub enum DcState {
     Cp1ControlRegWrite { reg: usize, value: u32 },
     Cp1LoadWord { reg: usize, addr: u32 },
     Cp1LoadDoubleword { reg: usize, addr: u32 },
-    DCacheWriteBack { addr: u32 },
+    CacheOperation { op: u32, vaddr: u32 },
     Nop,
 }
 
@@ -351,13 +351,53 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
-        DcState::DCacheWriteBack { addr } => {
-            if let Some(line) = cpu.dcache.find_mut(addr) {
-                if line.is_dirty() {
-                    bus.write_block(addr & 0x1fff_fff0, line.data());
-                    line.clear_dirty_flag();
-                    trace!("DCache Line at {:08X} written back to memory", addr);
+        DcState::CacheOperation { op, vaddr } => {
+            // TODO: TLB
+            assert!((vaddr >> 30) == 2);
+            let paddr = vaddr & 0x1fff_ffff;
+
+            match op {
+                0b01000 => {
+                    let tag = &cpu.cp0.tag_lo();
+                    let ptag = tag.ptag_lo();
+                    let valid = (tag.pstate() & 0b10) != 0;
+                    cpu.icache.index_store_tag(paddr, ptag, valid);
                 }
+                0b01001 => {
+                    let tag = &cpu.cp0.tag_lo();
+                    let ptag = tag.ptag_lo();
+                    let valid = (tag.pstate() & 0b10) != 0;
+                    let dirty = (tag.pstate() & 0b01) != 0;
+                    cpu.dcache.index_store_tag(paddr, ptag, valid, dirty);
+                }
+                0b01101 => {
+                    cpu.dcache.create_dirty_exclusive(paddr, |line| {
+                        bus.write_block(paddr & 0x1fff_fff0, line.data());
+                        trace!("DCache Line at {:08X} written back to memory", paddr);
+                    });
+                }
+                0b10000 => {
+                    if let Some(line) = cpu.icache.find_mut(paddr) {
+                        line.clear_valid_flag();
+                        trace!("ICache Line at {:08X} invalidated", paddr);
+                    }
+                }
+                0b10001 => {
+                    if let Some(line) = cpu.dcache.find_mut(paddr) {
+                        line.clear_valid_flag();
+                        trace!("DCache Line at {:08X} invalidated", paddr);
+                    }
+                }
+                0b11001 => {
+                    if let Some(line) = cpu.dcache.find_mut(paddr) {
+                        if line.is_dirty() {
+                            bus.write_block(paddr & 0x1fff_fff0, line.data());
+                            line.clear_dirty_flag();
+                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                        }
+                    }
+                }
+                op => todo!("Cache Operation: {:05b}", op),
             }
         }
         DcState::Nop => {

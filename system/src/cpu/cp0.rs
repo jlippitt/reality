@@ -1,4 +1,5 @@
-pub use ex::{cache, cop0};
+pub use ex::cop0;
+pub use regs::TagLo;
 
 use super::{Cpu, DcState};
 use regs::{Regs, REG_NAMES};
@@ -28,6 +29,10 @@ impl Cp0 {
 
     pub fn is_fr(&self) -> bool {
         self.regs.status.fr()
+    }
+
+    pub fn tag_lo(&self) -> TagLo {
+        self.regs.tag_lo
     }
 
     pub fn read_reg(&mut self, reg: usize) -> i64 {
