@@ -1,9 +1,9 @@
+use super::interrupt::{RcpIntType, RcpInterrupt};
 use super::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
 use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
-use tracing::warn;
 use upscaler::Upscaler;
 
 mod framebuffer;
@@ -21,6 +21,7 @@ pub struct VideoInterface {
     h_counter: u32,
     v_counter: u32,
     field: bool,
+    rcp_int: RcpInterrupt,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -31,6 +32,7 @@ pub struct VideoInterface {
 
 impl VideoInterface {
     pub fn new(
+        rcp_int: RcpInterrupt,
         display_target: DisplayTarget<impl wgpu::WindowHandle>,
     ) -> Result<Self, Box<dyn Error>> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -87,6 +89,7 @@ impl VideoInterface {
             v_counter: 0,
             h_counter: 0,
             field: false,
+            rcp_int,
             surface,
             device,
             queue,
@@ -170,7 +173,9 @@ impl VideoInterface {
                 .v_current
                 .set_half_line((self.v_counter & !1) | self.field as u32);
 
-            // TODO: VI interrupt
+            if self.v_counter == (self.regs.v_intr.half_line() >> 1) {
+                self.rcp_int.raise(RcpIntType::VI);
+            }
         }
 
         frame_done
@@ -206,7 +211,7 @@ impl VideoInterface {
             1 => mask.write_reg_hex("VI_ORIGIN", &mut self.regs.origin),
             2 => mask.write_reg("VI_WIDTH", &mut self.regs.width),
             3 => mask.write_reg("VI_V_INTR", &mut self.regs.v_intr),
-            4 => warn!("TODO: Acknowledge VI interrupt"),
+            4 => self.rcp_int.clear(RcpIntType::VI),
             5 => mask.write_reg("VI_BURST", &mut self.regs.burst),
             6 => mask.write_reg("VI_V_SYNC", &mut self.regs.v_sync),
             7 => mask.write_reg("VI_H_SYNC", &mut self.regs.h_sync),
