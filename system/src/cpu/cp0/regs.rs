@@ -37,8 +37,10 @@ pub const REG_NAMES: [&str; 32] = [
 
 #[derive(Default, Debug)]
 pub struct Regs {
+    pub index: Index,
     pub entry_lo0: EntryLo,
     pub entry_lo1: EntryLo,
+    pub page_mask: PageMask,
     pub count: u32,
     pub entry_hi: EntryHi,
     pub compare: u32,
@@ -53,26 +55,46 @@ pub struct Regs {
 }
 
 #[bitfield(u32)]
-pub struct EntryLo {
-    global: bool,
-    valid: bool,
-    dirty: bool,
-    #[bits(3)]
-    cache: u32,
-    #[bits(20)]
-    pfn: u32,
+pub struct Index {
     #[bits(6)]
+    pub index: u32,
+    #[bits(25)]
+    __: u32,
+    pub probe_success: bool,
+}
+
+#[bitfield(u32)]
+pub struct EntryLo {
+    pub global: bool,
+    pub valid: bool,
+    pub dirty: bool,
+    #[bits(3)]
+    pub cache: u32,
+    #[bits(20)]
+    pub pfn: u32,
+    #[bits(6)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct PageMask {
+    #[bits(13)]
+    __: u32,
+    #[bits(12)]
+    pub mask: u32,
+    #[bits(7)]
     __: u32,
 }
 
 #[bitfield(u32)]
 pub struct EntryHi {
     #[bits(8)]
-    asid: u32,
-    #[bits(5)]
+    pub asid: u32,
+    #[bits(4)]
     __: u32,
+    pub global: bool,
     #[bits(19)]
-    vpn2: u32,
+    pub vpn2: u32,
 }
 
 #[bitfield(u32)]

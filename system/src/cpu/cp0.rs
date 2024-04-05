@@ -2,14 +2,17 @@ pub use ex::{cache, cop0};
 
 use super::{Cpu, DcState};
 use regs::{Regs, REG_NAMES};
+use tlb::Tlb;
 use tracing::trace;
 
 mod ex;
 mod regs;
+mod tlb;
 
 #[derive(Debug)]
 pub struct Cp0 {
     regs: Regs,
+    tlb: Tlb,
 }
 
 impl Cp0 {
@@ -19,6 +22,7 @@ impl Cp0 {
     pub fn new() -> Self {
         Self {
             regs: Regs::default(),
+            tlb: Tlb::new(),
         }
     }
 
@@ -28,8 +32,10 @@ impl Cp0 {
 
     pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
+            0 => u32::from(self.regs.index) as i64,
             2 => u32::from(self.regs.entry_lo0) as i64,
             3 => u32::from(self.regs.entry_lo1) as i64,
+            5 => u32::from(self.regs.page_mask) as i64,
             9 => self.regs.count as i64,
             10 => u32::from(self.regs.entry_hi) as i64,
             11 => self.regs.compare as i64,
@@ -45,6 +51,10 @@ impl Cp0 {
 
     pub fn write_reg(&mut self, reg: usize, value: i64) {
         match reg {
+            0 => {
+                self.regs.index = (value as u32).into();
+                trace!("  Index: {:?}", self.regs.index);
+            }
             2 => {
                 self.regs.entry_lo0 = (value as u32).into();
                 trace!("  EntryLo0: {:?}", self.regs.entry_lo0);
@@ -52,6 +62,10 @@ impl Cp0 {
             3 => {
                 self.regs.entry_lo1 = (value as u32).into();
                 trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
+            }
+            5 => {
+                self.regs.page_mask = (value as u32).into();
+                trace!("  PageMask: {:?}", self.regs.page_mask);
             }
             9 => {
                 self.regs.count = value as u32;
