@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arrayvec = "0.7.4"
 bitfield-struct = "0.6.0"
 bitflags = "2.5.0"
 bytemuck = { version = "1.15.0", features = ["must_cast", "derive"] }

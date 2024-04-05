@@ -113,6 +113,7 @@ impl Device {
 
         self.bus.ai.step();
         self.bus.pi.step(&mut self.bus.rdram, &mut self.bus.rom);
+        self.bus.si.step(&mut self.bus.rdram);
         self.bus.vi.step()
     }
 }

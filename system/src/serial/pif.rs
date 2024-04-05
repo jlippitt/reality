@@ -1,7 +1,9 @@
+use super::Joybus;
 use crate::memory::{Memory, Size};
 use tracing::{trace, warn};
 
 const PIF_DATA_SIZE: usize = 2048;
+const PIF_RAM_START: u32 = 0x7c0;
 
 pub struct Pif {
     mem: Memory,
@@ -28,15 +30,15 @@ impl Pif {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        if address < 0x7c0 && self.rom_locked {
+        if address < PIF_RAM_START && self.rom_locked {
             panic!("Read from locked PIF ROM: {:08X}", address);
         }
 
         self.mem.read(address)
     }
 
-    pub fn write<T: Size>(&mut self, address: u32, value: T) {
-        if address < 0x7c0 {
+    pub fn write<T: Size>(&mut self, joybus: &mut Joybus, address: u32, value: T) {
+        if address < PIF_RAM_START {
             panic!("Write to PIF ROM: {:08X}", address);
         }
 
@@ -57,7 +59,8 @@ impl Pif {
         let mut result: u8 = 0;
 
         if (cmd & 0x01) != 0 {
-            todo!("PIF Joybus Configure");
+            let byte_mem: &mut [u8] = bytemuck::must_cast_slice_mut(self.mem.as_mut_slice());
+            joybus.execute(&mut byte_mem[PIF_RAM_START as usize..]);
         }
 
         if (cmd & 0x02) != 0 {

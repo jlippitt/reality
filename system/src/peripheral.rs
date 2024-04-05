@@ -51,7 +51,7 @@ impl PeripheralInterface {
 
                 debug!(
                     "PI DMA: {} bytes read from {:08X} to {:08X}",
-                    block_len, self.regs.cart_addr, self.regs.dram_addr,
+                    block_len, self.regs.dram_addr, self.regs.cart_addr,
                 );
             }
 
