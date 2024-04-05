@@ -3,7 +3,7 @@ pub use ex::{cache, cop0};
 use super::{Cpu, DcState};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
-use tracing::trace;
+use tracing::{trace, warn};
 
 mod ex;
 mod regs;
@@ -91,7 +91,7 @@ impl Cp0 {
                 assert!(!self.regs.status.rp(), "Low power mode is not supported");
 
                 if self.regs.status.im() != 0 {
-                    todo!("Interrupt checks");
+                    warn!("TODO: Interrupt checks");
                 }
             }
             13 => {
