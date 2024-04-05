@@ -1,6 +1,7 @@
 use super::regs::{EntryHi, EntryLo, PageMask, Regs};
 use tracing::trace;
 
+#[allow(dead_code)]
 #[derive(Default, Debug)]
 struct TlbEntry {
     entry_lo0: EntryLo,
