@@ -1,19 +1,17 @@
 use crate::memory::{Size, WriteMask};
-use regs::{DramAddr, Length};
-use tracing::debug;
+use regs::Regs;
+use tracing::warn;
 
 mod regs;
 
 pub struct AudioInterface {
-    dram_addr: DramAddr,
-    length: Length,
+    regs: Regs,
 }
 
 impl AudioInterface {
     pub fn new() -> Self {
         Self {
-            dram_addr: DramAddr::new(),
-            length: Length::new(),
+            regs: Regs::default(),
         }
     }
 
@@ -25,21 +23,26 @@ impl AudioInterface {
         let mask = WriteMask::new(address, value);
 
         match address >> 2 {
-            0 => {
-                mask.write(&mut self.dram_addr);
-                debug!("AI_DRAM_ADDR: {:?}", self.dram_addr);
-            }
+            0 => mask.write_reg("AI_DRAM_ADDR", &mut self.regs.dram_addr),
             1 => {
-                mask.write(&mut self.length);
-                debug!("AI_LENGTH: {:?}", self.length);
+                mask.write_reg("AI_LENGTH", &mut self.regs.length);
 
-                if self.length.length() > 0 {
+                if self.regs.length.length() > 0 {
                     todo!("AI DMA Transfers");
+                }
+            }
+            2 => {
+                mask.write_reg("AI_CONTROL", &mut self.regs.control);
+
+                if self.regs.control.dma_enable() {
+                    warn!("TODO: AI DMA Transfers");
                 }
             }
             3 => {
                 // TODO: Acknowledge AI interrupt
             }
+            4 => mask.write_reg("AI_DACRATE", &mut self.regs.dacrate),
+            5 => mask.write_reg("AI_BITRATE", &mut self.regs.bitrate),
             _ => todo!("AI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
