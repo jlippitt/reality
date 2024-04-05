@@ -1,38 +1,40 @@
+use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
-use regs::{Mask, Mode};
+use regs::{Mode, Regs};
 use tracing::{debug, warn};
 
 mod regs;
 
 pub struct MipsInterface {
-    mode: Mode,
-    mask: Mask,
+    regs: Regs,
+    rcp_int: RcpInterrupt,
 }
 
 impl MipsInterface {
-    pub fn new() -> Self {
+    pub fn new(rcp_int: RcpInterrupt) -> Self {
         Self {
-            mode: Mode::new(),
-            mask: Mask::new(),
+            regs: Regs::default(),
+            rcp_int,
         }
     }
 
     pub fn is_upper(&self) -> bool {
-        self.mode.upper()
+        self.regs.mode.upper()
     }
 
     pub fn is_repeat(&self) -> bool {
-        self.mode.repeat()
+        self.regs.mode.repeat()
     }
 
     pub fn clear_repeat(&mut self) {
-        self.mode.set_repeat(false);
+        self.regs.mode.set_repeat(false);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         T::from_u32(match address >> 2 {
             1 => 0x0202_0102,
-            3 => self.mask.into(),
+            2 => self.rcp_int.status().bits() as u32,
+            3 => self.rcp_int.mask().bits() as u32,
             _ => todo!("MI Register Read: {:08X}", address),
         })
     }
@@ -42,31 +44,32 @@ impl MipsInterface {
 
         match address >> 2 {
             0 => {
-                mask.write_partial(&mut self.mode, 0x007f);
-                mask.set_or_clear(&mut self.mode, Mode::set_repeat, 8, 7);
-                mask.set_or_clear(&mut self.mode, Mode::set_ebus, 10, 9);
-                mask.set_or_clear(&mut self.mode, Mode::set_upper, 13, 12);
-                debug!("MI_MODE: {:?}", self.mode);
+                mask.write_partial(&mut self.regs.mode, 0x007f);
+                mask.set_or_clear(&mut self.regs.mode, Mode::set_repeat, 8, 7);
+                mask.set_or_clear(&mut self.regs.mode, Mode::set_ebus, 10, 9);
+                mask.set_or_clear(&mut self.regs.mode, Mode::set_upper, 13, 12);
+                debug!("MI_MODE: {:?}", self.regs.mode);
 
                 assert!(
-                    !self.mode.repeat() || self.mode.repeat_count() == 15,
+                    !self.regs.mode.repeat() || self.regs.mode.repeat_count() == 15,
                     "Unsupported repeat mode configuration"
                 );
 
-                assert!(!self.mode.ebus(), "EBus mode not supported");
+                assert!(!self.regs.mode.ebus(), "EBus mode not supported");
 
                 if (mask.raw() & 0x0800) != 0 {
                     warn!("TODO: Acknowledge MI interrupt")
                 }
             }
             3 => {
-                mask.set_or_clear(&mut self.mask, Mask::set_sp, 1, 0);
-                mask.set_or_clear(&mut self.mask, Mask::set_si, 3, 2);
-                mask.set_or_clear(&mut self.mask, Mask::set_ai, 5, 4);
-                mask.set_or_clear(&mut self.mask, Mask::set_vi, 7, 6);
-                mask.set_or_clear(&mut self.mask, Mask::set_pi, 9, 8);
-                mask.set_or_clear(&mut self.mask, Mask::set_dp, 11, 10);
-                debug!("MI_MASK: {:?}", self.mask);
+                let mut int_mask = self.rcp_int.mask();
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::SP, 1, 0);
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::SI, 3, 2);
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::AI, 5, 4);
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::VI, 7, 6);
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::PI, 9, 8);
+                mask.set_or_clear_flag(&mut int_mask, RcpIntType::DP, 11, 10);
+                self.rcp_int.set_mask(int_mask);
             }
             _ => todo!("MI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

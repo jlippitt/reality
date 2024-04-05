@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bitfield-struct = "0.6.0"
+bitflags = "2.5.0"
 bytemuck = { version = "1.15.0", features = ["must_cast", "derive"] }
 num-traits = "0.2.18"
 pollster = "0.3.0"

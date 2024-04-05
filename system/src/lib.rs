@@ -2,6 +2,7 @@ pub use video::DisplayTarget;
 
 use audio::AudioInterface;
 use cpu::Cpu;
+use interrupt::{CpuInterrupt, RcpInterrupt};
 use memory::{Mapping, Memory, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
@@ -16,6 +17,7 @@ use video::VideoInterface;
 
 mod audio;
 mod cpu;
+mod interrupt;
 mod memory;
 mod mips_interface;
 mod peripheral;
@@ -28,6 +30,7 @@ mod video;
 
 struct Bus {
     memory_map: Vec<Mapping>,
+    cpu_int: CpuInterrupt,
     rdram: Rdram,
     rsp: Rsp,
     rdp: Rdp,
@@ -72,17 +75,21 @@ impl Device {
         // Default RDRAM mapping (for ROMs that use simplified boot sequences)
         memory_map[0x000..=0x007].fill(Mapping::RdramData);
 
+        let cpu_int = CpuInterrupt::new();
+        let rcp_int = RcpInterrupt::new(cpu_int.clone());
+
         Ok(Self {
             cpu: Cpu::new(),
             bus: Bus {
                 memory_map,
+                cpu_int,
                 rdram: Rdram::new(),
                 rsp: Rsp::new(),
                 rdp: Rdp::new(),
-                mi: MipsInterface::new(),
+                mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(options.display_target)?,
                 ai: AudioInterface::new(),
-                pi: PeripheralInterface::new(),
+                pi: PeripheralInterface::new(rcp_int),
                 si: SerialInterface::new(),
                 rom: Memory::from_bytes(&options.rom_data),
                 pif: Pif::new(options.pif_data),
@@ -177,5 +184,9 @@ impl cpu::Bus for Bus {
         }
 
         self.rdram.write_block(address, data);
+    }
+
+    fn poll(&self) -> u8 {
+        self.cpu_int.status().bits()
     }
 }

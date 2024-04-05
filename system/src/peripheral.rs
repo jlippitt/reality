@@ -1,3 +1,4 @@
+use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
 use regs::Regs;
@@ -13,13 +14,15 @@ struct Dma {
 pub struct PeripheralInterface {
     regs: Regs,
     dma: Option<Dma>,
+    rcp_int: RcpInterrupt,
 }
 
 impl PeripheralInterface {
-    pub fn new() -> Self {
+    pub fn new(rcp_int: RcpInterrupt) -> Self {
         Self {
             regs: Regs::default(),
             dma: None,
+            rcp_int,
         }
     }
 
@@ -59,6 +62,7 @@ impl PeripheralInterface {
 
             if dma.len == 0 {
                 self.dma = None;
+                self.rcp_int.raise(RcpIntType::PI);
             }
         }
     }
@@ -68,11 +72,14 @@ impl PeripheralInterface {
             0 => self.regs.dram_addr,
             1 => self.regs.cart_addr,
             4 => {
-                // TODO: Interrupt status
                 let mut value: u32 = 0;
 
                 if self.dma.is_some() {
                     value |= 0x01;
+                }
+
+                if self.rcp_int.has(RcpIntType::PI) {
+                    value |= 0x08;
                 }
 
                 value
@@ -115,7 +122,7 @@ impl PeripheralInterface {
                 }
 
                 if (raw & 0x02) != 0 {
-                    warn!("TODO: Acknowledge PI interrupt");
+                    self.rcp_int.clear(RcpIntType::PI);
                 }
             }
             5 => mask.write_reg("PI_BSD_DOM1_LAT", &mut self.regs.bsd_dom[0].lat),

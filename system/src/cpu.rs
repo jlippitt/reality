@@ -41,6 +41,7 @@ pub trait Bus {
     fn write_single<T: Size>(&mut self, address: u32, value: T);
     fn read_block(&self, address: u32, data: &mut [u32]);
     fn write_block(&mut self, address: u32, data: &[u32]);
+    fn poll(&self) -> u8;
 }
 
 pub struct Cpu {
@@ -115,6 +116,9 @@ impl Cpu {
                 }
             }
         }
+
+        // Check for interrupts *after* WB
+        cp0::step(self, bus);
 
         // DC
         dc::execute(self, bus);

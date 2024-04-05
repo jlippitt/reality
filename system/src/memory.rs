@@ -1,3 +1,4 @@
+use bitflags::Flags;
 use bytemuck::Pod;
 use std::fmt::Debug;
 use std::mem;
@@ -201,6 +202,21 @@ impl WriteMask {
             (false, false) => (),
             (false, true) => setter(dst, false),
             (true, false) => setter(dst, true),
+            (true, true) => panic!(
+                "Conflict between SET_* and CLR_* bits {} and {}",
+                set_bit, clr_bit
+            ),
+        }
+    }
+
+    pub fn set_or_clear_flag<T: Flags>(&self, dst: &mut T, flag: T, set_bit: u32, clr_bit: u32) {
+        let set = (self.value & (1 << set_bit)) != 0;
+        let clr = (self.value & (1 << clr_bit)) != 0;
+
+        match (set, clr) {
+            (false, false) => (),
+            (false, true) => dst.remove(flag),
+            (true, false) => dst.insert(flag),
             (true, true) => panic!(
                 "Conflict between SET_* and CLR_* bits {} and {}",
                 set_bit, clr_bit

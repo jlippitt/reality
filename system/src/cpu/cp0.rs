@@ -1,7 +1,7 @@
 pub use ex::cop0;
 pub use regs::TagLo;
 
-use super::{Cpu, DcState};
+use super::{Bus, Cpu, DcState};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{trace, warn};
@@ -152,5 +152,32 @@ impl Cp0 {
                 value
             ),
         }
+    }
+}
+
+pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
+    // TODO: Counter update/check
+    let regs = &mut cpu.cp0.regs;
+
+    if !regs.status.ie() || regs.status.erl() || regs.status.exl() {
+        return;
+    }
+
+    // TODO: Handle internally-generated interrupts (timer, etc.)
+    let pending = bus.poll();
+
+    regs.cause.set_ip(pending);
+
+    let active = pending & regs.status.im();
+
+    if active != 0 {
+        todo!("Interrupt");
+        // trace!("-- Exception: {:08b} --", active);
+        // regs.status.set_exl(true);
+        // regs.cause.set_exc_code(0); // 0 = Interrupt
+        // regs.cause.set_bd(core.is_delay());
+        // regs.epc = core.restart_location();
+        // cpu.pc = EXCEPTION_HANDLER;
+        // cpu.rf.word = 0;
     }
 }
