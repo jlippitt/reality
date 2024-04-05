@@ -58,7 +58,7 @@ impl MipsInterface {
                 assert!(!self.regs.mode.ebus(), "EBus mode not supported");
 
                 if (mask.raw() & 0x0800) != 0 {
-                    warn!("TODO: Acknowledge MI interrupt")
+                    warn!("TODO: Acknowledge RDP interrupt")
                 }
             }
             3 => {
