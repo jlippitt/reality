@@ -176,10 +176,6 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
 
     trace!("-- Exception: {:08b} --", active);
 
-    // If next instruction does not follow on from currently execution instruction,
-    // assume we're in a branch delay slot
-    let is_delay_slot = cpu.rf.pc != cpu.ex.pc.wrapping_add(4);
-
     regs.status.set_exl(true);
     regs.cause.set_exc_code(0); // 0 = Interrupt
     regs.cause.set_bd(cpu.delay);
