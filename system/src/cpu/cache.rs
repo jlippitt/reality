@@ -154,6 +154,20 @@ impl DCache {
         trace!("DCache Line {}: {:08X?}", index, line);
     }
 
+    pub fn hit_write_back_invalidate(&mut self, address: u32, mut store: impl FnMut(&DCacheLine)) {
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &mut self.lines[index];
+
+        if line.matches(address) {
+            if line.is_dirty() {
+                store(line);
+            }
+
+            line.valid = false;
+            trace!("DCache Line {} Invalidated", index);
+        }
+    }
+
     fn fetch_line(
         &mut self,
         address: u32,

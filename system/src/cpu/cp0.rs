@@ -4,7 +4,7 @@ pub use regs::TagLo;
 use super::{Bus, Cpu, DcState};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 const TIMER_INT: u8 = 0x80;
 const SOFTWARE_INT: u8 = 0x03;
@@ -100,12 +100,15 @@ impl Cp0 {
                 self.regs.status = (value as u32).into();
                 trace!("  Status: {:?}", self.regs.status);
                 assert_eq!(0, self.regs.status.ksu(), "Only kernel mode is supported");
-                assert!(
-                    !self.regs.status.kx(),
-                    "Only 32-bit addressing is supported"
-                );
-                assert_eq!(0, self.regs.status.ds(), "Diagnostics are not supported");
                 assert!(!self.regs.status.rp(), "Low power mode is not supported");
+
+                if self.regs.status.kx() {
+                    warn!("Only 32-bit addressing is supported");
+                }
+
+                if self.regs.status.ds() != 0 {
+                    warn!("CPU diagnostics are not supported");
+                }
             }
             13 => {
                 self.regs.cause = (value as u32).into();

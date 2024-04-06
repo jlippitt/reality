@@ -394,6 +394,12 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                         trace!("DCache Line at {:08X} invalidated", paddr);
                     }
                 }
+                0b10101 => {
+                    cpu.dcache.hit_write_back_invalidate(paddr, |line| {
+                        bus.write_block(paddr & 0x1fff_fff0, line.data());
+                        trace!("DCache Line at {:08X} written back to memory", paddr);
+                    });
+                }
                 0b11001 => {
                     if let Some(line) = cpu.dcache.find_mut(paddr) {
                         if line.is_dirty() {
