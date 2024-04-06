@@ -1,6 +1,7 @@
 use bitflags::Flags;
 use bytemuck::Pod;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::mem;
 use tracing::debug;
 
@@ -25,6 +26,7 @@ pub enum Mapping {
 pub trait Size: Pod {
     fn from_u32(value: u32) -> Self;
     fn to_u32(self) -> u32;
+    fn swap_bytes(self) -> Self;
 }
 
 impl Size for u8 {
@@ -34,6 +36,10 @@ impl Size for u8 {
 
     fn to_u32(self) -> u32 {
         self as u32
+    }
+
+    fn swap_bytes(self) -> Self {
+        self.swap_bytes()
     }
 }
 
@@ -45,6 +51,10 @@ impl Size for u16 {
     fn to_u32(self) -> u32 {
         self as u32
     }
+
+    fn swap_bytes(self) -> Self {
+        self.swap_bytes()
+    }
 }
 
 impl Size for u32 {
@@ -55,121 +65,90 @@ impl Size for u32 {
     fn to_u32(self) -> u32 {
         self
     }
+
+    fn swap_bytes(self) -> Self {
+        self.swap_bytes()
+    }
 }
 
 #[derive(Clone, Debug)]
-pub struct Memory<T: AsRef<[u32]> + AsMut<[u32]> = Vec<u32>> {
-    data: T,
+pub struct Memory<T: Size, U: AsRef<[T]> + AsMut<[T]> = Box<[T]>> {
+    data: U,
+    _phantom: PhantomData<T>,
 }
 
-impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
-    pub fn as_slice(&self) -> &[u32] {
-        self.data.as_ref()
+impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
+    pub fn read<V: Size>(&self, address: usize) -> V {
+        let index = address >> mem::size_of::<V>().ilog2();
+        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
+        slice[index].swap_bytes()
     }
 
-    pub fn as_mut_slice(&mut self) -> &mut [u32] {
-        self.data.as_mut()
+    pub fn write<V: Size>(&mut self, address: usize, value: V) {
+        let index = address >> mem::size_of::<V>().ilog2();
+        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
+        slice[index] = value.swap_bytes();
     }
 
-    pub fn read<U: Size>(&self, address: u32) -> U {
-        let mem_size = mem::size_of::<u32>();
-        let data_size = mem::size_of::<U>();
-        debug_assert!((mem_size % data_size) == 0);
-        let index = address as usize >> data_size.ilog2();
-        let slice: &[U] = bytemuck::must_cast_slice(self.data.as_ref());
-        slice[index ^ ((mem_size / data_size) - 1)]
+    pub fn read_block<V: Size>(&self, address: usize, data: &mut [V]) {
+        let start = address >> mem::size_of::<V>().ilog2();
+        let len = data.len();
+        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
+        data.as_mut().copy_from_slice(&slice[start..(start + len)]);
     }
 
-    pub fn write<U: Size>(&mut self, address: u32, value: U) {
-        let mem_size = mem::size_of::<u32>();
-        let data_size = mem::size_of::<U>();
-        debug_assert!((mem_size % data_size) == 0);
-        let index = address as usize >> data_size.ilog2();
-        let slice: &mut [U] = bytemuck::must_cast_slice_mut(self.data.as_mut());
-        slice[index ^ ((mem_size / data_size) - 1)] = value;
+    pub fn write_block<V: Size>(&mut self, address: usize, data: &[V]) {
+        let start = address >> mem::size_of::<V>().ilog2();
+        let len = data.len();
+        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
+        slice[start..(start + len)].copy_from_slice(data.as_ref());
     }
 
-    pub fn read_block(&self, address: u32, data: &mut [u32]) {
-        assert!((address & 3) == 0);
-        let index = (address >> 2) as usize;
-        data.copy_from_slice(&self.data.as_ref()[index..(index + data.len())]);
+    pub fn as_bytes(&self) -> &[u8] {
+        bytemuck::must_cast_slice(self.data.as_ref())
     }
 
-    pub fn write_block(&mut self, address: u32, data: &[u32]) {
-        assert!((address & 3) == 0);
-        let index = (address >> 2) as usize;
-        self.data.as_mut()[index..(index + data.len())].copy_from_slice(data);
-    }
-
-    pub fn read_be_bytes(&self, address: u32, data: &mut [u8]) {
-        assert!((address & 3) == 0);
-        let index = (address >> 2) as usize;
-
-        let src_iter = self.data.as_ref()[index..]
-            .iter()
-            .flat_map(|word| word.to_be_bytes());
-
-        let dst_iter = data.iter_mut();
-
-        for (dst, src) in dst_iter.zip(src_iter) {
-            *dst = src;
-        }
-    }
-
-    pub fn write_be_bytes(&mut self, address: u32, data: &[u8]) {
-        assert!((address & 3) == 0);
-        let index = (address >> 2) as usize;
-
-        let src_iter = data.chunks(4);
-        let dst_iter = self.data.as_mut()[index..].iter_mut();
-
-        for (dst, src) in dst_iter.zip(src_iter) {
-            match src.len() {
-                4 => *dst = u32::from_be_bytes([src[0], src[1], src[2], src[3]]),
-                3 => {
-                    *dst &= 0x0000_00ff;
-                    *dst |= u32::from_be_bytes([src[0], src[1], src[2], 0]);
-                }
-                2 => {
-                    *dst &= 0x0000_ffff;
-                    *dst |= u32::from_be_bytes([src[0], src[1], 0, 0]);
-                }
-                _ => {
-                    *dst &= 0x00ff_ffff;
-                    *dst |= u32::from_be_bytes([src[0], 0, 0, 0]);
-                }
-            };
-        }
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        bytemuck::must_cast_slice_mut(self.data.as_mut())
     }
 }
 
-impl<T: AsRef<[u32]> + AsMut<[u32]> + Default> Default for Memory<T> {
+impl<T: Size, U: AsRef<[T]> + AsMut<[T]> + Default> Default for Memory<T, U> {
     fn default() -> Self {
-        Self { data: T::default() }
+        Self {
+            data: U::default(),
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<T: AsRef<[u32]> + AsMut<[u32]>> From<T> for Memory<T> {
-    fn from(value: T) -> Self {
-        Self { data: value }
+impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> From<U> for Memory<T, U> {
+    fn from(value: U) -> Self {
+        Self {
+            data: value,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl Memory<Vec<u32>> {
+impl<T: Size> Memory<T, Box<[T]>> {
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        assert!((bytes.len() & 3) == 0);
-        let data = bytes
-            .chunks_exact(4)
-            .map(|chunks| u32::from_be_bytes([chunks[0], chunks[1], chunks[2], chunks[3]]))
-            .collect();
+        assert!((bytes.len() % mem::size_of::<T>()) == 0);
+        let mut vec = vec![T::zeroed(); bytes.len() / mem::size_of::<T>()];
+        bytemuck::cast_slice_mut(vec.as_mut_slice()).copy_from_slice(bytes);
 
-        Self { data }
+        Self {
+            data: vec.into_boxed_slice(),
+            _phantom: PhantomData,
+        }
     }
 
     pub fn with_byte_len(len: usize) -> Self {
-        assert!((len & 3) == 0);
+        assert!((len % mem::size_of::<T>()) == 0);
+
         Self {
-            data: vec![0; len >> 2],
+            data: vec![T::zeroed(); len >> mem::size_of::<T>().ilog2()].into_boxed_slice(),
+            _phantom: PhantomData,
         }
     }
 }
@@ -272,7 +251,7 @@ mod tests {
 
     #[test]
     fn memory_read() {
-        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
         assert_eq!(0x00112233, memory.read::<u32>(0));
         assert_eq!(0x44556677, memory.read::<u32>(4));
         assert_eq!(0x0011, memory.read::<u16>(0));
@@ -291,7 +270,7 @@ mod tests {
 
     #[test]
     fn memory_read_block() {
-        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
         let mut block = [0u32; 2];
         memory.read_block(0, &mut block);
         assert_eq!([0x00112233, 0x44556677], block);

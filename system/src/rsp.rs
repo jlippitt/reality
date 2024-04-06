@@ -7,7 +7,7 @@ mod regs;
 const MEM_SIZE: usize = 8192;
 
 pub struct Rsp {
-    mem: Memory,
+    mem: Memory<u32>,
     status: Status,
     pc: u32,
 }
@@ -31,7 +31,7 @@ impl Rsp {
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         if (address as usize) < MEM_SIZE {
-            return self.mem.read(address);
+            return self.mem.read(address as usize);
         }
 
         T::from_u32(if (address & 0x0004_0000) == 0x0004_0000 {
@@ -45,7 +45,7 @@ impl Rsp {
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
         if (address as usize) < MEM_SIZE {
-            return self.mem.write(address, value);
+            return self.mem.write(address as usize, value);
         }
 
         let mask = WriteMask::new(address, value);

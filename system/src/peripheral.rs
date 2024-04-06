@@ -13,7 +13,7 @@ struct Dma {
 
 pub struct PeripheralInterface {
     regs: Regs,
-    rom: Memory,
+    rom: Memory<u32>,
     dma: Option<Dma>,
     rcp_int: RcpInterrupt,
 }
@@ -41,42 +41,23 @@ impl PeripheralInterface {
         if let Some(dma) = &mut self.dma {
             let dram_addr = self.regs.dram_addr & 0x00ff_fffe;
             let cart_addr = self.regs.cart_addr & 0x0fff_fffe;
-            let block_address = self.regs.dram_addr;
             let block_len = dma.len.min(128);
 
-            assert!((block_address & 3) == 0);
-
-            let mut buf = [0u32; 32];
-
-            if (block_len & 3) == 0 {
-                let data = &mut buf[0..((block_len >> 2) as usize)];
-
-                if dma.write {
-                    self.rom.read_block(cart_addr, data);
-                    rdram.write_block(dram_addr, data);
-                } else {
-                    rdram.read_block(dram_addr, data);
-                    self.rom.write_block(cart_addr, data);
-                }
-            } else {
-                let buf: &mut [u8] = bytemuck::must_cast_slice_mut(&mut buf);
-                let data = &mut buf[0..(block_len as usize)];
-
-                if dma.write {
-                    self.rom.read_be_bytes(cart_addr, data);
-                    rdram.write_be_bytes(dram_addr, data);
-                } else {
-                    rdram.read_be_bytes(dram_addr, data);
-                    self.rom.write_be_bytes(cart_addr, data);
-                }
-            }
+            let mut buf = [0u8; 128];
+            let data = &mut buf[0..(block_len as usize)];
 
             if dma.write {
+                self.rom.read_block(cart_addr as usize, data);
+                rdram.write_block(dram_addr as usize, data);
+
                 debug!(
                     "PI DMA: {} bytes written from {:08X} to {:08X}",
                     block_len, self.regs.cart_addr, self.regs.dram_addr,
                 );
             } else {
+                rdram.read_block(dram_addr as usize, data);
+                self.rom.write_block(cart_addr as usize, data);
+
                 debug!(
                     "PI DMA: {} bytes read from {:08X} to {:08X}",
                     block_len, self.regs.dram_addr, self.regs.cart_addr,
@@ -166,6 +147,6 @@ impl PeripheralInterface {
     }
 
     pub fn read_rom<T: Size>(&self, address: u32) -> T {
-        self.rom.read(address)
+        self.rom.read(address as usize)
     }
 }

@@ -40,7 +40,7 @@ impl SerialInterface {
             let mut buf = [0u32; 16];
 
             if dma.write {
-                rdram.read_block(dram_addr, &mut buf);
+                rdram.read_block(dram_addr as usize, &mut buf);
 
                 let mut pif_addr = dma.pif_addr;
 
@@ -63,7 +63,7 @@ impl SerialInterface {
                     pif_addr += 4;
                 }
 
-                rdram.write_block(dram_addr, &buf);
+                rdram.write_block(dram_addr as usize, &buf);
 
                 debug!(
                     "SI DMA: {} bytes read from {:04X} to {:08X}",

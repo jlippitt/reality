@@ -122,7 +122,7 @@ impl Device {
 impl cpu::Bus for Bus {
     fn read_single<T: Size>(&self, address: u32) -> T {
         match self.memory_map[address as usize >> 20] {
-            Mapping::RdramData => self.rdram.read_single(address),
+            Mapping::RdramData => self.rdram.read_single(address as usize),
             Mapping::RdramRegister => self.rdram.read_register(&self.mi, address & 0x000f_ffff),
             Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
@@ -144,7 +144,7 @@ impl cpu::Bus for Bus {
 
     fn write_single<T: Size>(&mut self, address: u32, value: T) {
         match self.memory_map[address as usize >> 20] {
-            Mapping::RdramData => self.rdram.write_single(address, value),
+            Mapping::RdramData => self.rdram.write_single(address as usize, value),
             Mapping::RdramRegister => {
                 self.rdram.write_register(
                     &mut self.mi,
@@ -168,20 +168,20 @@ impl cpu::Bus for Bus {
         }
     }
 
-    fn read_block(&self, address: u32, data: &mut [u32]) {
+    fn read_block<T: Size>(&self, address: u32, data: &mut [T]) {
         if self.memory_map[address as usize >> 20] != Mapping::RdramData {
             panic!("Only RDRAM data is supported for block reads");
         }
 
-        self.rdram.read_block(address, data);
+        self.rdram.read_block(address as usize, data);
     }
 
-    fn write_block(&mut self, address: u32, data: &[u32]) {
+    fn write_block<T: Size>(&mut self, address: u32, data: &[T]) {
         if self.memory_map[address as usize >> 20] != Mapping::RdramData {
             panic!("Only RDRAM data is supported for block writes");
         }
 
-        self.rdram.write_block(address, data);
+        self.rdram.write_block(address as usize, data);
     }
 
     fn poll(&self) -> u8 {

@@ -84,11 +84,11 @@ impl Framebuffer {
             DisplayMode::Blank => self.pixel_buf.fill(0),
             DisplayMode::Reserved => panic!("Use of reserved display mode"),
             DisplayMode::Color16 => {
-                let src_pitch = buffer_width * 2;
+                let src_pitch = buffer_width as usize * 2;
                 let dst_pitch = video_width as usize * 4;
                 let dst_display = dst_pitch.min(buffer_width as usize * 4);
 
-                let mut src = origin;
+                let mut src = origin as usize;
                 let mut dst = 0;
 
                 for _ in 0..video_height {
@@ -100,7 +100,7 @@ impl Framebuffer {
                     rdram.read_block(src, &mut draw_area[read_start..]);
 
                     for index in 0..draw_area.len() {
-                        let mut word = draw_area[read_start + (index / 2)];
+                        let mut word = draw_area[read_start + (index / 2)].swap_bytes();
 
                         if (index & 1) == 0 {
                             word >>= 16;
@@ -121,11 +121,11 @@ impl Framebuffer {
                 }
             }
             DisplayMode::Color32 => {
-                let src_pitch = buffer_width * 4;
+                let src_pitch = buffer_width as usize * 4;
                 let dst_pitch = video_width as usize * 4;
-                let dst_display = dst_pitch.min(src_pitch as usize);
+                let dst_display = dst_pitch.min(src_pitch);
 
-                let mut src = origin;
+                let mut src = origin as usize;
                 let mut dst = 0;
 
                 for _ in 0..video_height {
@@ -133,10 +133,6 @@ impl Framebuffer {
                         bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
 
                     rdram.read_block(src, draw_area);
-
-                    for pixel in draw_area {
-                        *pixel = pixel.swap_bytes();
-                    }
 
                     self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
 

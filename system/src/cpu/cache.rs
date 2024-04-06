@@ -4,7 +4,7 @@ use tracing::trace;
 
 #[derive(Clone, Default, Debug)]
 pub struct ICacheLine {
-    data: [u32; 8],
+    data: Memory<u32, [u32; 8]>,
     ptag: u32,
     valid: bool,
 }
@@ -38,7 +38,7 @@ impl ICache {
             trace!("ICache Line {}: {:08X?}", index, line);
         }
 
-        line.data[((address >> 2) & 7) as usize]
+        line.data.read(address as usize & 0x1f)
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool) {
@@ -55,8 +55,8 @@ impl ICacheLine {
         self.valid && self.ptag == (address >> 12)
     }
 
-    pub fn data_mut(&mut self) -> &mut [u32] {
-        &mut self.data
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        self.data.as_bytes_mut()
     }
 
     pub fn clear_valid_flag(&mut self) {
@@ -66,7 +66,7 @@ impl ICacheLine {
 
 #[derive(Clone, Default, Debug)]
 pub struct DCacheLine {
-    data: Memory<[u32; 4]>,
+    data: Memory<u32, [u32; 4]>,
     ptag: u32,
     valid: bool,
     dirty: bool,
@@ -91,7 +91,7 @@ impl DCache {
 
     pub fn read<T: Size>(&mut self, address: u32, reload: impl FnMut(&mut DCacheLine)) -> T {
         let line = self.fetch_line(address, reload);
-        line.data.read(address & 0x0f)
+        line.data.read(address as usize & 0x0f)
     }
 
     pub fn read_block(
@@ -101,18 +101,18 @@ impl DCache {
         reload: impl FnMut(&mut DCacheLine),
     ) {
         let line = self.fetch_line(address, reload);
-        line.data.read_block(address & 0x0f, data);
+        line.data.read_block(address as usize & 0x0f, data);
     }
 
     pub fn write<T: Size>(&mut self, address: u32, value: T, reload: impl FnMut(&mut DCacheLine)) {
         let line = self.fetch_line(address, reload);
-        line.data.write(address & 0x0f, value);
+        line.data.write(address as usize & 0x0f, value);
         line.dirty = true;
     }
 
     pub fn write_block(&mut self, address: u32, data: &[u32], reload: impl FnMut(&mut DCacheLine)) {
         let line = self.fetch_line(address, reload);
-        line.data.write_block(address & 0x0f, data);
+        line.data.write_block(address as usize & 0x0f, data);
         line.dirty = true;
     }
 
@@ -193,12 +193,12 @@ impl DCacheLine {
         self.valid && self.ptag == (address >> 12)
     }
 
-    pub fn data(&self) -> &[u32] {
-        self.data.as_slice()
+    pub fn data(&self) -> &[u8] {
+        self.data.as_bytes()
     }
 
-    pub fn data_mut(&mut self) -> &mut [u32] {
-        self.data.as_mut_slice()
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        self.data.as_bytes_mut()
     }
 
     pub fn ptag(&self) -> u32 {

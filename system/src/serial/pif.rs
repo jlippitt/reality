@@ -6,7 +6,7 @@ const PIF_DATA_SIZE: usize = 2048;
 const PIF_RAM_START: u32 = 0x7c0;
 
 pub struct Pif {
-    mem: Memory,
+    mem: Memory<u32>,
     rom_locked: bool,
 }
 
@@ -34,7 +34,7 @@ impl Pif {
             panic!("Read from locked PIF ROM: {:08X}", address);
         }
 
-        self.mem.read(address)
+        self.mem.read(address as usize)
     }
 
     pub fn write<T: Size>(&mut self, joybus: &mut Joybus, address: u32, value: T) {
@@ -42,7 +42,7 @@ impl Pif {
             panic!("Write to PIF ROM: {:08X}", address);
         }
 
-        self.mem.write(address, value);
+        self.mem.write(address as usize, value);
 
         // Impossible to write command byte at these addresses
         if address < 0x7fc {
@@ -59,10 +59,7 @@ impl Pif {
         let mut result: u8 = 0;
 
         if (cmd & 0x01) != 0 {
-            let mut ram = [0u8; 64];
-            self.mem.read_be_bytes(PIF_RAM_START, &mut ram);
-            joybus.execute(&mut ram);
-            self.mem.write_be_bytes(PIF_RAM_START, &ram);
+            joybus.execute(self.mem.as_bytes_mut());
         }
 
         if (cmd & 0x02) != 0 {

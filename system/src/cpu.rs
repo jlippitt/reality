@@ -40,8 +40,8 @@ struct WbState {
 pub trait Bus {
     fn read_single<T: Size>(&self, address: u32) -> T;
     fn write_single<T: Size>(&mut self, address: u32, value: T);
-    fn read_block(&self, address: u32, data: &mut [u32]);
-    fn write_block(&mut self, address: u32, data: &[u32]);
+    fn read_block<T: Size>(&self, address: u32, data: &mut [T]);
+    fn write_block<T: Size>(&mut self, address: u32, data: &[T]);
     fn poll(&self) -> u8;
 }
 
@@ -239,7 +239,7 @@ impl Cpu {
             bus.read_block(address & 0x1fff_ffff, &mut dword);
         }
 
-        ((dword[0] as u64) << 32) | (dword[1] as u64)
+        ((dword[0].swap_bytes() as u64) << 32) | (dword[1].swap_bytes() as u64)
     }
 
     fn write_dword(&mut self, bus: &mut impl Bus, address: u32, value: u64) {
@@ -249,7 +249,10 @@ impl Cpu {
             todo!("TLB lookups");
         }
 
-        let dword = [(value >> 32) as u32, value as u32];
+        let dword = [
+            ((value >> 32) as u32).swap_bytes(),
+            (value as u32).swap_bytes(),
+        ];
 
         if segment == 4 {
             return self
