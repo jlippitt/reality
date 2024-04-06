@@ -23,10 +23,10 @@ impl PeripheralInterface {
         let mut regs = Regs::default();
 
         if skip_pif_rom {
-            regs.bsd_dom[0].lat.set_lat(rom_data[0] as u32);
-            regs.bsd_dom[0].pwd.set_pwd(rom_data[1] as u32);
-            regs.bsd_dom[0].pgs.set_pgs(rom_data[2] as u32 & 0x0f);
-            regs.bsd_dom[0].rls.set_rls(rom_data[1] as u32 >> 8);
+            regs.bsd_dom[0].lat.set_lat(rom_data[3] as u32);
+            regs.bsd_dom[0].pwd.set_pwd(rom_data[2] as u32);
+            regs.bsd_dom[0].pgs.set_pgs(rom_data[1] as u32 & 0x0f);
+            regs.bsd_dom[0].rls.set_rls(rom_data[1] as u32 >> 4);
         }
 
         Self {
