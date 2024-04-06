@@ -105,11 +105,13 @@ impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
         assert!((address & 3) == 0);
         let index = (address >> 2) as usize;
 
-        let iter = self.data.as_ref()[index..]
+        let src_iter = self.data.as_ref()[index..]
             .iter()
             .flat_map(|word| word.to_be_bytes());
 
-        for (dst, src) in data.iter_mut().zip(iter) {
+        let dst_iter = data.iter_mut();
+
+        for (dst, src) in dst_iter.zip(src_iter) {
             *dst = src;
         }
     }
@@ -118,12 +120,25 @@ impl<T: AsRef<[u32]> + AsMut<[u32]>> Memory<T> {
         assert!((address & 3) == 0);
         let index = (address >> 2) as usize;
 
-        let iter = data
-            .chunks_exact(4)
-            .map(|chunk| u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+        let src_iter = data.chunks(4);
+        let dst_iter = self.data.as_mut()[index..].iter_mut();
 
-        for (dst, src) in self.data.as_mut()[index..].iter_mut().zip(iter) {
-            *dst = src;
+        for (dst, src) in dst_iter.zip(src_iter) {
+            match src.len() {
+                4 => *dst = u32::from_be_bytes([src[0], src[1], src[2], src[3]]),
+                3 => {
+                    *dst &= 0x0000_00ff;
+                    *dst |= u32::from_be_bytes([src[0], src[1], src[2], 0]);
+                }
+                2 => {
+                    *dst &= 0x0000_ffff;
+                    *dst |= u32::from_be_bytes([src[0], src[1], 0, 0]);
+                }
+                _ => {
+                    *dst &= 0x00ff_ffff;
+                    *dst |= u32::from_be_bytes([src[0], 0, 0, 0]);
+                }
+            };
         }
     }
 }

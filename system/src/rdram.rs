@@ -32,18 +32,18 @@ struct Interface {
 
 pub struct Rdram {
     banks: [Bank; 8],
-    data: Memory,
+    mem: Memory,
     modules: Vec<Module>,
     ri: Interface,
 }
 
 impl Rdram {
     pub fn new() -> Self {
-        let mut data = Memory::with_byte_len(8 * BANK_SIZE);
+        let mut mem = Memory::with_byte_len(8 * BANK_SIZE);
 
         // TODO: Remove these default values if/when we eventually get RAM detection working
-        data.write(0x318, 0x0080_0000u32);
-        data.write(0x3f0, 0x0080_0000u32);
+        mem.write(0x318, 0x0080_0000u32);
+        mem.write(0x3f0, 0x0080_0000u32);
 
         Self {
             // Default bank configuration (to support ROMs that use simplified
@@ -51,7 +51,7 @@ impl Rdram {
             banks: array::from_fn(|index| Bank {
                 offset: (index * BANK_SIZE) as u32,
             }),
-            data,
+            mem,
             modules: (0..4)
                 .map(|_| Module {
                     device_id: 0xffff,
@@ -71,27 +71,41 @@ impl Rdram {
     pub fn read_single<T: Size>(&self, address: u32) -> T {
         let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
-        self.data.read(mapped_address)
+        self.mem.read(mapped_address)
     }
 
     pub fn write_single<T: Size>(&mut self, address: u32, value: T) {
         let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
-        self.data.write(mapped_address, value);
+        self.mem.write(mapped_address, value);
     }
 
     pub fn read_block(&self, address: u32, data: &mut [u32]) {
         let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         // TODO: What happens if we cross a non-contiguous bank boundary?
-        self.data.read_block(mapped_address, data);
+        self.mem.read_block(mapped_address, data);
     }
 
     pub fn write_block(&mut self, address: u32, data: &[u32]) {
         let bank_offset = self.banks[(address >> 20) as usize].offset;
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         // TODO: What happens if we cross a non-contiguous bank boundary?
-        self.data.write_block(mapped_address, data);
+        self.mem.write_block(mapped_address, data);
+    }
+
+    pub fn read_be_bytes(&self, address: u32, data: &mut [u8]) {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
+        let mapped_address = bank_offset + (address & 0x000f_ffff);
+        // TODO: What happens if we cross a non-contiguous bank boundary?
+        self.mem.read_be_bytes(mapped_address, data);
+    }
+
+    pub fn write_be_bytes(&mut self, address: u32, data: &[u8]) {
+        let bank_offset = self.banks[(address >> 20) as usize].offset;
+        let mapped_address = bank_offset + (address & 0x000f_ffff);
+        // TODO: What happens if we cross a non-contiguous bank boundary?
+        self.mem.write_be_bytes(mapped_address, data);
     }
 
     pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {
