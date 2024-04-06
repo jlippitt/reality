@@ -39,20 +39,32 @@ pub struct Rdram {
 
 impl Rdram {
     pub fn new() -> Self {
+        let mut data = Memory::with_byte_len(8 * BANK_SIZE);
+
+        // TODO: Remove these default values if/when we eventually get RAM detection working
+        data.write(0x318, 0x0080_0000u32);
+        data.write(0x3f0, 0x0080_0000u32);
+
         Self {
             // Default bank configuration (to support ROMs that use simplified
             // booting sequences)
             banks: array::from_fn(|index| Bank {
                 offset: (index * BANK_SIZE) as u32,
             }),
-            data: Memory::with_byte_len(8 * BANK_SIZE),
+            data,
             modules: (0..4)
                 .map(|_| Module {
                     device_id: 0xffff,
                     ..Module::default()
                 })
                 .collect(),
-            ri: Default::default(),
+            // TODO: Remove these default values if/when we eventually get RAM detection working
+            ri: Interface {
+                mode: 0x0e.into(),
+                config: 0x40.into(),
+                select: 0x14.into(),
+                refresh: 0x0006_3634.into(),
+            },
         }
     }
 
