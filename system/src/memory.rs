@@ -71,6 +71,34 @@ impl Size for u32 {
     }
 }
 
+impl Size for u64 {
+    fn from_u32(_value: u32) -> Self {
+        panic!("64-bit read from 32-bit register");
+    }
+
+    fn to_u32(self) -> u32 {
+        panic!("64-bit write to 32-bit register");
+    }
+
+    fn swap_bytes(self) -> Self {
+        self.swap_bytes()
+    }
+}
+
+impl Size for u128 {
+    fn from_u32(_value: u32) -> Self {
+        panic!("128-bit read from 32-bit register");
+    }
+
+    fn to_u32(self) -> u32 {
+        panic!("128-bit write to 32-bit register");
+    }
+
+    fn swap_bytes(self) -> Self {
+        self.swap_bytes()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Memory<T: Size, U: AsRef<[T]> + AsMut<[T]> = Box<[T]>> {
     data: U,

@@ -221,50 +221,6 @@ impl Cpu {
         bus.write_single(address & 0x1fff_ffff, value);
     }
 
-    fn read_dword(&mut self, bus: &mut impl Bus, address: u32) -> u64 {
-        let segment = address >> 29;
-
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
-        }
-
-        let mut dword = [0u32; 2];
-
-        if segment == 4 {
-            self.dcache
-                .read_block(address & 0x1fff_ffff, &mut dword, |line| {
-                    Self::dcache_reload(bus, line, address)
-                });
-        } else {
-            bus.read_block(address & 0x1fff_ffff, &mut dword);
-        }
-
-        ((dword[0].swap_bytes() as u64) << 32) | (dword[1].swap_bytes() as u64)
-    }
-
-    fn write_dword(&mut self, bus: &mut impl Bus, address: u32, value: u64) {
-        let segment = address >> 29;
-
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
-        }
-
-        let dword = [
-            ((value >> 32) as u32).swap_bytes(),
-            (value as u32).swap_bytes(),
-        ];
-
-        if segment == 4 {
-            return self
-                .dcache
-                .write_block(address & 0x1fff_ffff, &dword, |line| {
-                    Self::dcache_reload(bus, line, address)
-                });
-        }
-
-        bus.write_block(address & 0x1fff_ffff, &dword);
-    }
-
     fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
         let segment = address >> 29;
 

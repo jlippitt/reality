@@ -13,7 +13,7 @@ struct Dma {
 
 pub struct PeripheralInterface {
     regs: Regs,
-    rom: Memory<u32>,
+    rom: Memory<u64>,
     dma: Option<Dma>,
     rcp_int: RcpInterrupt,
 }

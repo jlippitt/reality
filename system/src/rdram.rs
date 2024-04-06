@@ -32,7 +32,7 @@ struct Interface {
 
 pub struct Rdram {
     banks: [Bank; 8],
-    mem: Memory<u32>,
+    mem: Memory<u64>,
     modules: Vec<Module>,
     ri: Interface,
 }

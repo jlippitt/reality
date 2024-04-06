@@ -7,7 +7,7 @@ mod regs;
 const MEM_SIZE: usize = 8192;
 
 pub struct Rsp {
-    mem: Memory<u32>,
+    mem: Memory<u128>,
     status: Status,
     pc: u32,
 }

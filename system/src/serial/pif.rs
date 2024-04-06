@@ -6,7 +6,7 @@ const PIF_DATA_SIZE: usize = 2048;
 const PIF_RAM_START: u32 = 0x7c0;
 
 pub struct Pif {
-    mem: Memory<u32>,
+    mem: Memory<u64>,
     rom_locked: bool,
 }
 
