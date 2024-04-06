@@ -59,7 +59,7 @@ impl Pif {
         let mut result: u8 = 0;
 
         if (cmd & 0x01) != 0 {
-            joybus.execute(self.mem.as_bytes_mut());
+            joybus.execute(&mut self.mem.as_bytes_mut()[(PIF_RAM_START as usize)..]);
         }
 
         if (cmd & 0x02) != 0 {

@@ -37,7 +37,7 @@ impl SerialInterface {
     pub fn step(&mut self, rdram: &mut Rdram) {
         if let Some(dma) = &self.dma {
             let dram_addr = self.regs.dram_addr.dram_addr();
-            let mut buf = [0u32; 16];
+            let mut buf = [0u8; 64];
 
             if dma.write {
                 rdram.read_block(dram_addr as usize, &mut buf);
@@ -46,7 +46,7 @@ impl SerialInterface {
 
                 for word in buf {
                     self.pif.write(&mut self.joybus, pif_addr, word);
-                    pif_addr += 4;
+                    pif_addr += 1;
                 }
 
                 debug!(
@@ -60,7 +60,7 @@ impl SerialInterface {
 
                 for word in &mut buf {
                     *word = self.pif.read(pif_addr);
-                    pif_addr += 4;
+                    pif_addr += 1;
                 }
 
                 rdram.write_block(dram_addr as usize, &buf);
