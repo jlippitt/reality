@@ -6,6 +6,7 @@ mod arithmetic;
 mod bitwise;
 mod compare;
 mod control;
+mod exception;
 mod load;
 mod misc;
 mod mul_div;
@@ -110,6 +111,8 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o55 => arithmetic::r_type_unchecked::<arithmetic::Dadd>(cpu, pc, word),
         0o56 => arithmetic::r_type_checked::<arithmetic::Dsub>(cpu, pc, word),
         0o57 => arithmetic::r_type_unchecked::<arithmetic::Dsub>(cpu, pc, word),
+        0o64 => exception::teq(cpu, pc, word),
+        0o66 => exception::tne(cpu, pc, word),
         0o70 => shift::fixed::<shift::Dsll>(cpu, pc, word),
         0o72 => shift::fixed::<shift::Dsrl>(cpu, pc, word),
         0o73 => shift::fixed::<shift::Dsra>(cpu, pc, word),
