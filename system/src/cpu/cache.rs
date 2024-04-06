@@ -116,6 +116,22 @@ impl DCache {
         line.dirty = true;
     }
 
+    pub fn index_write_back_invalidate(
+        &mut self,
+        address: u32,
+        mut store: impl FnMut(&DCacheLine),
+    ) {
+        let index = ((address >> 4) & 0x01ff) as usize;
+        let line = &mut self.lines[index];
+
+        if line.is_dirty() {
+            store(line);
+        }
+
+        line.valid = false;
+        trace!("DCache Line {} Invalidated", index);
+    }
+
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool, dirty: bool) {
         let index = ((address >> 4) & 0x01ff) as usize;
         let line = &mut self.lines[index];

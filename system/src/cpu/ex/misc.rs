@@ -8,18 +8,14 @@ pub fn sync(_cpu: &mut Cpu, pc: u32) -> DcState {
 }
 
 pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
-    const CACHE_OP_NAMES: [char; 8] = ['?', '?', 'P', '?', '?', '?', '?', '?'];
-    const CACHE_NAMES: [char; 4] = ['I', 'D', '?', '?'];
-
     let base = ((word >> 21) & 31) as usize;
     let op = (word >> 16) & 31;
     let offset = (word & 0xffff) as i16;
 
     trace!(
-        "{:08X}: CACHE {}{}, {}({})",
+        "{:08X}: CACHE 0b{:05b}, {}({})",
         pc,
-        CACHE_OP_NAMES[(op >> 2) as usize],
-        CACHE_NAMES[(op & 3) as usize],
+        op,
         offset,
         Cpu::REG_NAMES[base]
     );
