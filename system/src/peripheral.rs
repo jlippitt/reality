@@ -13,20 +13,31 @@ struct Dma {
 
 pub struct PeripheralInterface {
     regs: Regs,
+    rom: Memory,
     dma: Option<Dma>,
     rcp_int: RcpInterrupt,
 }
 
 impl PeripheralInterface {
-    pub fn new(rcp_int: RcpInterrupt) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, rom_data: Vec<u8>, skip_pif_rom: bool) -> Self {
+        let mut regs = Regs::default();
+
+        if skip_pif_rom {
+            regs.bsd_dom[0].lat.set_lat(rom_data[0] as u32);
+            regs.bsd_dom[0].pwd.set_pwd(rom_data[1] as u32);
+            regs.bsd_dom[0].pgs.set_pgs(rom_data[2] as u32 & 0x0f);
+            regs.bsd_dom[0].rls.set_rls(rom_data[1] as u32 >> 8);
+        }
+
         Self {
-            regs: Regs::default(),
+            regs,
+            rom: Memory::from_bytes(&rom_data),
             dma: None,
             rcp_int,
         }
     }
 
-    pub fn step(&mut self, rdram: &mut Rdram, rom: &mut Memory) {
+    pub fn step(&mut self, rdram: &mut Rdram) {
         if let Some(dma) = &mut self.dma {
             let block_address = self.regs.dram_addr;
             let block_len = dma.len.min(128);
@@ -38,7 +49,7 @@ impl PeripheralInterface {
             let data = &mut buf[0..((block_len >> 2) as usize)];
 
             if dma.write {
-                rom.read_block(self.regs.cart_addr & 0x00ff_ffff, data);
+                self.rom.read_block(self.regs.cart_addr & 0x00ff_ffff, data);
                 rdram.write_block(self.regs.dram_addr & 0x00ff_ffff, data);
 
                 debug!(
@@ -47,7 +58,7 @@ impl PeripheralInterface {
                 );
             } else {
                 rdram.read_block(self.regs.dram_addr, data);
-                rom.write_block(self.regs.cart_addr, data);
+                self.rom.write_block(self.regs.cart_addr, data);
 
                 debug!(
                     "PI DMA: {} bytes read from {:08X} to {:08X}",
@@ -135,5 +146,9 @@ impl PeripheralInterface {
             12 => mask.write_reg("PI_BSD_DOM2_RLS", &mut self.regs.bsd_dom[1].rls),
             _ => todo!("PI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
+    }
+
+    pub fn read_rom<T: Size>(&self, address: u32) -> T {
+        self.rom.read(address)
     }
 }

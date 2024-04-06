@@ -3,7 +3,7 @@ pub use video::DisplayTarget;
 use audio::AudioInterface;
 use cpu::Cpu;
 use interrupt::{CpuInterrupt, RcpInterrupt};
-use memory::{Mapping, Memory, Size};
+use memory::{Mapping, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use rdp::Rdp;
@@ -37,12 +37,11 @@ struct Bus {
     ai: AudioInterface,
     pi: PeripheralInterface,
     si: SerialInterface,
-    rom: Memory,
 }
 
 pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
     pub display_target: DisplayTarget<T>,
-    pub pif_data: Vec<u8>,
+    pub pif_data: Option<Vec<u8>>,
     pub rom_data: Vec<u8>,
 }
 
@@ -75,20 +74,22 @@ impl Device {
         let cpu_int = CpuInterrupt::new();
         let rcp_int = RcpInterrupt::new(cpu_int.clone());
 
+        let skip_pif_rom = options.pif_data.is_none();
+        let ipl3_data = skip_pif_rom.then(|| &options.rom_data[0..0x1000]);
+
         Ok(Self {
-            cpu: Cpu::new(),
+            cpu: Cpu::new(skip_pif_rom),
             bus: Bus {
                 memory_map,
                 cpu_int,
                 rdram: Rdram::new(),
-                rsp: Rsp::new(),
+                rsp: Rsp::new(ipl3_data),
                 rdp: Rdp::new(),
                 mi: MipsInterface::new(rcp_int.clone()),
-                vi: VideoInterface::new(rcp_int.clone(), options.display_target)?,
+                vi: VideoInterface::new(rcp_int.clone(), options.display_target, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
-                pi: PeripheralInterface::new(rcp_int.clone()),
+                pi: PeripheralInterface::new(rcp_int.clone(), options.rom_data, skip_pif_rom),
                 si: SerialInterface::new(rcp_int, options.pif_data),
-                rom: Memory::from_bytes(&options.rom_data),
             },
             extra_cycle: true,
         })
@@ -112,7 +113,7 @@ impl Device {
         self.extra_cycle ^= true;
 
         self.bus.ai.step();
-        self.bus.pi.step(&mut self.bus.rdram, &mut self.bus.rom);
+        self.bus.pi.step(&mut self.bus.rdram);
         self.bus.si.step(&mut self.bus.rdram);
         self.bus.vi.step()
     }
@@ -132,7 +133,7 @@ impl cpu::Bus for Bus {
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
             Mapping::RdramInterface => self.rdram.read_interface(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
-            Mapping::CartridgeRom => self.rom.read(address & 0x0fff_ffff),
+            Mapping::CartridgeRom => self.pi.read_rom(address & 0x0fff_ffff),
             Mapping::Pif => self.si.read_pif(address & 0x000f_ffff),
             Mapping::None => {
                 warn!("Unmapped read: {:08X}", address);

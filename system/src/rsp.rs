@@ -13,9 +13,17 @@ pub struct Rsp {
 }
 
 impl Rsp {
-    pub fn new() -> Self {
+    pub fn new(ipl3_data: Option<&[u8]>) -> Self {
+        let mem = if let Some(ipl3_data) = ipl3_data {
+            let mut vec = Vec::from(ipl3_data);
+            vec.resize(MEM_SIZE, 0);
+            Memory::from_bytes(&vec)
+        } else {
+            Memory::with_byte_len(MEM_SIZE)
+        };
+
         Self {
-            mem: Memory::with_byte_len(MEM_SIZE),
+            mem,
             status: Status::new().with_halted(true),
             pc: 0,
         }

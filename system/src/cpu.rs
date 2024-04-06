@@ -12,6 +12,7 @@ mod dc;
 mod ex;
 
 const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
+const IPL3_START: u32 = 0xA4000040;
 
 #[derive(Default)]
 struct RfState {
@@ -68,7 +69,18 @@ impl Cpu {
         "FP", "RA",
     ];
 
-    pub fn new() -> Self {
+    pub fn new(skip_pif_rom: bool) -> Self {
+        let mut regs = [0; 64];
+
+        let pc = if skip_pif_rom {
+            regs[20] = 1;
+            regs[22] = 0x3f;
+            regs[29] = 0xffff_ffff_a400_1ff0u64 as i64;
+            IPL3_START
+        } else {
+            COLD_RESET_VECTOR
+        };
+
         Self {
             rf: Default::default(),
             ex: Default::default(),
@@ -78,12 +90,12 @@ impl Cpu {
                 value: 0,
                 op: None,
             },
-            pc: COLD_RESET_VECTOR,
+            pc,
             hi: 0,
             lo: 0,
             ll_bit: false,
             delay: false,
-            regs: [0; 64],
+            regs,
             cp0: Cp0::new(),
             cp1: Cp1::new(),
             icache: ICache::new(),

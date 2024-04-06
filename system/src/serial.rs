@@ -24,7 +24,7 @@ pub struct SerialInterface {
 }
 
 impl SerialInterface {
-    pub fn new(rcp_int: RcpInterrupt, pif_data: Vec<u8>) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, pif_data: Option<Vec<u8>>) -> Self {
         Self {
             regs: Regs::default(),
             joybus: Joybus::new(),

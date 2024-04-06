@@ -35,6 +35,7 @@ impl VideoInterface {
     pub fn new(
         rcp_int: RcpInterrupt,
         display_target: DisplayTarget<impl wgpu::WindowHandle>,
+        skip_pif_rom: bool,
     ) -> Result<Self, Box<dyn Error>> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -85,8 +86,14 @@ impl VideoInterface {
 
         let frame_buffer = Framebuffer::new(&device, upscaler.texture_bind_group_layout());
 
+        let mut regs = Regs::default();
+
+        if skip_pif_rom {
+            regs.v_intr.set_half_line(1023);
+        }
+
         Ok(Self {
-            regs: Regs::default(),
+            regs,
             v_counter: 0,
             h_counter: 0,
             field: false,

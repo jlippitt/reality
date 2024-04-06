@@ -17,7 +17,7 @@ struct Args {
     rom_path: PathBuf,
 
     #[arg(short, long)]
-    pif_data_path: PathBuf,
+    pif_data_path: Option<PathBuf>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -25,7 +25,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let rom_data = fs::read(args.rom_path)?;
 
-    let pif_data = fs::read(args.pif_data_path)?;
+    let pif_data = if let Some(pif_data_path) = args.pif_data_path {
+        Some(fs::read(pif_data_path)?)
+    } else {
+        None
+    };
 
     let _guard = log::init()?;
 
