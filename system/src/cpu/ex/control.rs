@@ -3,7 +3,7 @@ use tracing::trace;
 
 pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let offset = (word & 0x03ff_ffff) << 2;
-    let target = (cpu.rf.pc & 0xf000_0000) | offset;
+    let target = (cpu.ex.pc.wrapping_add(4) & 0xf000_0000) | offset;
 
     trace!(
         "{:08X}: J{} 0x{:08X}",
