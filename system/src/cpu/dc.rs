@@ -358,10 +358,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
 
             match op {
                 0b00001 => {
-                    cpu.dcache.index_write_back_invalidate(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                        trace!("DCache Line at {:08X} written back to memory", paddr);
-                    });
+                    #[cfg(feature = "dcache")]
+                    {
+                        cpu.dcache.index_write_back_invalidate(paddr, |line| {
+                            bus.write_block(paddr & 0x1fff_fff0, line.bytes());
+                            trace!("dcache line at {:08x} written back to memory", paddr);
+                        });
+                    }
                 }
                 0b01000 => {
                     let tag = &cpu.cp0.tag_lo();
@@ -370,17 +373,23 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                     cpu.icache.index_store_tag(paddr, ptag, valid);
                 }
                 0b01001 => {
-                    let tag = &cpu.cp0.tag_lo();
-                    let ptag = tag.ptag_lo();
-                    let valid = (tag.pstate() & 0b10) != 0;
-                    let dirty = (tag.pstate() & 0b01) != 0;
-                    cpu.dcache.index_store_tag(paddr, ptag, valid, dirty);
+                    #[cfg(feature = "dcache")]
+                    {
+                        let tag = &cpu.cp0.tag_lo();
+                        let ptag = tag.ptag_lo();
+                        let valid = (tag.pstate() & 0b10) != 0;
+                        let dirty = (tag.pstate() & 0b01) != 0;
+                        cpu.dcache.index_store_tag(paddr, ptag, valid, dirty);
+                    }
                 }
                 0b01101 => {
-                    cpu.dcache.create_dirty_exclusive(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                        trace!("DCache Line at {:08X} written back to memory", paddr);
-                    });
+                    #[cfg(feature = "dcache")]
+                    {
+                        cpu.dcache.create_dirty_exclusive(paddr, |line| {
+                            bus.write_block(paddr & 0x1fff_fff0, line.bytes());
+                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                        });
+                    }
                 }
                 0b10000 => {
                     if let Some(line) = cpu.icache.find_mut(paddr) {
@@ -388,19 +397,26 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                         trace!("ICache Line at {:08X} invalidated", paddr);
                     }
                 }
-                0b10001 => {
+                0b10001 =>
+                {
+                    #[cfg(feature = "dcache")]
                     if let Some(line) = cpu.dcache.find_mut(paddr) {
                         line.clear_valid_flag();
                         trace!("DCache Line at {:08X} invalidated", paddr);
                     }
                 }
                 0b10101 => {
-                    cpu.dcache.hit_write_back_invalidate(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                        trace!("DCache Line at {:08X} written back to memory", paddr);
-                    });
+                    #[cfg(feature = "dcache")]
+                    {
+                        cpu.dcache.hit_write_back_invalidate(paddr, |line| {
+                            bus.write_block(paddr & 0x1fff_fff0, line.bytes());
+                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                        });
+                    }
                 }
-                0b11001 => {
+                0b11001 =>
+                {
+                    #[cfg(feature = "dcache")]
                     if let Some(line) = cpu.dcache.find_mut(paddr) {
                         if line.is_dirty() {
                             bus.write_block(paddr & 0x1fff_fff0, line.bytes());

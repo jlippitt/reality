@@ -1,6 +1,9 @@
-use crate::memory::{Memory, Size};
+use crate::memory::Memory;
 use std::array;
 use tracing::trace;
+
+#[cfg(feature = "dcache")]
+use crate::memory::Size;
 
 #[derive(Clone, Default, Debug)]
 pub struct ICacheLine {
@@ -64,6 +67,7 @@ impl ICacheLine {
     }
 }
 
+#[cfg(feature = "dcache")]
 #[derive(Clone, Default, Debug)]
 pub struct DCacheLine {
     data: Memory<u64, [u64; 2]>,
@@ -72,10 +76,12 @@ pub struct DCacheLine {
     dirty: bool,
 }
 
+#[cfg(feature = "dcache")]
 pub struct DCache {
     lines: [DCacheLine; 512],
 }
 
+#[cfg(feature = "dcache")]
 impl DCache {
     pub fn new() -> Self {
         Self {
@@ -172,6 +178,7 @@ impl DCache {
     }
 }
 
+#[cfg(feature = "dcache")]
 impl DCacheLine {
     pub fn matches(&self, address: u32) -> bool {
         self.valid && self.ptag == (address >> 12)

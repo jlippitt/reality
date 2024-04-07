@@ -1,9 +1,12 @@
 use crate::memory::Size;
-use cache::{DCache, DCacheLine, ICache};
+use cache::ICache;
 use cp0::Cp0;
 use cp1::Cp1;
 use dc::DcState;
 use tracing::trace;
+
+#[cfg(feature = "dcache")]
+use cache::{DCache, DCacheLine};
 
 mod cache;
 mod cp0;
@@ -59,6 +62,7 @@ pub struct Cpu {
     cp0: Cp0,
     cp1: Cp1,
     icache: ICache,
+    #[cfg(feature = "dcache")]
     dcache: DCache,
 }
 
@@ -99,6 +103,7 @@ impl Cpu {
             cp0: Cp0::new(),
             cp1: Cp1::new(),
             icache: ICache::new(),
+            #[cfg(feature = "dcache")]
             dcache: DCache::new(),
         }
     }
@@ -197,6 +202,7 @@ impl Cpu {
             todo!("TLB lookups");
         }
 
+        #[cfg(feature = "dcache")]
         if segment == 4 {
             return self.dcache.read(address & 0x1fff_ffff, |line| {
                 Self::dcache_reload(bus, line, address)
@@ -213,6 +219,7 @@ impl Cpu {
             todo!("TLB lookups");
         }
 
+        #[cfg(feature = "dcache")]
         if segment == 4 {
             return self.dcache.write(address & 0x1fff_ffff, value, |line| {
                 Self::dcache_reload(bus, line, address)
@@ -238,6 +245,7 @@ impl Cpu {
         bus.read_single(address & 0x1fff_ffff)
     }
 
+    #[cfg(feature = "dcache")]
     fn dcache_reload(bus: &mut impl Bus, line: &mut DCacheLine, address: u32) {
         // TODO: Timing
         if line.is_dirty() {
