@@ -92,26 +92,23 @@ impl Framebuffer {
                 let mut dst = 0;
 
                 for _ in 0..video_height {
-                    let draw_area: &mut [u32] =
+                    let draw_area: &mut [u16] =
                         bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
 
                     let read_start = draw_area.len() / 2;
 
                     rdram.read_block(src, &mut draw_area[read_start..]);
 
-                    for index in 0..draw_area.len() {
-                        let mut word = draw_area[read_start + (index / 2)].swap_bytes();
+                    for index in 0..(draw_area.len() / 2) {
+                        let word = draw_area[read_start + index].swap_bytes();
 
-                        if (index & 1) == 0 {
-                            word >>= 16;
-                        }
+                        let red = ((word >> 11) as u8 & 31) << 3;
+                        let green = ((word >> 6) as u8 & 31) << 3;
+                        let blue = ((word >> 1) as u8 & 31) << 3;
+                        let alpha = (word as u8 & 1) * 255;
 
-                        let red = ((word >> 11) & 31) << 3;
-                        let green = ((word >> 6) & 31) << 3;
-                        let blue = ((word >> 1) & 31) << 3;
-                        let alpha = (word & 1) * 255;
-
-                        draw_area[index] = (alpha << 24) | (blue << 16) | (green << 8) | red;
+                        bytemuck::cast_slice_mut::<u16, u32>(draw_area)[index] =
+                            u32::from_le_bytes([red, green, blue, alpha]);
                     }
 
                     self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
