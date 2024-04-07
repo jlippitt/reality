@@ -230,7 +230,7 @@ impl Cpu {
 
         if segment == 4 {
             return self.icache.read(address & 0x1fff_ffff, |line| {
-                bus.read_block(address & 0x1fff_ffe0, line.data_mut());
+                bus.read_block(address & 0x1fff_ffe0, line.bytes_mut());
             });
         }
 
@@ -240,9 +240,12 @@ impl Cpu {
     fn dcache_reload(bus: &mut impl Bus, line: &mut DCacheLine, address: u32) {
         // TODO: Timing
         if line.is_dirty() {
-            bus.write_block(((line.ptag() & !1) << 12) | (address & 0x1ff0), line.data());
+            bus.write_block(
+                ((line.ptag() & !1) << 12) | (address & 0x1ff0),
+                line.bytes(),
+            );
         }
 
-        bus.read_block(address & 0x1fff_fff0, line.data_mut());
+        bus.read_block(address & 0x1fff_fff0, line.bytes_mut());
     }
 }

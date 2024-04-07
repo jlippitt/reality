@@ -55,7 +55,7 @@ impl ICacheLine {
         self.valid && self.ptag == (address >> 12)
     }
 
-    pub fn data_mut(&mut self) -> &mut [u8] {
+    pub fn bytes_mut(&mut self) -> &mut [u8] {
         self.data.as_bytes_mut()
     }
 
@@ -177,11 +177,11 @@ impl DCacheLine {
         self.valid && self.ptag == (address >> 12)
     }
 
-    pub fn data(&self) -> &[u8] {
+    pub fn bytes(&self) -> &[u8] {
         self.data.as_bytes()
     }
 
-    pub fn data_mut(&mut self) -> &mut [u8] {
+    pub fn bytes_mut(&mut self) -> &mut [u8] {
         self.data.as_bytes_mut()
     }
 

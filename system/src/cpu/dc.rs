@@ -359,7 +359,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             match op {
                 0b00001 => {
                     cpu.dcache.index_write_back_invalidate(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.data());
+                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
                         trace!("DCache Line at {:08X} written back to memory", paddr);
                     });
                 }
@@ -378,7 +378,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 }
                 0b01101 => {
                     cpu.dcache.create_dirty_exclusive(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.data());
+                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
                         trace!("DCache Line at {:08X} written back to memory", paddr);
                     });
                 }
@@ -396,14 +396,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 }
                 0b10101 => {
                     cpu.dcache.hit_write_back_invalidate(paddr, |line| {
-                        bus.write_block(paddr & 0x1fff_fff0, line.data());
+                        bus.write_block(paddr & 0x1fff_fff0, line.bytes());
                         trace!("DCache Line at {:08X} written back to memory", paddr);
                     });
                 }
                 0b11001 => {
                     if let Some(line) = cpu.dcache.find_mut(paddr) {
                         if line.is_dirty() {
-                            bus.write_block(paddr & 0x1fff_fff0, line.data());
+                            bus.write_block(paddr & 0x1fff_fff0, line.bytes());
                             line.clear_dirty_flag();
                             trace!("DCache Line at {:08X} written back to memory", paddr);
                         }
