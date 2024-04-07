@@ -3,6 +3,8 @@ use bytemuck::Pod;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
+use std::ops::{Index, IndexMut};
+use std::slice::SliceIndex;
 use tracing::debug;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -156,6 +158,19 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> From<U> for Memory<T, U> {
             data: value,
             _phantom: PhantomData,
         }
+    }
+}
+
+impl<T: Size, U: AsRef<[T]> + AsMut<[T]>, I: SliceIndex<[u8]>> Index<I> for Memory<T, U> {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.as_bytes()[index]
+    }
+}
+impl<T: Size, U: AsRef<[T]> + AsMut<[T]>, I: SliceIndex<[u8]>> IndexMut<I> for Memory<T, U> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.as_bytes_mut()[index]
     }
 }
 
