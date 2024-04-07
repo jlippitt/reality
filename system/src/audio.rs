@@ -27,9 +27,13 @@ impl AudioInterface {
     }
 
     pub fn step(&mut self) {
+        if self.dma_count == 0 {
+            return;
+        }
+
         self.dac_counter -= 1;
 
-        if self.dac_counter < 0 && self.dma_count > 0 {
+        if self.dac_counter < 0 {
             self.dma_count -= 1;
             trace!("AI DMA Count: {}", self.dma_count);
 
