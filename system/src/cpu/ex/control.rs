@@ -138,7 +138,7 @@ fn link<const LINK: bool>(cpu: &Cpu) -> DcState {
     if LINK {
         DcState::RegWrite {
             reg: 31,
-            value: cpu.rf.pc.wrapping_add(4) as i64,
+            value: cpu.ex.pc.wrapping_add(8) as i64,
         }
     } else {
         DcState::Nop
