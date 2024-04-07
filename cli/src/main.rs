@@ -1,4 +1,5 @@
 use clap::Parser;
+use gamepad::Gamepad;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
@@ -10,6 +11,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
 
+mod gamepad;
 mod log;
 
 #[derive(Parser, Debug)]
@@ -41,6 +43,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_min_inner_size(Size::Physical((640, 480).into()))
             .build(&event_loop)?,
     );
+
+    let mut gamepad = Gamepad::new()?;
 
     let mut device = Device::new(DeviceOptions {
         display_target: DisplayTarget {
@@ -81,6 +85,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 _ => (),
             },
             Event::AboutToWait => {
+                device.update_joypads(gamepad.handle_events());
                 while !device.step() {}
                 window.request_redraw();
             }

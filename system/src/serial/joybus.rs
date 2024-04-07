@@ -1,6 +1,26 @@
 use arrayvec::ArrayVec;
 use tracing::{debug, warn};
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct JoypadState {
+    pub a: bool,
+    pub b: bool,
+    pub c_up: bool,
+    pub c_down: bool,
+    pub c_left: bool,
+    pub c_right: bool,
+    pub l: bool,
+    pub r: bool,
+    pub z: bool,
+    pub start: bool,
+    pub dpad_up: bool,
+    pub dpad_down: bool,
+    pub dpad_left: bool,
+    pub dpad_right: bool,
+    pub axis_x: i8,
+    pub axis_y: i8,
+}
+
 pub struct Joybus {
     joypads: [[u8; 4]; 4],
 }
@@ -9,6 +29,32 @@ impl Joybus {
     pub fn new() -> Self {
         Self {
             joypads: [[0; 4]; 4],
+        }
+    }
+
+    pub fn update_joypads(&mut self, joypads: &[JoypadState; 4]) {
+        for (dst, src) in self.joypads.iter_mut().zip(joypads.iter()) {
+            dst[0] = 0;
+            dst[0] |= if src.a { 0x80 } else { 0 };
+            dst[0] |= if src.b { 0x40 } else { 0 };
+            dst[0] |= if src.z { 0x20 } else { 0 };
+            dst[0] |= if src.start { 0x10 } else { 0 };
+            dst[0] |= if src.dpad_up { 0x08 } else { 0 };
+            dst[0] |= if src.dpad_down { 0x04 } else { 0 };
+            dst[0] |= if src.dpad_left { 0x02 } else { 0 };
+            dst[0] |= if src.dpad_right { 0x01 } else { 0 };
+
+            // RST 'button' possibly doesn't need to be implemented?
+            dst[1] = 0;
+            dst[1] |= if src.l { 0x20 } else { 0 };
+            dst[1] |= if src.r { 0x10 } else { 0 };
+            dst[1] |= if src.c_up { 0x08 } else { 0 };
+            dst[1] |= if src.c_down { 0x04 } else { 0 };
+            dst[1] |= if src.c_left { 0x02 } else { 0 };
+            dst[1] |= if src.c_right { 0x01 } else { 0 };
+
+            dst[2] = src.axis_x as u8;
+            dst[3] = src.axis_y as u8;
         }
     }
 

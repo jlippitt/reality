@@ -1,3 +1,4 @@
+pub use serial::JoypadState;
 pub use video::DisplayTarget;
 
 use audio::AudioInterface;
@@ -101,6 +102,10 @@ impl Device {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.bus.vi.render(&self.bus.rdram)
+    }
+
+    pub fn update_joypads(&mut self, joypads: &[JoypadState; 4]) {
+        self.bus.si.update_joypads(joypads);
     }
 
     pub fn step(&mut self) -> bool {

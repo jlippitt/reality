@@ -1,3 +1,5 @@
+pub use joybus::JoypadState;
+
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
@@ -32,6 +34,10 @@ impl SerialInterface {
             dma: None,
             rcp_int,
         }
+    }
+
+    pub fn update_joypads(&mut self, joypads: &[JoypadState; 4]) {
+        self.joybus.update_joypads(joypads);
     }
 
     pub fn step(&mut self, rdram: &mut Rdram) {
