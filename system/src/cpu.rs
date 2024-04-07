@@ -179,7 +179,6 @@ impl Cpu {
         if condition {
             trace!("Branch taken");
             self.pc = (self.rf.pc as i64).wrapping_add(offset) as u32;
-            self.delay = true;
         } else {
             trace!("Branch not taken");
 
@@ -187,6 +186,8 @@ impl Cpu {
                 self.rf.word = 0;
             }
         }
+
+        self.delay = true;
     }
 
     fn read<T: Size>(&mut self, bus: &mut impl Bus, address: u32) -> T {
