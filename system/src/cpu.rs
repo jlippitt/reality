@@ -178,7 +178,7 @@ impl Cpu {
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
         if condition {
             trace!("Branch taken");
-            self.pc = (self.rf.pc as i64).wrapping_add(offset) as u32;
+            self.pc = (self.ex.pc as i64).wrapping_add(offset + 4) as u32;
         } else {
             trace!("Branch not taken");
 
