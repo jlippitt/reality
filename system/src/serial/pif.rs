@@ -1,5 +1,6 @@
 use super::Joybus;
 use crate::memory::{Memory, Size};
+use std::mem;
 use tracing::{trace, warn};
 
 const PIF_DATA_SIZE: usize = 2048;
@@ -44,8 +45,8 @@ impl Pif {
 
         self.mem.write(address as usize, value);
 
-        // Impossible to write command byte at these addresses
-        if address < 0x7fc {
+        // Check if command byte was written
+        if (address as usize + mem::size_of::<T>()) <= 0x7ff {
             return;
         }
 

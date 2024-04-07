@@ -44,8 +44,9 @@ impl SerialInterface {
 
                 let mut pif_addr = dma.pif_addr;
 
-                for word in buf {
-                    self.pif.write(&mut self.joybus, pif_addr, word);
+                for byte in buf {
+                    self.pif.write(&mut self.joybus, pif_addr, byte);
+                    // TODO: Can this wrap?
                     pif_addr += 1;
                 }
 
@@ -58,8 +59,9 @@ impl SerialInterface {
             } else {
                 let mut pif_addr = dma.pif_addr;
 
-                for word in &mut buf {
-                    *word = self.pif.read(pif_addr);
+                for byte in &mut buf {
+                    *byte = self.pif.read(pif_addr);
+                    // TODO: Can this wrap?
                     pif_addr += 1;
                 }
 
