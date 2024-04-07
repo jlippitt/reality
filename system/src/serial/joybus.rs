@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct JoypadState {
@@ -22,12 +22,14 @@ pub struct JoypadState {
 }
 
 pub struct Joybus {
+    program: [u8; 64],
     joypads: [[u8; 4]; 4],
 }
 
 impl Joybus {
     pub fn new() -> Self {
         Self {
+            program: [0; 64],
             joypads: [[0; 4]; 4],
         }
     }
@@ -58,14 +60,19 @@ impl Joybus {
         }
     }
 
-    pub fn execute(&mut self, data: &mut [u8]) {
-        debug!("PIF Joybus Input: {:X?}", data);
+    pub fn configure(&mut self, pif_ram: &[u8]) {
+        self.program.copy_from_slice(pif_ram);
+        trace!("Joybus Configured");
+    }
+
+    pub fn execute(&mut self, pif_ram: &mut [u8]) {
+        debug!("PIF Joybus Input: {:X?}", self.program);
 
         let mut channel = 0;
         let mut index = 0;
 
-        while index < (data.len() - 1) {
-            let send_bytes = data[index] as usize;
+        while index < (self.program.len() - 1) {
+            let send_bytes = self.program[index] as usize;
             index += 1;
 
             if send_bytes == 0xfe {
@@ -81,24 +88,24 @@ impl Joybus {
                 continue;
             }
 
-            let recv_bytes = data[index] as usize;
+            let recv_bytes = self.program[index] as usize;
             index += 1;
 
             if recv_bytes == 0xfe {
                 break;
             }
 
-            if (index + send_bytes) > data.len() {
+            if (index + send_bytes) > self.program.len() {
                 warn!("Joybus read overflow");
                 break;
             }
 
             let send_data =
-                ArrayVec::<u8, 64>::try_from(&data[index..(index + send_bytes)]).unwrap();
+                ArrayVec::<u8, 64>::try_from(&self.program[index..(index + send_bytes)]).unwrap();
 
             index += send_bytes;
 
-            if (index + recv_bytes) > data.len() {
+            if (index + recv_bytes) > self.program.len() {
                 warn!("Joybus write overflow");
                 break;
             }
@@ -110,16 +117,16 @@ impl Joybus {
                     warn!("Received data does not match expected length. Expected {} bytes but got {} bytes.", recv_bytes, len);
                 }
 
-                data[index..(index + len)].copy_from_slice(&recv_data);
+                pif_ram[index..(index + len)].copy_from_slice(&recv_data);
                 index += len;
             } else {
-                data[index - 2] |= 0x80;
+                pif_ram[index - 2] |= 0x80;
             }
 
             channel += 1;
         }
 
-        debug!("PIF Joybus Output: {:X?}", data);
+        debug!("PIF Joybus Output: {:X?}", pif_ram);
     }
 
     fn perform_query(&self, channel: usize, input: &[u8]) -> Option<ArrayVec<u8, 64>> {

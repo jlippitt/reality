@@ -1,4 +1,3 @@
-use super::Joybus;
 use crate::memory::{Memory, Size};
 use std::mem;
 use tracing::{trace, warn};
@@ -30,6 +29,14 @@ impl Pif {
         Self { mem, rom_locked }
     }
 
+    pub fn ram(&self) -> &[u8] {
+        &self.mem[PIF_RAM_START as usize..]
+    }
+
+    pub fn ram_mut(&mut self) -> &mut [u8] {
+        &mut self.mem[PIF_RAM_START as usize..]
+    }
+
     pub fn read<T: Size>(&self, address: u32) -> T {
         if address < PIF_RAM_START && self.rom_locked {
             panic!("Read from locked PIF ROM: {:08X}", address);
@@ -38,7 +45,7 @@ impl Pif {
         self.mem.read(address as usize)
     }
 
-    pub fn write<T: Size>(&mut self, joybus: &mut Joybus, address: u32, value: T) {
+    pub fn write<T: Size>(&mut self, address: u32, value: T) -> bool {
         if address < PIF_RAM_START {
             panic!("Write to PIF ROM: {:08X}", address);
         }
@@ -47,21 +54,19 @@ impl Pif {
 
         // Check if command byte was written
         if (address as usize + mem::size_of::<T>()) <= 0x7ff {
-            return;
+            return false;
         }
 
         // Interpret PIF command
         let cmd = self.mem.read::<u8>(0x7ff) & 0x7b;
 
         if cmd == 0 {
-            return;
+            return false;
         }
 
         let mut result: u8 = 0;
 
-        if (cmd & 0x01) != 0 {
-            joybus.execute(&mut self.mem.as_bytes_mut()[(PIF_RAM_START as usize)..]);
-        }
+        let joybus_configure = (cmd & 0x01) != 0;
 
         if (cmd & 0x02) != 0 {
             todo!("PIF Challenge/Response");
@@ -84,5 +89,7 @@ impl Pif {
         // 0x40 (bit 6) is a NOP
 
         self.mem.write(0x7ff, result);
+
+        joybus_configure
     }
 }

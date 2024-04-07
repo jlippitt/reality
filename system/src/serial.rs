@@ -50,8 +50,10 @@ impl SerialInterface {
 
                 let mut pif_addr = dma.pif_addr;
 
+                let mut joybus_configure = false;
+
                 for byte in buf {
-                    self.pif.write(&mut self.joybus, pif_addr, byte);
+                    joybus_configure |= self.pif.write(pif_addr, byte);
                     // TODO: Can this wrap?
                     pif_addr += 1;
                 }
@@ -62,7 +64,13 @@ impl SerialInterface {
                     dram_addr,
                     dma.pif_addr,
                 );
+
+                if joybus_configure {
+                    self.joybus.configure(self.pif.ram());
+                }
             } else {
+                self.joybus.execute(self.pif.ram_mut());
+
                 let mut pif_addr = dma.pif_addr;
 
                 for byte in &mut buf {
@@ -124,7 +132,10 @@ impl SerialInterface {
     }
 
     pub fn write_pif<T: Size>(&mut self, address: u32, value: T) {
-        self.pif.write(&mut self.joybus, address, value);
+        if self.pif.write(address, value) {
+            self.joybus.configure(self.pif.ram());
+        }
+
         self.rcp_int.raise(RcpIntType::SI);
     }
 }
