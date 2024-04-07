@@ -1,5 +1,6 @@
 use super::interrupt::{RcpIntType, RcpInterrupt};
 use super::memory::{Size, WriteMask};
+use super::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use crate::rdram::Rdram;
 use framebuffer::Framebuffer;
 use regs::Regs;
@@ -19,9 +20,9 @@ pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
 
 pub struct VideoInterface {
     regs: Regs,
-    h_counter: u32,
-    v_counter: u32,
-    field: bool,
+    current_cycles: u32,
+    cycles_per_line: u32,
+    frame_counter: u64,
     rcp_int: RcpInterrupt,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -92,11 +93,13 @@ impl VideoInterface {
             regs.v_intr.set_half_line(1023);
         }
 
+        let cycles_per_line = calc_cycles_per_line(regs.h_sync.h_sync());
+
         Ok(Self {
             regs,
-            v_counter: 0,
-            h_counter: 0,
-            field: false,
+            current_cycles: 0,
+            cycles_per_line,
+            frame_counter: 0,
             rcp_int,
             surface,
             device,
@@ -161,32 +164,28 @@ impl VideoInterface {
 
     pub fn step(&mut self) -> bool {
         let mut frame_done = false;
-        let h_sync = self.regs.h_sync.h_sync();
 
-        self.h_counter += 1;
+        self.current_cycles += 1;
 
-        if self.h_counter >= h_sync {
-            self.v_counter += 1;
-            self.h_counter -= h_sync;
+        if self.current_cycles >= self.cycles_per_line {
+            self.current_cycles -= self.cycles_per_line;
 
-            if self.v_counter >= self.regs.v_sync.v_sync() {
-                self.v_counter = 0;
-                self.field ^= self.regs.ctrl.serrate();
+            let mut half_line = self.regs.v_current.half_line() + 2;
+
+            if half_line > self.regs.v_sync.v_sync() {
+                let serrate = self.regs.ctrl.serrate() as u32;
+                half_line = (half_line & serrate) ^ serrate;
+                self.frame_counter += 1;
+                debug!("Frame {} (Field={})", self.frame_counter, half_line & 1);
                 frame_done = true;
-                debug!("Frame: {}", self.field);
             }
 
-            trace!("Line: {}", self.v_counter);
-
-            // VCurrent & VSync are given in half lines, with the low bit
-            // representing the field in interlace mode
-            self.regs
-                .v_current
-                .set_half_line((self.v_counter & !1) | self.field as u32);
-
-            if self.v_counter == (self.regs.v_intr.half_line() >> 1) {
+            if half_line == self.regs.v_intr.half_line() {
                 self.rcp_int.raise(RcpIntType::VI);
             }
+
+            self.regs.v_current.set_half_line(half_line);
+            trace!("VI_V_CURRENT: {:?}", self.regs.v_current);
         }
 
         frame_done
@@ -225,7 +224,10 @@ impl VideoInterface {
             4 => self.rcp_int.clear(RcpIntType::VI),
             5 => mask.write_reg("VI_BURST", &mut self.regs.burst),
             6 => mask.write_reg("VI_V_SYNC", &mut self.regs.v_sync),
-            7 => mask.write_reg("VI_H_SYNC", &mut self.regs.h_sync),
+            7 => {
+                mask.write_reg("VI_H_SYNC", &mut self.regs.h_sync);
+                self.cycles_per_line = calc_cycles_per_line(self.regs.h_sync.h_sync());
+            }
             8 => mask.write_reg("VI_H_SYNC_LEAP", &mut self.regs.h_sync_leap),
             9 => mask.write_reg("VI_H_VIDEO", &mut self.regs.h_video),
             10 => mask.write_reg("VI_V_VIDEO", &mut self.regs.v_video),
@@ -237,4 +239,10 @@ impl VideoInterface {
             _ => unimplemented!("VI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
+}
+
+fn calc_cycles_per_line(h_sync: u32) -> u32 {
+    let value = (RCP_CLOCK_RATE * (h_sync + 1) as f64 / VIDEO_DAC_RATE) as u32;
+    debug!("Cycles Per Line: {}", value);
+    value
 }

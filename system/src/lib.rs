@@ -27,6 +27,10 @@ mod rsp;
 mod serial;
 mod video;
 
+const RCP_CLOCK_RATE: f64 = 62500000.0;
+
+const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
+
 struct Bus {
     memory_map: Vec<Mapping>,
     cpu_int: CpuInterrupt,
