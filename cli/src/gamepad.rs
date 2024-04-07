@@ -61,12 +61,12 @@ impl Gamepad {
 
         self.joypad_state[0] = JoypadState {
             a: gamepad.is_pressed(Button::South),
-            b: gamepad.is_pressed(Button::West),
-            c_up: gamepad.value(Axis::RightStickY) >= 0.75,
             // North and west appear swapped for me, though this may just be an Xbox controller issue?
-            c_down: gamepad.is_pressed(Button::North) || gamepad.value(Axis::RightStickY) <= -0.75,
-            c_left: gamepad.is_pressed(Button::East) || gamepad.value(Axis::RightStickY) >= 0.75,
-            c_right: gamepad.value(Axis::RightStickY) <= -0.75,
+            b: gamepad.is_pressed(Button::North),
+            c_up: gamepad.value(Axis::RightStickY) >= 0.75,
+            c_down: gamepad.is_pressed(Button::East) || gamepad.value(Axis::RightStickY) <= -0.75,
+            c_left: gamepad.is_pressed(Button::West) || gamepad.value(Axis::RightStickX) <= -0.75,
+            c_right: gamepad.value(Axis::RightStickX) >= 0.75,
             l: gamepad.is_pressed(Button::LeftTrigger),
             r: gamepad.is_pressed(Button::RightTrigger)
                 || gamepad.is_pressed(Button::RightTrigger2)
