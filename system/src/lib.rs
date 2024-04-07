@@ -49,7 +49,7 @@ pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
 pub struct Device {
     cpu: Cpu,
     bus: Bus,
-    extra_cycle: bool,
+    cycles: u64,
 }
 
 impl Device {
@@ -92,8 +92,12 @@ impl Device {
                 pi: PeripheralInterface::new(rcp_int.clone(), options.rom_data, skip_pif_rom),
                 si: SerialInterface::new(rcp_int, options.pif_data),
             },
-            extra_cycle: true,
+            cycles: 0,
         })
+    }
+
+    pub fn cycles(&self) -> u64 {
+        self.cycles
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -109,13 +113,13 @@ impl Device {
     }
 
     pub fn step(&mut self) -> bool {
+        self.cycles += 1;
+
         self.cpu.step(&mut self.bus);
 
-        if self.extra_cycle {
+        if (self.cycles & 1) == 0 {
             self.cpu.step(&mut self.bus);
         }
-
-        self.extra_cycle ^= true;
 
         self.bus.ai.step();
         self.bus.pi.step(&mut self.bus.rdram);
