@@ -3,15 +3,15 @@ use crate::memory::{Size, WriteMask};
 use regs::Regs;
 use tracing::{trace, warn};
 
-const DAC_FREQUENCY: i32 = 48681812;
+const DAC_FREQUENCY: i64 = 48681812;
 
 mod regs;
 
 pub struct AudioInterface {
     regs: Regs,
-    dac_counter: i32,
+    dac_counter: i64,
     dma_count: u32,
-    sample_count: [i32; 2],
+    sample_count: [i64; 2],
     rcp_int: RcpInterrupt,
 }
 
@@ -45,7 +45,7 @@ impl AudioInterface {
     }
 
     fn start_dma(&mut self) {
-        let frequency = DAC_FREQUENCY / (self.regs.dacrate.dacrate() as i32 + 1);
+        let frequency = DAC_FREQUENCY / (self.regs.dacrate.dacrate() as i64 + 1);
         self.dac_counter = (125000000 * self.sample_count[0]) / frequency;
         trace!("AI Counter: {}", self.dac_counter);
         self.rcp_int.raise(RcpIntType::AI);
@@ -85,7 +85,7 @@ impl AudioInterface {
 
                 if self.dma_count < 2 {
                     self.sample_count[self.dma_count as usize] =
-                        self.regs.length.length() as i32 / 4;
+                        self.regs.length.length() as i64 / 4;
 
                     self.dma_count += 1;
                     trace!("AI DMA Count: {}", self.dma_count);
