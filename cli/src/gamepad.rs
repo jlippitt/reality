@@ -77,8 +77,12 @@ impl Gamepad {
             dpad_down: gamepad.is_pressed(Button::DPadDown),
             dpad_left: gamepad.is_pressed(Button::DPadLeft),
             dpad_right: gamepad.is_pressed(Button::DPadRight),
-            axis_x: (gamepad.value(Axis::LeftStickX) * 83.0) as i8,
-            axis_y: (gamepad.value(Axis::LeftStickY) * 83.0) as i8,
+            axis_x: (gamepad.value(Axis::LeftStickX)
+                * (83.0 - (gamepad.value(Axis::LeftStickY).abs() * 17.0)))
+                as i8,
+            axis_y: (gamepad.value(Axis::LeftStickY)
+                * (83.0 - (gamepad.value(Axis::LeftStickX).abs() * 17.0)))
+                as i8,
         };
     }
 }
