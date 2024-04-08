@@ -11,6 +11,7 @@ pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o04 => transfer::mtc0(cpu, pc, word),
         0o20..=0o37 => match word & 63 {
             0o02 => tlb::tlbwi(cpu, pc),
+            0o10 => tlb::tlbp(cpu, pc),
             0o30 => eret(cpu, pc),
             func => todo!("CPU COP0 Function '{:02o}' at {:08X}", func, pc),
         },

@@ -1,13 +1,14 @@
 use super::regs::{EntryHi, EntryLo, PageMask, Regs};
+use std::slice::Iter;
 use tracing::trace;
 
 #[allow(dead_code)]
 #[derive(Default, Debug)]
-struct TlbEntry {
-    entry_lo0: EntryLo,
-    entry_lo1: EntryLo,
-    entry_hi: EntryHi,
-    page_mask: PageMask,
+pub struct TlbEntry {
+    pub entry_lo0: EntryLo,
+    pub entry_lo1: EntryLo,
+    pub entry_hi: EntryHi,
+    pub page_mask: PageMask,
 }
 
 #[derive(Debug)]
@@ -20,6 +21,10 @@ impl Tlb {
         Self {
             entries: Default::default(),
         }
+    }
+
+    pub fn entries(&self) -> Iter<TlbEntry> {
+        self.entries.iter()
     }
 
     pub fn write_entry(&mut self, regs: &Regs) {

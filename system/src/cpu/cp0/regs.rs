@@ -60,7 +60,7 @@ pub struct Index {
     pub index: u32,
     #[bits(25)]
     __: u32,
-    pub probe_success: bool,
+    pub probe_failure: bool,
 }
 
 #[bitfield(u32)]
