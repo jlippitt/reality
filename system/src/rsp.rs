@@ -69,7 +69,8 @@ impl Rsp {
         let bank_offset = (dma_active.sp_addr.mem_bank() as usize) << 12;
         let mem_addr = dma_active.sp_addr.mem_addr() as usize & 0x0ff8;
         let dram_addr = dma_active.ram_addr.dram_addr() as usize & 0x00ff_fff8;
-        let block_len = dma_active.len.len().min(128) as usize;
+        let len = dma_active.len.len() + 1;
+        let block_len = len.min(128) as usize;
 
         if dma_active.len.skip() != 0 || dma_active.len.count() != 0 {
             todo!("RSP DMA Skip/Count");
@@ -83,7 +84,7 @@ impl Rsp {
 
             for byte in data.iter_mut() {
                 *byte = self.bus.mem[bank_offset + byte_addr];
-                byte_addr = (byte_addr + 1) & 0xff8;
+                byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
             rdram.write_block(dram_addr, data);
@@ -101,7 +102,7 @@ impl Rsp {
 
             for byte in data.iter() {
                 self.bus.mem[bank_offset + byte_addr] = *byte;
-                byte_addr = (byte_addr + 1) & 0xff8;
+                byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
             debug!(
@@ -112,7 +113,7 @@ impl Rsp {
             );
         }
 
-        let bytes_remaining = dma_active.len.len() as usize - block_len;
+        let bytes_remaining = len - block_len as u32;
 
         if bytes_remaining == 0 {
             self.bus.dma_active = self.bus.dma_pending.take();
@@ -130,7 +131,7 @@ impl Rsp {
                 .sp_addr
                 .set_mem_addr((mem_addr + block_len) as u32);
 
-            dma_active.len.set_len(bytes_remaining as u32);
+            dma_active.len.set_len(bytes_remaining);
         }
     }
 

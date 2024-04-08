@@ -18,9 +18,9 @@ pub struct DmaSpAddr {
 
 #[bitfield(u32)]
 pub struct DmaRamAddr {
-    #[bits(12)]
+    #[bits(24)]
     pub dram_addr: u32,
-    #[bits(20)]
+    #[bits(8)]
     __: u32,
 }
 
