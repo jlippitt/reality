@@ -1,5 +1,5 @@
 use super::memory::{Memory, Size, WriteMask};
-use regs::Status;
+use regs::{Regs, Status};
 use tracing::{debug, warn};
 
 mod regs;
@@ -8,7 +8,7 @@ const MEM_SIZE: usize = 8192;
 
 pub struct Rsp {
     mem: Memory<u128>,
-    status: Status,
+    regs: Regs,
     pc: u32,
 }
 
@@ -24,7 +24,7 @@ impl Rsp {
 
         Self {
             mem,
-            status: Status::new().with_halted(true),
+            regs: Regs::default(),
             pc: 0,
         }
     }
@@ -62,19 +62,21 @@ impl Rsp {
 
     fn read_register(&self, address: u32) -> u32 {
         match (address & 0xffff) >> 2 {
-            4 => self.status.into(),
-            6 => self.status.dma_busy() as u32,
+            4 => self.regs.status.into(),
+            6 => self.regs.status.dma_busy() as u32,
             _ => todo!("RSP Register Read: {:08X}", address),
         }
     }
 
     fn write_register(&mut self, address: u32, mask: WriteMask) {
         match (address & 0xffff) >> 2 {
+            0 => mask.write_reg_hex("SP_DMA_SPADDR", &mut self.regs.dma_sp_addr),
+            1 => mask.write_reg_hex("SP_DMA_RAMADDR", &mut self.regs.dma_ram_addr),
             4 => {
                 let raw = mask.raw();
 
                 if (raw & 0x0000_0002) != 0 {
-                    self.status.set_broke(false);
+                    self.regs.status.set_broke(false);
                 }
 
                 if (raw & 0x0000_0008) != 0 {
@@ -85,19 +87,19 @@ impl Rsp {
                     todo!("Trigger RSP interrupt");
                 }
 
-                mask.set_or_clear(&mut self.status, Status::set_halted, 1, 0);
-                mask.set_or_clear(&mut self.status, Status::set_sstep, 6, 5);
-                mask.set_or_clear(&mut self.status, Status::set_intbreak, 8, 7);
-                mask.set_or_clear(&mut self.status, Status::set_sig0, 10, 9);
-                mask.set_or_clear(&mut self.status, Status::set_sig1, 12, 11);
-                mask.set_or_clear(&mut self.status, Status::set_sig2, 14, 13);
-                mask.set_or_clear(&mut self.status, Status::set_sig3, 16, 15);
-                mask.set_or_clear(&mut self.status, Status::set_sig4, 18, 17);
-                mask.set_or_clear(&mut self.status, Status::set_sig5, 20, 19);
-                mask.set_or_clear(&mut self.status, Status::set_sig6, 22, 21);
-                mask.set_or_clear(&mut self.status, Status::set_sig7, 24, 23);
+                mask.set_or_clear(&mut self.regs.status, Status::set_halted, 1, 0);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sstep, 6, 5);
+                mask.set_or_clear(&mut self.regs.status, Status::set_intbreak, 8, 7);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig0, 10, 9);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig1, 12, 11);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig2, 14, 13);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig3, 16, 15);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig4, 18, 17);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig5, 20, 19);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig6, 22, 21);
+                mask.set_or_clear(&mut self.regs.status, Status::set_sig7, 24, 23);
 
-                debug!("SP_STATUS: {:?}", self.status);
+                debug!("SP_regs.status: {:?}", self.regs.status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
