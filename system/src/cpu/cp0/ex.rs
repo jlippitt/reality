@@ -10,6 +10,7 @@ pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         0o00 => transfer::mfc0(cpu, pc, word),
         0o04 => transfer::mtc0(cpu, pc, word),
         0o20..=0o37 => match word & 63 {
+            0o01 => tlb::tlbr(cpu, pc),
             0o02 => tlb::tlbwi(cpu, pc),
             0o10 => tlb::tlbp(cpu, pc),
             0o30 => eret(cpu, pc),

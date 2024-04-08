@@ -1,6 +1,13 @@
 use super::{Cpu, DcState};
 use tracing::trace;
 
+pub fn tlbr(cpu: &mut Cpu, pc: u32) -> DcState {
+    trace!("{:08X}: TLBR", pc);
+    let index = cpu.cp0.regs.index.index() as usize;
+    cpu.cp0.tlb.read_entry(&mut cpu.cp0.regs, index);
+    DcState::Nop
+}
+
 pub fn tlbwi(cpu: &mut Cpu, pc: u32) -> DcState {
     trace!("{:08X}: TLBWI", pc);
     cpu.cp0.tlb.write_entry(&cpu.cp0.regs);

@@ -27,6 +27,23 @@ impl Tlb {
         self.entries.iter()
     }
 
+    pub fn read_entry(&self, regs: &mut Regs, index: usize) {
+        let entry = &self.entries[index];
+
+        let entry_hi = EntryHi::from(u32::from(entry.entry_hi) & !u32::from(entry.page_mask));
+        let global = entry.entry_hi.global();
+
+        regs.entry_lo0 = entry.entry_lo0.with_global(global);
+        regs.entry_lo1 = entry.entry_lo1.with_global(global);
+        regs.entry_hi = entry_hi;
+        regs.page_mask = entry.page_mask;
+
+        trace!("  EntryLo0: {:?}", regs.entry_lo0);
+        trace!("  EntryLo1: {:?}", regs.entry_lo1);
+        trace!("  EntryHi: {:?}", regs.entry_hi);
+        trace!("  PageMask: {:?}", regs.page_mask);
+    }
+
     pub fn write_entry(&mut self, regs: &Regs) {
         let index = regs.index.index() as usize;
         assert!(index < self.entries.len());
