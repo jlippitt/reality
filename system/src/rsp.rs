@@ -1,8 +1,11 @@
 use super::memory::{Memory, Size, WriteMask};
 use super::rdram::Rdram;
+use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
+use std::mem;
 use tracing::{debug, trace, warn};
 
+mod core;
 mod regs;
 
 const MEM_SIZE: usize = 8192;
@@ -15,12 +18,16 @@ struct Dma {
     write: bool,
 }
 
-pub struct Rsp {
+struct Bus {
     mem: Memory<u128>,
     regs: Regs,
     dma_active: Option<Dma>,
     dma_pending: Option<Dma>,
-    pc: u32,
+}
+
+pub struct Rsp {
+    core: Core,
+    bus: Bus,
 }
 
 impl Rsp {
@@ -34,16 +41,28 @@ impl Rsp {
         };
 
         Self {
-            mem,
-            dma_active: None,
-            dma_pending: None,
-            regs: Regs::default(),
-            pc: 0,
+            core: Core::new(),
+            bus: Bus {
+                mem,
+                dma_active: None,
+                dma_pending: None,
+                regs: Regs::default(),
+            },
         }
     }
 
+    pub fn step_core(&mut self) {
+        if self.bus.regs.status.halted() {
+            return;
+        }
+
+        self.core.step(&mut self.bus);
+        let status = &mut self.bus.regs.status;
+        status.set_halted(status.halted() | status.sstep());
+    }
+
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
-        let Some(dma_active) = &mut self.dma_active else {
+        let Some(dma_active) = &mut self.bus.dma_active else {
             return;
         };
 
@@ -63,7 +82,7 @@ impl Rsp {
             let mut byte_addr = mem_addr;
 
             for byte in data.iter_mut() {
-                *byte = self.mem[bank_offset + byte_addr];
+                *byte = self.bus.mem[bank_offset + byte_addr];
                 byte_addr = (byte_addr + 1) & 0xff8;
             }
 
@@ -81,7 +100,7 @@ impl Rsp {
             let mut byte_addr = mem_addr;
 
             for byte in data.iter() {
-                self.mem[bank_offset + byte_addr] = *byte;
+                self.bus.mem[bank_offset + byte_addr] = *byte;
                 byte_addr = (byte_addr + 1) & 0xff8;
             }
 
@@ -96,11 +115,11 @@ impl Rsp {
         let bytes_remaining = dma_active.len.len() as usize - block_len;
 
         if bytes_remaining == 0 {
-            self.dma_active = self.dma_pending.take();
-            trace!("RSP DMA Active: {:08X?}", self.dma_active);
+            self.bus.dma_active = self.bus.dma_pending.take();
+            trace!("RSP DMA Active: {:08X?}", self.bus.dma_active);
 
-            if self.dma_active.is_some() {
-                trace!("RSP DMA Pending: {:08X?}", self.dma_active);
+            if self.bus.dma_active.is_some() {
+                trace!("RSP DMA Pending: {:08X?}", self.bus.dma_active);
             }
         } else {
             dma_active
@@ -117,13 +136,13 @@ impl Rsp {
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         if (address as usize) < MEM_SIZE {
-            return self.mem.read(address as usize);
+            return self.bus.mem.read(address as usize);
         }
 
         T::from_u32(if (address & 0x0004_0000) == 0x0004_0000 {
-            self.read_register(address)
+            self.bus.read_register(address)
         } else if address == 0x0008_0000 {
-            self.pc
+            self.core.pc()
         } else {
             panic!("Read from unmapped RSP address: {:08X}", address);
         })
@@ -131,21 +150,25 @@ impl Rsp {
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
         if (address as usize) < MEM_SIZE {
-            return self.mem.write(address as usize, value);
+            return self.bus.mem.write(address as usize, value);
         }
 
         let mask = WriteMask::new(address, value);
 
         if (address & 0x0004_0000) == 0x0004_0000 {
-            self.write_register(address, mask);
+            self.bus.write_register(address, mask);
         } else if address == 0x0008_0000 {
-            mask.write_partial(&mut self.pc, 0x0000_0ffc);
-            debug!("RSP PC: {:08X}", self.pc);
+            let mut pc = self.core.pc();
+            mask.write(&mut pc);
+            self.core.set_pc(pc);
+            debug!("RSP PC: {:08X}", pc);
         } else {
             panic!("Write to unmapped RSP address: {:08X}", address);
         }
     }
+}
 
+impl Bus {
     fn read_register(&self, address: u32) -> u32 {
         match (address & 0xffff) >> 2 {
             4 => self
@@ -166,10 +189,11 @@ impl Rsp {
             2 => self.enqueue_dma(mask.raw(), false),
             3 => self.enqueue_dma(mask.raw(), true),
             4 => {
+                let status = &mut self.regs.status;
                 let raw = mask.raw();
 
                 if (raw & 0x0000_0002) != 0 {
-                    self.regs.status.set_broke(false);
+                    status.set_broke(false);
                 }
 
                 if (raw & 0x0000_0008) != 0 {
@@ -180,19 +204,19 @@ impl Rsp {
                     todo!("Trigger RSP interrupt");
                 }
 
-                mask.set_or_clear(&mut self.regs.status, Status::set_halted, 1, 0);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sstep, 6, 5);
-                mask.set_or_clear(&mut self.regs.status, Status::set_intbreak, 8, 7);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig0, 10, 9);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig1, 12, 11);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig2, 14, 13);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig3, 16, 15);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig4, 18, 17);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig5, 20, 19);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig6, 22, 21);
-                mask.set_or_clear(&mut self.regs.status, Status::set_sig7, 24, 23);
+                mask.set_or_clear(status, Status::set_halted, 1, 0);
+                mask.set_or_clear(status, Status::set_sstep, 6, 5);
+                mask.set_or_clear(status, Status::set_intbreak, 8, 7);
+                mask.set_or_clear(status, Status::set_sig0, 10, 9);
+                mask.set_or_clear(status, Status::set_sig1, 12, 11);
+                mask.set_or_clear(status, Status::set_sig2, 14, 13);
+                mask.set_or_clear(status, Status::set_sig3, 16, 15);
+                mask.set_or_clear(status, Status::set_sig4, 18, 17);
+                mask.set_or_clear(status, Status::set_sig5, 20, 19);
+                mask.set_or_clear(status, Status::set_sig6, 22, 21);
+                mask.set_or_clear(status, Status::set_sig7, 24, 23);
 
-                debug!("SP_regs.status: {:?}", self.regs.status);
+                debug!("SP_STATUS: {:?}", status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
@@ -222,5 +246,28 @@ impl Rsp {
         } else {
             panic!("RSP DMA queue full");
         }
+    }
+}
+
+impl core::Bus for Bus {
+    fn read_opcode(&self, address: u32) -> u32 {
+        let address = address as usize;
+        debug_assert!(address < (MEM_SIZE / 2));
+        debug_assert!((address & 3) == 0);
+        self.mem.read(0x1000 | address)
+    }
+
+    fn read_data<T: Size>(&self, address: u32) -> T {
+        let address = address as usize;
+        debug_assert!(address < (MEM_SIZE / 2));
+        debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
+        self.mem.read(address)
+    }
+
+    fn write_data<T: Size>(&mut self, address: u32, value: T) {
+        let address = address as usize;
+        debug_assert!(address < (MEM_SIZE / 2));
+        debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
+        self.mem.write(address, value)
     }
 }
