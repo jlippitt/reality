@@ -83,6 +83,13 @@ impl AudioInterface {
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         T::from_u32(match address >> 2 {
+            1 => {
+                if let Some(dma_active) = &self.dma_active {
+                    dma_active.len
+                } else {
+                    0
+                }
+            }
             3 => {
                 // TODO: 'BC' and 'WC' bits
                 // TODO: DAC counter value
