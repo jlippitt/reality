@@ -17,13 +17,10 @@ pub struct AudioReceiver {
 impl AudioReceiver {
     pub fn new(sample_rate: u32) -> Result<AudioReceiver, Box<dyn Error>> {
         let (_stream, stream_handle) = OutputStream::try_default()?;
-        println!("Here");
 
         let (queue_input, queue_output) = queue::queue::<u16>(true);
-        println!("Still here");
 
         stream_handle.play_raw(queue_output.convert_samples())?;
-        println!("Still still here");
 
         Ok(AudioReceiver {
             _stream,

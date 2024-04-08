@@ -58,24 +58,26 @@ impl AudioInterface {
         self.cycles_remaining = self.cycles_per_sample;
 
         if let Some(dma_active) = &mut self.dma_active {
-            let mut samples = [0u16; 2];
-            rdram.read_block(dma_active.dram_addr as usize, &mut samples);
-            receiver.queue_samples(self.sample_rate, &samples);
+            let left = rdram.read_single(dma_active.dram_addr as usize);
+            let right = rdram.read_single((dma_active.dram_addr + 2) as usize);
+            receiver.queue_samples(self.sample_rate, &[left, right]);
             trace!("AI DMA: 4 bytes read from {:08X}", dma_active.dram_addr);
 
-            dma_active.dram_addr = (dma_active.dram_addr + 1) & 0x00ff_ffff;
+            dma_active.dram_addr = (dma_active.dram_addr + 4) & 0x00ff_ffff;
             dma_active.len -= 4;
 
             // If DMA length has reached zero, switch to the next DMA if there is one
             if dma_active.len == 0 {
                 self.dma_active = self.dma_pending.take();
-                trace!("AI DMA Active: {:?}", self.dma_active);
+                trace!("AI DMA Active: {:08X?}", self.dma_active);
 
                 if self.dma_active.is_some() {
-                    trace!("AI DMA Pending: {:?}", self.dma_active);
+                    trace!("AI DMA Pending: {:08X?}", self.dma_active);
                     self.rcp_int.raise(RcpIntType::AI);
                 }
             }
+        } else {
+            receiver.queue_samples(self.sample_rate, &[0, 0]);
         }
     }
 
@@ -124,11 +126,11 @@ impl AudioInterface {
 
                 if self.dma_active.is_none() {
                     self.dma_active = Some(dma);
-                    trace!("AI DMA Active: {:?}", self.dma_active);
+                    trace!("AI DMA Active: {:08X?}", self.dma_active);
                     self.rcp_int.raise(RcpIntType::AI);
                 } else if self.dma_pending.is_none() {
                     self.dma_pending = Some(dma);
-                    trace!("AI DMA Pending: {:?}", self.dma_pending);
+                    trace!("AI DMA Pending: {:08X?}", self.dma_pending);
                 } else {
                     panic!("AI DMA queue full");
                 }
