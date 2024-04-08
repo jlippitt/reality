@@ -75,7 +75,7 @@ impl VideoInterface {
             format: output_format,
             width: display_target.width,
             height: display_target.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
