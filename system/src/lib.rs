@@ -125,7 +125,7 @@ impl Device {
             self.cpu.step(&mut self.bus);
         }
 
-        self.bus.ai.step();
+        self.bus.ai.step(&self.bus.rdram);
         self.bus.pi.step(&mut self.bus.rdram);
         self.bus.si.step(&mut self.bus.rdram);
         self.bus.vi.step()

@@ -1,75 +1,92 @@
+use super::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
+use crate::rdram::Rdram;
 use regs::Regs;
-use tracing::{trace, warn};
-
-const DAC_FREQUENCY: i64 = 48681812;
+use tracing::{debug, trace};
 
 mod regs;
 
+#[derive(Debug)]
+struct Dma {
+    dram_addr: u32,
+    len: u32,
+}
+
 pub struct AudioInterface {
     regs: Regs,
-    dac_counter: i64,
-    dma_count: u32,
-    sample_count: [i64; 2],
+    cycles_remaining: u32,
+    cycles_per_sample: u32,
+    dma_active: Option<Dma>,
+    dma_pending: Option<Dma>,
     rcp_int: RcpInterrupt,
 }
 
 impl AudioInterface {
     pub fn new(rcp_int: RcpInterrupt) -> Self {
+        let regs = Regs::default();
+        let cycles_per_sample = calc_cycles_per_sample(regs.dacrate.dacrate());
+
         Self {
-            regs: Regs::default(),
-            dac_counter: 0,
-            dma_count: 0,
-            sample_count: [0; 2],
+            regs,
+            cycles_remaining: cycles_per_sample,
+            cycles_per_sample,
+            dma_active: None,
+            dma_pending: None,
             rcp_int,
         }
     }
 
-    pub fn step(&mut self) {
-        if self.dma_count == 0 {
+    pub fn step(&mut self, rdram: &Rdram) {
+        self.cycles_remaining -= 1;
+
+        if self.cycles_remaining != 0 {
             return;
         }
 
-        self.dac_counter -= 1;
+        self.cycles_remaining = self.cycles_per_sample;
 
-        if self.dac_counter < 0 {
-            self.dma_count -= 1;
-            trace!("AI DMA Count: {}", self.dma_count);
+        if let Some(dma_active) = &mut self.dma_active {
+            let _sample: u16 = rdram.read_single(dma_active.dram_addr as usize);
+            // TODO: Do something with the sample
+            trace!("AI DMA: Sample read from {:08X}", dma_active.dram_addr);
 
-            if self.dma_count > 0 {
-                self.sample_count[0] = self.sample_count[1];
-                self.start_dma();
+            dma_active.dram_addr = (dma_active.dram_addr + 1) & 0x00ff_ffff;
+            dma_active.len -= 1;
+
+            // If DMA length has reached zero, switch to the next DMA if there is one
+            if dma_active.len == 0 {
+                self.dma_active = self.dma_pending.take();
+                trace!("AI DMA Active: {:?}", self.dma_active);
+
+                if self.dma_active.is_some() {
+                    trace!("AI DMA Pending: {:?}", self.dma_active);
+                    self.rcp_int.raise(RcpIntType::AI);
+                }
             }
         }
-    }
-
-    fn start_dma(&mut self) {
-        let frequency = DAC_FREQUENCY / (self.regs.dacrate.dacrate() as i64 + 1);
-        self.dac_counter = (125000000 * self.sample_count[0]) / frequency;
-        trace!("AI Counter: {}", self.dac_counter);
-        self.rcp_int.raise(RcpIntType::AI);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         T::from_u32(match address >> 2 {
             3 => {
                 // TODO: 'BC' and 'WC' bits
+                // TODO: DAC counter value
                 let mut value = 0x0110_0000;
 
                 if self.regs.control.dma_enable() {
                     value |= 0x0200_0000;
                 }
 
-                if self.dma_count >= 1 {
+                if self.dma_active.is_some() {
                     value |= 0x4000_0000;
 
-                    if self.dma_count >= 2 {
+                    if self.dma_pending.is_some() {
                         value |= 0x8000_0001;
                     }
                 }
 
-                value | ((self.dac_counter as u32 & 0x3fff) << 1)
+                value
             }
             _ => todo!("AI Register Read: {:08X}", address),
         })
@@ -81,31 +98,43 @@ impl AudioInterface {
         match address >> 2 {
             0 => mask.write_reg("AI_DRAM_ADDR", &mut self.regs.dram_addr),
             1 => {
-                mask.write_reg("AI_LENGTH", &mut self.regs.length);
+                let len = mask.raw();
 
-                if self.dma_count < 2 {
-                    self.sample_count[self.dma_count as usize] =
-                        self.regs.length.length() as i64 / 4;
+                // Don't queue DMAs with length of zero
+                if len == 0 {
+                    return;
+                }
 
-                    self.dma_count += 1;
-                    trace!("AI DMA Count: {}", self.dma_count);
+                let dma = Dma {
+                    dram_addr: self.regs.dram_addr.dram_addr(),
+                    len,
+                };
 
-                    if self.dma_count < 2 {
-                        self.start_dma();
-                    }
+                if self.dma_active.is_none() {
+                    self.dma_active = Some(dma);
+                    trace!("AI DMA Active: {:?}", self.dma_active);
+                    self.rcp_int.raise(RcpIntType::AI);
+                } else if self.dma_pending.is_none() {
+                    self.dma_pending = Some(dma);
+                    trace!("AI DMA Pending: {:?}", self.dma_pending);
+                } else {
+                    panic!("AI DMA queue full");
                 }
             }
-            2 => {
-                mask.write_reg("AI_CONTROL", &mut self.regs.control);
-
-                if self.regs.control.dma_enable() {
-                    warn!("TODO: AI DMA Transfers");
-                }
-            }
+            2 => mask.write_reg("AI_CONTROL", &mut self.regs.control),
             3 => self.rcp_int.clear(RcpIntType::AI),
-            4 => mask.write_reg("AI_DACRATE", &mut self.regs.dacrate),
+            4 => {
+                mask.write_reg("AI_DACRATE", &mut self.regs.dacrate);
+                self.cycles_per_sample = calc_cycles_per_sample(self.regs.dacrate.dacrate());
+            }
             5 => mask.write_reg("AI_BITRATE", &mut self.regs.bitrate),
             _ => todo!("AI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
+}
+
+fn calc_cycles_per_sample(dacrate: u32) -> u32 {
+    let value = ((RCP_CLOCK_RATE * (dacrate + 1) as f64) / VIDEO_DAC_RATE) as u32;
+    debug!("Cycles Per Sample: {}", value);
+    value
 }
