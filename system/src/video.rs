@@ -20,7 +20,7 @@ pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
 
 pub struct VideoInterface {
     regs: Regs,
-    current_cycles: u32,
+    cycles_remaining: u32,
     cycles_per_line: u32,
     frame_counter: u64,
     rcp_int: RcpInterrupt,
@@ -97,7 +97,7 @@ impl VideoInterface {
 
         Ok(Self {
             regs,
-            current_cycles: 0,
+            cycles_remaining: cycles_per_line,
             cycles_per_line,
             frame_counter: 0,
             rcp_int,
@@ -165,10 +165,10 @@ impl VideoInterface {
     pub fn step(&mut self) -> bool {
         let mut frame_done = false;
 
-        self.current_cycles += 1;
+        self.cycles_remaining -= 1;
 
-        if self.current_cycles >= self.cycles_per_line {
-            self.current_cycles -= self.cycles_per_line;
+        if self.cycles_remaining == 0 {
+            self.cycles_remaining = self.cycles_per_line;
 
             let mut half_line = self.regs.v_current.half_line() + 2;
 
