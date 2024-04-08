@@ -10,8 +10,8 @@ pub struct Regs {
 #[bitfield(u32)]
 pub struct DmaSpAddr {
     #[bits(12)]
-    mem_addr: u32,
-    mem_bank: bool,
+    pub mem_addr: u32,
+    pub mem_bank: bool,
     #[bits(19)]
     __: u32,
 }
@@ -19,9 +19,19 @@ pub struct DmaSpAddr {
 #[bitfield(u32)]
 pub struct DmaRamAddr {
     #[bits(12)]
-    dram_addr: u32,
+    pub dram_addr: u32,
     #[bits(20)]
     __: u32,
+}
+
+#[bitfield(u32)]
+pub struct DmaLength {
+    #[bits(12)]
+    pub len: u32,
+    #[bits(8)]
+    pub count: u32,
+    #[bits(12)]
+    pub skip: u32,
 }
 
 #[bitfield(u32)]

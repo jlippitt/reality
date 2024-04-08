@@ -130,6 +130,8 @@ impl Device {
             self.cpu.step(&mut self.bus);
         }
 
+        self.bus.rsp.step_dma(&mut self.bus.rdram);
+
         self.bus.ai.step(&self.bus.rdram, receiver);
         self.bus.pi.step(&mut self.bus.rdram);
         self.bus.si.step(&mut self.bus.rdram);

@@ -1,14 +1,25 @@
 use super::memory::{Memory, Size, WriteMask};
-use regs::{Regs, Status};
-use tracing::{debug, warn};
+use super::rdram::Rdram;
+use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
+use tracing::{debug, trace, warn};
 
 mod regs;
 
 const MEM_SIZE: usize = 8192;
 
+#[derive(Debug)]
+struct Dma {
+    sp_addr: DmaSpAddr,
+    ram_addr: DmaRamAddr,
+    len: DmaLength,
+    write: bool,
+}
+
 pub struct Rsp {
     mem: Memory<u128>,
     regs: Regs,
+    dma_active: Option<Dma>,
+    dma_pending: Option<Dma>,
     pc: u32,
 }
 
@@ -24,8 +35,83 @@ impl Rsp {
 
         Self {
             mem,
+            dma_active: None,
+            dma_pending: None,
             regs: Regs::default(),
             pc: 0,
+        }
+    }
+
+    pub fn step_dma(&mut self, rdram: &mut Rdram) {
+        let Some(dma_active) = &mut self.dma_active else {
+            return;
+        };
+
+        let bank_offset = (dma_active.sp_addr.mem_bank() as usize) << 12;
+        let mem_addr = dma_active.sp_addr.mem_addr() as usize & 0x0ff8;
+        let dram_addr = dma_active.ram_addr.dram_addr() as usize & 0x00ff_fff8;
+        let block_len = dma_active.len.len().min(128) as usize;
+
+        if dma_active.len.skip() != 0 || dma_active.len.count() != 0 {
+            todo!("RSP DMA Skip/Count");
+        }
+
+        let mut buf = [0u8; 128];
+        let data = &mut buf[0..block_len];
+
+        if dma_active.write {
+            let mut byte_addr = mem_addr;
+
+            for byte in data.iter_mut() {
+                *byte = self.mem[bank_offset + byte_addr];
+                byte_addr = (byte_addr + 1) & 0xff8;
+            }
+
+            rdram.write_block(dram_addr, data);
+
+            debug!(
+                "RSP DMA: {} bytes written from {:08X} to {:08X}",
+                block_len,
+                bank_offset | mem_addr,
+                dram_addr,
+            );
+        } else {
+            rdram.read_block(dram_addr, data);
+
+            let mut byte_addr = mem_addr;
+
+            for byte in data.iter() {
+                self.mem[bank_offset + byte_addr] = *byte;
+                byte_addr = (byte_addr + 1) & 0xff8;
+            }
+
+            debug!(
+                "RSP DMA: {} bytes read from {:08X} to {:08X}",
+                block_len,
+                dram_addr,
+                bank_offset | mem_addr,
+            );
+        }
+
+        let bytes_remaining = dma_active.len.len() as usize - block_len;
+
+        if bytes_remaining == 0 {
+            self.dma_active = self.dma_pending.take();
+            trace!("RSP DMA Active: {:08X?}", self.dma_active);
+
+            if self.dma_active.is_some() {
+                trace!("RSP DMA Pending: {:08X?}", self.dma_active);
+            }
+        } else {
+            dma_active
+                .ram_addr
+                .set_dram_addr((dram_addr + block_len) as u32);
+
+            dma_active
+                .sp_addr
+                .set_mem_addr((mem_addr + block_len) as u32);
+
+            dma_active.len.set_len(bytes_remaining as u32);
         }
     }
 
@@ -62,8 +148,13 @@ impl Rsp {
 
     fn read_register(&self, address: u32) -> u32 {
         match (address & 0xffff) >> 2 {
-            4 => self.regs.status.into(),
-            6 => self.regs.status.dma_busy() as u32,
+            4 => self
+                .regs
+                .status
+                .with_dma_busy(self.dma_active.is_some())
+                .with_dma_full(self.dma_pending.is_some())
+                .into(),
+            6 => self.dma_active.is_some() as u32,
             _ => todo!("RSP Register Read: {:08X}", address),
         }
     }
@@ -72,6 +163,8 @@ impl Rsp {
         match (address & 0xffff) >> 2 {
             0 => mask.write_reg_hex("SP_DMA_SPADDR", &mut self.regs.dma_sp_addr),
             1 => mask.write_reg_hex("SP_DMA_RAMADDR", &mut self.regs.dma_ram_addr),
+            2 => self.enqueue_dma(mask.raw(), false),
+            3 => self.enqueue_dma(mask.raw(), true),
             4 => {
                 let raw = mask.raw();
 
@@ -102,6 +195,32 @@ impl Rsp {
                 debug!("SP_regs.status: {:?}", self.regs.status);
             }
             _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
+        }
+    }
+
+    fn enqueue_dma(&mut self, len: u32, write: bool) {
+        let len = DmaLength::from(len);
+
+        // Don't queue DMAs with length of zero
+        if len.len() == 0 {
+            return;
+        }
+
+        let dma = Dma {
+            sp_addr: self.regs.dma_sp_addr,
+            ram_addr: self.regs.dma_ram_addr,
+            len,
+            write,
+        };
+
+        if self.dma_active.is_none() {
+            self.dma_active = Some(dma);
+            trace!("RSP DMA Active: {:08X?}", self.dma_active);
+        } else if self.dma_pending.is_none() {
+            self.dma_pending = Some(dma);
+            trace!("RSP DMA Pending: {:08X?}", self.dma_pending);
+        } else {
+            panic!("RSP DMA queue full");
         }
     }
 }
