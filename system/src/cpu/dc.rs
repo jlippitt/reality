@@ -357,6 +357,11 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             let paddr = vaddr & 0x1fff_ffff;
 
             match op {
+                0b00000 => {
+                    let line = cpu.icache.line_mut(paddr);
+                    line.clear_valid_flag();
+                    trace!("ICache Line at {:08X} invalidated", paddr);
+                }
                 0b00001 => {
                     #[cfg(feature = "dcache")]
                     {

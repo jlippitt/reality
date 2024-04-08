@@ -23,6 +23,11 @@ impl ICache {
         }
     }
 
+    pub fn line_mut(&mut self, address: u32) -> &mut ICacheLine {
+        let index = ((address >> 5) & 0x01ff) as usize;
+        &mut self.lines[index]
+    }
+
     pub fn find_mut(&mut self, address: u32) -> Option<&mut ICacheLine> {
         let index = ((address >> 5) & 0x01ff) as usize;
         let line = &mut self.lines[index];
