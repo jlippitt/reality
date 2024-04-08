@@ -148,6 +148,13 @@ impl PeripheralInterface {
     }
 
     pub fn read_rom<T: Size>(&self, address: u32) -> T {
-        self.rom.read(address as usize)
+        let address = address as usize;
+        // Note: Bounds check assumes address is aligned to T
+        if address < self.rom.len() {
+            self.rom.read(address)
+        } else {
+            warn!("Unmapped ROM Read: {:08X}", address);
+            T::zeroed()
+        }
     }
 }

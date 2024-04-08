@@ -141,6 +141,10 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         bytemuck::must_cast_slice_mut(self.data.as_mut())
     }
+
+    pub fn len(&self) -> usize {
+        self.as_bytes().len()
+    }
 }
 
 impl<T: Size, U: AsRef<[T]> + AsMut<[T]> + Default> Default for Memory<T, U> {
