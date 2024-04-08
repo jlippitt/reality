@@ -1,3 +1,4 @@
+pub use audio::AudioReceiver;
 pub use serial::JoypadState;
 pub use video::DisplayTarget;
 
@@ -104,6 +105,10 @@ impl Device {
         self.cycles
     }
 
+    pub fn sample_rate(&self) -> u32 {
+        self.bus.ai.sample_rate()
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         self.bus.vi.resize(width, height);
     }
@@ -116,7 +121,7 @@ impl Device {
         self.bus.si.update_joypads(joypads);
     }
 
-    pub fn step(&mut self) -> bool {
+    pub fn step(&mut self, receiver: &mut impl AudioReceiver) -> bool {
         self.cycles += 1;
 
         self.cpu.step(&mut self.bus);
@@ -125,7 +130,7 @@ impl Device {
             self.cpu.step(&mut self.bus);
         }
 
-        self.bus.ai.step(&self.bus.rdram);
+        self.bus.ai.step(&self.bus.rdram, receiver);
         self.bus.pi.step(&mut self.bus.rdram);
         self.bus.si.step(&mut self.bus.rdram);
         self.bus.vi.step()

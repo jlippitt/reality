@@ -12,6 +12,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = { version = "0.1.40", features = ["release_max_level_info"] }
 winit = "0.29.15"
 gilrs = "0.10.6"
+rodio = { version = "0.17.3", default-features = false }
 
 [features]
 dcache = ["system/dcache"]

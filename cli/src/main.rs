@@ -1,3 +1,4 @@
+use audio::AudioReceiver;
 use clap::Parser;
 use gamepad::Gamepad;
 use std::error::Error;
@@ -11,6 +12,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
 
+mod audio;
 mod gamepad;
 mod log;
 
@@ -56,6 +58,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         rom_data,
     })?;
 
+    let mut audio_receiver = AudioReceiver::new(device.sample_rate())?;
+
     event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
 
@@ -86,7 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
             Event::AboutToWait => {
                 device.update_joypads(gamepad.handle_events());
-                while !device.step() {}
+                while !device.step(&mut audio_receiver) {}
                 window.request_redraw();
             }
             _ => (),

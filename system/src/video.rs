@@ -243,6 +243,6 @@ impl VideoInterface {
 
 fn calc_cycles_per_line(h_sync: u32) -> u32 {
     let value = (RCP_CLOCK_RATE * (h_sync + 1) as f64 / VIDEO_DAC_RATE) as u32;
-    debug!("Cycles Per Line: {}", value);
+    debug!("VI Cycles Per Line: {}", value);
     value
 }

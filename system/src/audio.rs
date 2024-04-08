@@ -7,6 +7,10 @@ use tracing::{debug, trace};
 
 mod regs;
 
+pub trait AudioReceiver {
+    fn queue_samples(&mut self, sample_rate: u32, samples: &[u16]);
+}
+
 #[derive(Debug)]
 struct Dma {
     dram_addr: u32,
@@ -17,6 +21,7 @@ pub struct AudioInterface {
     regs: Regs,
     cycles_remaining: u32,
     cycles_per_sample: u32,
+    sample_rate: u32,
     dma_active: Option<Dma>,
     dma_pending: Option<Dma>,
     rcp_int: RcpInterrupt,
@@ -25,19 +30,25 @@ pub struct AudioInterface {
 impl AudioInterface {
     pub fn new(rcp_int: RcpInterrupt) -> Self {
         let regs = Regs::default();
-        let cycles_per_sample = calc_cycles_per_sample(regs.dacrate.dacrate());
+
+        let (cycles_per_sample, sample_rate) = calc_cycles_per_sample(regs.dacrate.dacrate());
 
         Self {
             regs,
             cycles_remaining: cycles_per_sample,
             cycles_per_sample,
+            sample_rate,
             dma_active: None,
             dma_pending: None,
             rcp_int,
         }
     }
 
-    pub fn step(&mut self, rdram: &Rdram) {
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    pub fn step(&mut self, rdram: &Rdram, receiver: &mut impl AudioReceiver) {
         self.cycles_remaining -= 1;
 
         if self.cycles_remaining != 0 {
@@ -47,12 +58,13 @@ impl AudioInterface {
         self.cycles_remaining = self.cycles_per_sample;
 
         if let Some(dma_active) = &mut self.dma_active {
-            let _sample: u16 = rdram.read_single(dma_active.dram_addr as usize);
-            // TODO: Do something with the sample
-            trace!("AI DMA: Sample read from {:08X}", dma_active.dram_addr);
+            let mut samples = [0u16; 2];
+            rdram.read_block(dma_active.dram_addr as usize, &mut samples);
+            receiver.queue_samples(self.sample_rate, &samples);
+            trace!("AI DMA: 4 bytes read from {:08X}", dma_active.dram_addr);
 
             dma_active.dram_addr = (dma_active.dram_addr + 1) & 0x00ff_ffff;
-            dma_active.len -= 1;
+            dma_active.len -= 4;
 
             // If DMA length has reached zero, switch to the next DMA if there is one
             if dma_active.len == 0 {
@@ -98,7 +110,7 @@ impl AudioInterface {
         match address >> 2 {
             0 => mask.write_reg("AI_DRAM_ADDR", &mut self.regs.dram_addr),
             1 => {
-                let len = mask.raw();
+                let len = mask.raw() & 0x0003_fff8;
 
                 // Don't queue DMAs with length of zero
                 if len == 0 {
@@ -125,7 +137,8 @@ impl AudioInterface {
             3 => self.rcp_int.clear(RcpIntType::AI),
             4 => {
                 mask.write_reg("AI_DACRATE", &mut self.regs.dacrate);
-                self.cycles_per_sample = calc_cycles_per_sample(self.regs.dacrate.dacrate());
+                (self.cycles_per_sample, self.sample_rate) =
+                    calc_cycles_per_sample(self.regs.dacrate.dacrate());
             }
             5 => mask.write_reg("AI_BITRATE", &mut self.regs.bitrate),
             _ => todo!("AI Register Write: {:08X} <= {:08X}", address, mask.raw()),
@@ -133,8 +146,10 @@ impl AudioInterface {
     }
 }
 
-fn calc_cycles_per_sample(dacrate: u32) -> u32 {
-    let value = ((RCP_CLOCK_RATE * (dacrate + 1) as f64) / VIDEO_DAC_RATE) as u32;
-    debug!("Cycles Per Sample: {}", value);
-    value
+fn calc_cycles_per_sample(dacrate: u32) -> (u32, u32) {
+    let sample_rate = VIDEO_DAC_RATE / (dacrate + 1) as f64;
+    let cycles_per_sample = (RCP_CLOCK_RATE / sample_rate) as u32;
+    debug!("AI Sample Rate: {}", sample_rate as u32);
+    debug!("AI Cycles Per Sample: {}", cycles_per_sample);
+    (cycles_per_sample, sample_rate as u32)
 }
