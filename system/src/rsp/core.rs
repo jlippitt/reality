@@ -1,7 +1,9 @@
 use crate::memory::Size;
+use cp2::Cp2;
 use df::DfState;
 use tracing::trace;
 
+mod cp2;
 mod df;
 mod ex;
 
@@ -41,6 +43,7 @@ pub struct Core {
     rf: RfState,
     pc: u32,
     regs: [i32; 32],
+    cp2: Cp2,
 }
 
 impl Core {
@@ -62,6 +65,7 @@ impl Core {
             },
             pc: 0,
             regs: [0; 32],
+            cp2: Cp2::new(),
         }
     }
 
