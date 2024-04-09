@@ -1,14 +1,15 @@
-use super::{Core, DcState};
+use super::{Core, DfState};
 
 mod arithmetic;
 mod bitwise;
 mod compare;
 mod control;
+mod exception;
 mod load;
 mod shift;
 mod store;
 
-pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DcState {
+pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     match word >> 26 {
         0o00 => special(cpu, pc, word),
         0o01 => regimm(cpu, pc, word),
@@ -42,7 +43,7 @@ pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DcState {
     }
 }
 
-pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DcState {
+pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     match word & 63 {
         0o00 => shift::fixed::<shift::Sll>(cpu, pc, word),
         0o02 => shift::fixed::<shift::Srl>(cpu, pc, word),
@@ -52,6 +53,7 @@ pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DcState {
         0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
         0o10 => control::jr::<false>(cpu, pc, word),
         0o11 => control::jr::<true>(cpu, pc, word),
+        0o15 => exception::break_(cpu, pc),
         0o40 => arithmetic::r_type_checked::<arithmetic::Add>(cpu, pc, word),
         0o41 => arithmetic::r_type_unchecked::<arithmetic::Add>(cpu, pc, word),
         0o42 => arithmetic::r_type_checked::<arithmetic::Sub>(cpu, pc, word),
@@ -66,7 +68,7 @@ pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DcState {
     }
 }
 
-pub fn regimm(cpu: &mut Core, pc: u32, word: u32) -> DcState {
+pub fn regimm(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     match (word >> 16) & 31 {
         0o00 => control::bltz::<false>(cpu, pc, word),
         0o01 => control::bgez::<false>(cpu, pc, word),

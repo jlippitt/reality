@@ -2,7 +2,7 @@ use super::{Bus, Core};
 use tracing::trace;
 
 #[derive(Debug)]
-pub enum DcState {
+pub enum DfState {
     RegWrite { reg: usize, value: i32 },
     LoadByte { reg: usize, addr: u32 },
     LoadByteUnsigned { reg: usize, addr: u32 },
@@ -13,17 +13,18 @@ pub enum DcState {
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
     //Cp0RegWrite { reg: usize, value: i32 },
+    Break,
     Nop,
 }
 
 pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
     match cpu.dc {
-        DcState::RegWrite { reg, value } => {
+        DfState::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
             cpu.wb.op = None;
         }
-        DcState::LoadByte { reg, addr } => {
+        DfState::LoadByte { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u8>(addr);
             cpu.wb.reg = reg;
@@ -31,7 +32,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
-        DcState::LoadByteUnsigned { reg, addr } => {
+        DfState::LoadByteUnsigned { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u8>(addr);
             cpu.wb.reg = reg;
@@ -39,7 +40,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
-        DcState::LoadHalfword { reg, addr } => {
+        DfState::LoadHalfword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
             let value = bus.read_data::<u16>(addr) as i16 as i64;
@@ -48,7 +49,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
-        DcState::LoadHalfwordUnsigned { reg, addr } => {
+        DfState::LoadHalfwordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
             let value = bus.read_data::<u16>(addr);
@@ -57,7 +58,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
-        DcState::LoadWord { reg, addr } => {
+        DfState::LoadWord { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
             let value = bus.read_data::<u32>(addr);
@@ -66,14 +67,14 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
-        DcState::StoreByte { value, addr } => {
+        DfState::StoreByte { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             cpu.wb.op = None;
             trace!("  [{:08X} <= {:02X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DcState::StoreHalfword { value, addr } => {
+        DfState::StoreHalfword { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
             cpu.wb.reg = 0;
@@ -81,7 +82,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
             trace!("  [{:08X} <= {:04X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DcState::StoreWord { value, addr } => {
+        DfState::StoreWord { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
             cpu.wb.reg = 0;
@@ -93,7 +94,10 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
         //     cpu.wb.reg = 0;
         //     cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
         // }
-        DcState::Nop => {
+        DfState::Break => {
+            bus.break_();
+        }
+        DfState::Nop => {
             cpu.wb.reg = 0;
             cpu.wb.op = None;
         }

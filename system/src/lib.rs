@@ -89,7 +89,7 @@ impl Device {
                 memory_map,
                 cpu_int,
                 rdram: Rdram::new(),
-                rsp: Rsp::new(ipl3_data),
+                rsp: Rsp::new(rcp_int.clone(), ipl3_data),
                 rdp: Rdp::new(),
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(rcp_int.clone(), options.display_target, skip_pif_rom)?,

@@ -1,8 +1,8 @@
 use crate::memory::Size;
-use dc::DcState;
+use df::DfState;
 use tracing::trace;
 
-mod dc;
+mod df;
 mod ex;
 
 #[derive(Default)]
@@ -31,11 +31,12 @@ pub trait Bus {
     fn read_opcode(&self, address: u32) -> u32;
     fn read_data<T: Size>(&self, address: u32) -> T;
     fn write_data<T: Size>(&mut self, address: u32, value: T);
+    fn break_(&mut self);
 }
 
 pub struct Core {
     wb: WbState,
-    dc: DcState,
+    dc: DfState,
     ex: ExState,
     rf: RfState,
     pc: u32,
@@ -53,7 +54,7 @@ impl Core {
         Self {
             rf: Default::default(),
             ex: Default::default(),
-            dc: DcState::Nop,
+            dc: DfState::Nop,
             wb: WbState {
                 reg: 0,
                 value: 0,
@@ -89,8 +90,8 @@ impl Core {
         //     }
         // }
 
-        // DC
-        dc::execute(self, bus);
+        // DF
+        df::execute(self, bus);
 
         // EX
         if self.ex.word != 0 {
@@ -102,7 +103,7 @@ impl Core {
             self.regs[self.wb.reg] = tmp;
         } else {
             trace!("{:08X}: NOP", self.ex.pc);
-            self.dc = DcState::Nop;
+            self.dc = DfState::Nop;
         }
 
         // RF
@@ -111,7 +112,7 @@ impl Core {
             word: self.rf.word,
         };
 
-        // IC
+        // IF
         self.rf = RfState {
             pc: self.pc,
             word: bus.read_opcode(self.pc),

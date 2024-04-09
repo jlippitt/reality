@@ -1,9 +1,9 @@
-use super::{Core, DcState};
+use super::{Core, DfState};
 use tracing::trace;
 
 pub trait StoreOperator {
     const NAME: &'static str;
-    fn apply(cpu: &Core, reg: usize, addr: u32) -> DcState;
+    fn apply(cpu: &Core, reg: usize, addr: u32) -> DfState;
 }
 
 pub struct Sb;
@@ -13,8 +13,8 @@ pub struct Sw;
 impl StoreOperator for Sb {
     const NAME: &'static str = "SB";
 
-    fn apply(cpu: &Core, reg: usize, addr: u32) -> DcState {
-        DcState::StoreByte {
+    fn apply(cpu: &Core, reg: usize, addr: u32) -> DfState {
+        DfState::StoreByte {
             value: cpu.regs[reg] as u8,
             addr,
         }
@@ -24,8 +24,8 @@ impl StoreOperator for Sb {
 impl StoreOperator for Sh {
     const NAME: &'static str = "SH";
 
-    fn apply(cpu: &Core, reg: usize, addr: u32) -> DcState {
-        DcState::StoreHalfword {
+    fn apply(cpu: &Core, reg: usize, addr: u32) -> DfState {
+        DfState::StoreHalfword {
             value: cpu.regs[reg] as u16,
             addr,
         }
@@ -35,15 +35,15 @@ impl StoreOperator for Sh {
 impl StoreOperator for Sw {
     const NAME: &'static str = "SW";
 
-    fn apply(cpu: &Core, reg: usize, addr: u32) -> DcState {
-        DcState::StoreWord {
+    fn apply(cpu: &Core, reg: usize, addr: u32) -> DfState {
+        DfState::StoreWord {
             value: cpu.regs[reg] as u32,
             addr,
         }
     }
 }
 
-pub fn store<Op: StoreOperator>(cpu: &mut Core, pc: u32, word: u32) -> DcState {
+pub fn store<Op: StoreOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i32;

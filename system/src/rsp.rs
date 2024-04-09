@@ -1,5 +1,6 @@
 use super::memory::{Memory, Size, WriteMask};
 use super::rdram::Rdram;
+use crate::interrupt::{RcpIntType, RcpInterrupt};
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
 use std::mem;
@@ -23,6 +24,7 @@ struct Bus {
     regs: Regs,
     dma_active: Option<Dma>,
     dma_pending: Option<Dma>,
+    rcp_int: RcpInterrupt,
 }
 
 pub struct Rsp {
@@ -31,7 +33,7 @@ pub struct Rsp {
 }
 
 impl Rsp {
-    pub fn new(ipl3_data: Option<&[u8]>) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, ipl3_data: Option<&[u8]>) -> Self {
         let mem = if let Some(ipl3_data) = ipl3_data {
             let mut vec = Vec::from(ipl3_data);
             vec.resize(MEM_SIZE, 0);
@@ -47,6 +49,7 @@ impl Rsp {
                 dma_active: None,
                 dma_pending: None,
                 regs: Regs::default(),
+                rcp_int,
             },
         }
     }
@@ -270,5 +273,14 @@ impl core::Bus for Bus {
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
         self.mem.write(address, value)
+    }
+
+    fn break_(&mut self) {
+        self.regs.status.set_halted(true);
+        self.regs.status.set_broke(true);
+
+        if self.regs.status.intbreak() {
+            self.rcp_int.raise(RcpIntType::SP);
+        }
     }
 }
