@@ -12,6 +12,7 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
         //0o06 => load::ctc2(core, pc, word),
         0o20..=0o37 => match word & 31 {
             0x10 => compute::compute::<compute::VAdd>(core, pc, word),
+            0x14 => compute::compute::<compute::VAddc>(core, pc, word),
             0x1d => compute::vsar(core, pc, word),
             opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc()),
         },

@@ -63,7 +63,7 @@ impl FlagVector {
         &mut self.0
     }
 
-    pub fn get(&self, flag: Flags) -> u8 {
+    pub fn read(&self, flag: Flags) -> u8 {
         let mut value = 0;
 
         for (index, flags) in self.0.iter().enumerate() {
@@ -71,5 +71,11 @@ impl FlagVector {
         }
 
         value
+    }
+
+    pub fn clear(&mut self, flag: Flags) {
+        for flags in &mut self.0 {
+            flags.remove(flag);
+        }
     }
 }

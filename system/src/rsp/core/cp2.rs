@@ -41,14 +41,14 @@ impl Cp2 {
     pub fn control_reg(&self, index: usize) -> i32 {
         let value = match index {
             0 => u16::from_le_bytes([
-                self.flags.get(Flags::CARRY),
-                self.flags.get(Flags::NOT_EQUAL),
+                self.flags.read(Flags::CARRY),
+                self.flags.read(Flags::NOT_EQUAL),
             ]),
             1 => u16::from_le_bytes([
-                self.flags.get(Flags::COMPARE),
-                self.flags.get(Flags::CLIP_COMPARE),
+                self.flags.read(Flags::COMPARE),
+                self.flags.read(Flags::CLIP_COMPARE),
             ]),
-            2 => u16::from_le_bytes([self.flags.get(Flags::COMPARE_EXTENSION), 0]),
+            2 => u16::from_le_bytes([self.flags.read(Flags::COMPARE_EXTENSION), 0]),
             reg => todo!(
                 "RSP CP2 Control Register Read: {}",
                 Self::CONTROL_REG_NAMES[reg]
