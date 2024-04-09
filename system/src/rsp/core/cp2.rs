@@ -1,7 +1,7 @@
-pub use ex::lwc2;
+pub use ex::{cop2, lwc2};
 
 use super::{Core, DfState};
-use regs::{Accumulator, FlagVector, Vector};
+use regs::{Accumulator, FlagVector, Flags, Vector};
 use tracing::trace;
 
 mod ex;
@@ -28,6 +28,6 @@ impl Cp2 {
 
     pub fn set_reg(&mut self, index: usize, value: Vector) {
         self.regs[index] = value;
-        trace!("V{:02}: {}", index, self.regs[index]);
+        trace!("  V{:02}: {}", index, self.regs[index]);
     }
 }

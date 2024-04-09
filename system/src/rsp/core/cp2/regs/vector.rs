@@ -6,11 +6,15 @@ use std::mem;
 pub struct Vector(u128);
 
 impl Vector {
-    pub fn as_le_array(&self) -> [u16; 8] {
+    pub fn from_le_array(value: [u16; 8]) -> Self {
+        Self(bytemuck::must_cast(value))
+    }
+
+    pub fn to_le_array(&self) -> [u16; 8] {
         bytemuck::must_cast(self.0)
     }
 
-    pub fn read<T: Size>(self, el: usize) -> T {
+    pub fn read<T: Size>(&self, el: usize) -> T {
         let size = mem::size_of::<T>();
         let shift = 128 - (((size + el) as i32) << 3);
 
@@ -39,6 +43,47 @@ impl Vector {
 
         self.0 = (self.0 & !mask) | value;
     }
+
+    pub fn broadcast_le(&self, el: usize) -> [u16; 8] {
+        let values = self.to_le_array();
+
+        match el & 15 {
+            0 | 1 => values,
+            2 => [
+                values[1], values[1], values[3], values[3], values[5], values[5], values[7],
+                values[7],
+            ],
+            3 => [
+                values[0], values[0], values[2], values[2], values[4], values[4], values[6],
+                values[6],
+            ],
+            4 => [
+                values[3], values[3], values[3], values[3], values[7], values[7], values[7],
+                values[7],
+            ],
+            5 => [
+                values[2], values[2], values[2], values[2], values[6], values[6], values[6],
+                values[6],
+            ],
+            6 => [
+                values[1], values[1], values[1], values[1], values[5], values[5], values[5],
+                values[5],
+            ],
+            7 => [
+                values[0], values[0], values[0], values[0], values[4], values[4], values[4],
+                values[4],
+            ],
+            8 => [values[7]; 8],
+            9 => [values[6]; 8],
+            10 => [values[5]; 8],
+            11 => [values[4]; 8],
+            12 => [values[3]; 8],
+            13 => [values[2]; 8],
+            14 => [values[1]; 8],
+            15 => [values[0]; 8],
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl From<u128> for Vector {
@@ -55,12 +100,12 @@ impl From<Vector> for u128 {
 
 impl Display for Vector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = self.as_le_array();
+        let values = self.to_le_array();
 
         write!(
             f,
             "{:04X} {:04X} {:04X} {:04X} {:04X} {:04X} {:04X} {:04X}",
-            value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0],
+            values[7], values[6], values[5], values[4], values[3], values[2], values[1], values[0],
         )
     }
 }

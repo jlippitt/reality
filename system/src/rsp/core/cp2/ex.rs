@@ -1,6 +1,14 @@
-use super::{Core, DfState};
+use super::{Core, DfState, Flags, Vector};
 
+mod compute;
 mod load;
+
+pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    match word & 31 {
+        0x10 => compute::compute::<compute::VAdd>(core, pc, word),
+        opcode => unimplemented!("RSP LWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
+    }
+}
 
 pub fn lwc2(core: &mut Core, pc: u32, word: u32) -> DfState {
     match (word >> 11) & 0x1f {

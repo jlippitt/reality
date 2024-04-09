@@ -28,6 +28,7 @@ pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         0o15 => bitwise::i_type::<bitwise::Or>(cpu, pc, word),
         0o16 => bitwise::i_type::<bitwise::Xor>(cpu, pc, word),
         0o17 => load::lui(cpu, pc, word),
+        0o22 => cp2::cop2(cpu, pc, word),
         0o24 => control::beq(cpu, pc, word),
         0o25 => control::bne(cpu, pc, word),
         0o26 => control::blez(cpu, pc, word),
