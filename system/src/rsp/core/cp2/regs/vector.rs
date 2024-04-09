@@ -141,4 +141,89 @@ mod tests {
 
         assert_eq!(u128::from(vec), 0x0011_2233_4455_6677_8899_aabb_0011_2233);
     }
+
+    #[test]
+    fn broadcast_le() {
+        let vec = Vector::from(0x0000_1111_2222_3333_4444_5555_6666_7777);
+
+        assert_eq!(
+            0x0000_1111_2222_3333_4444_5555_6666_7777u128,
+            Vector::from_le_array(vec.broadcast_le(0)).into(),
+        );
+
+        assert_eq!(
+            0x0000_1111_2222_3333_4444_5555_6666_7777u128,
+            Vector::from_le_array(vec.broadcast_le(1)).into(),
+        );
+
+        assert_eq!(
+            0x0000_0000_2222_2222_4444_4444_6666_6666u128,
+            Vector::from_le_array(vec.broadcast_le(2)).into(),
+        );
+
+        assert_eq!(
+            0x1111_1111_3333_3333_5555_5555_7777_7777u128,
+            Vector::from_le_array(vec.broadcast_le(3)).into(),
+        );
+
+        assert_eq!(
+            0x0000_0000_0000_0000_4444_4444_4444_4444u128,
+            Vector::from_le_array(vec.broadcast_le(4)).into(),
+        );
+
+        assert_eq!(
+            0x1111_1111_1111_1111_5555_5555_5555_5555u128,
+            Vector::from_le_array(vec.broadcast_le(5)).into(),
+        );
+
+        assert_eq!(
+            0x2222_2222_2222_2222_6666_6666_6666_6666u128,
+            Vector::from_le_array(vec.broadcast_le(6)).into(),
+        );
+
+        assert_eq!(
+            0x3333_3333_3333_3333_7777_7777_7777_7777u128,
+            Vector::from_le_array(vec.broadcast_le(7)).into(),
+        );
+
+        assert_eq!(
+            0x0000_0000_0000_0000_0000_0000_0000_0000u128,
+            Vector::from_le_array(vec.broadcast_le(8)).into(),
+        );
+
+        assert_eq!(
+            0x1111_1111_1111_1111_1111_1111_1111_1111u128,
+            Vector::from_le_array(vec.broadcast_le(9)).into(),
+        );
+
+        assert_eq!(
+            0x2222_2222_2222_2222_2222_2222_2222_2222u128,
+            Vector::from_le_array(vec.broadcast_le(10)).into(),
+        );
+
+        assert_eq!(
+            0x3333_3333_3333_3333_3333_3333_3333_3333u128,
+            Vector::from_le_array(vec.broadcast_le(11)).into(),
+        );
+
+        assert_eq!(
+            0x4444_4444_4444_4444_4444_4444_4444_4444u128,
+            Vector::from_le_array(vec.broadcast_le(12)).into(),
+        );
+
+        assert_eq!(
+            0x5555_5555_5555_5555_5555_5555_5555_5555u128,
+            Vector::from_le_array(vec.broadcast_le(13)).into(),
+        );
+
+        assert_eq!(
+            0x6666_6666_6666_6666_6666_6666_6666_6666u128,
+            Vector::from_le_array(vec.broadcast_le(14)).into(),
+        );
+
+        assert_eq!(
+            0x7777_7777_7777_7777_7777_7777_7777_7777u128,
+            Vector::from_le_array(vec.broadcast_le(15)).into(),
+        );
+    }
 }
