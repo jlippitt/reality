@@ -31,7 +31,7 @@ impl MipsInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             1 => 0x0202_0102,
             2 => self.rcp_int.status().bits() as u32,
             3 => self.rcp_int.mask().bits() as u32,

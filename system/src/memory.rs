@@ -1,5 +1,6 @@
 use bitflags::Flags;
 use bytemuck::Pod;
+use num_traits::PrimInt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
@@ -25,79 +26,58 @@ pub enum Mapping {
     Pif,
 }
 
-pub trait Size: Pod {
-    fn from_u32(value: u32) -> Self;
-    fn to_u32(self) -> u32;
-    fn swap_bytes(self) -> Self;
+pub trait Size: Pod + PrimInt {
+    fn truncate_u32(value: u32) -> Self;
+    fn truncate_u128(value: u128) -> Self;
 }
 
 impl Size for u8 {
-    fn from_u32(value: u32) -> Self {
+    fn truncate_u32(value: u32) -> Self {
         value as Self
     }
 
-    fn to_u32(self) -> u32 {
-        self as u32
-    }
-
-    fn swap_bytes(self) -> Self {
-        self.swap_bytes()
+    fn truncate_u128(value: u128) -> Self {
+        value as Self
     }
 }
 
 impl Size for u16 {
-    fn from_u32(value: u32) -> Self {
+    fn truncate_u32(value: u32) -> Self {
         value as Self
     }
 
-    fn to_u32(self) -> u32 {
-        self as u32
-    }
-
-    fn swap_bytes(self) -> Self {
-        self.swap_bytes()
+    fn truncate_u128(value: u128) -> Self {
+        value as Self
     }
 }
 
 impl Size for u32 {
-    fn from_u32(value: u32) -> Self {
+    fn truncate_u32(value: u32) -> Self {
         value as Self
     }
 
-    fn to_u32(self) -> u32 {
-        self
-    }
-
-    fn swap_bytes(self) -> Self {
-        self.swap_bytes()
+    fn truncate_u128(value: u128) -> Self {
+        value as Self
     }
 }
 
 impl Size for u64 {
-    fn from_u32(_value: u32) -> Self {
+    fn truncate_u32(_value: u32) -> Self {
         panic!("64-bit read from 32-bit register");
     }
 
-    fn to_u32(self) -> u32 {
-        panic!("64-bit write to 32-bit register");
-    }
-
-    fn swap_bytes(self) -> Self {
-        self.swap_bytes()
+    fn truncate_u128(value: u128) -> Self {
+        value as Self
     }
 }
 
 impl Size for u128 {
-    fn from_u32(_value: u32) -> Self {
+    fn truncate_u32(_value: u32) -> Self {
         panic!("128-bit read from 32-bit register");
     }
 
-    fn to_u32(self) -> u32 {
-        panic!("128-bit write to 32-bit register");
-    }
-
-    fn swap_bytes(self) -> Self {
-        self.swap_bytes()
+    fn truncate_u128(value: u128) -> Self {
+        value as Self
     }
 }
 
@@ -213,7 +193,7 @@ impl WriteMask {
         let shift = ((address & 3) ^ (4 - data_size)) << 3;
 
         Self {
-            value: value.to_u32().wrapping_shl(shift),
+            value: value.to_u32().unwrap().wrapping_shl(shift),
             mask: base_mask.wrapping_shl(shift),
         }
     }
@@ -318,9 +298,9 @@ mod tests {
     #[test]
     fn memory_read_block() {
         let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
-        let mut block = [0u32; 2];
-        memory.read_block(0, &mut block);
-        assert_eq!([0x00112233, 0x44556677], block);
+        let mut block = [0u8; 4];
+        memory.read_block(3, &mut block);
+        assert_eq!([0x33, 0x44, 0x55, 0x66], block);
     }
 
     #[test]

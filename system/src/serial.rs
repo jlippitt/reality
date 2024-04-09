@@ -95,7 +95,7 @@ impl SerialInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             6 => self
                 .regs
                 .status

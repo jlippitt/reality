@@ -13,6 +13,11 @@ pub enum DfState {
     StoreHalfword { value: u16, addr: u32 },
     StoreWord { value: u32, addr: u32 },
     //Cp0RegWrite { reg: usize, value: i32 },
+    Cp2LoadByte { reg: usize, el: usize, addr: u32 },
+    Cp2LoadHalfword { reg: usize, el: usize, addr: u32 },
+    Cp2LoadWord { reg: usize, el: usize, addr: u32 },
+    Cp2LoadDoubleword { reg: usize, el: usize, addr: u32 },
+    Cp2LoadQuadword { reg: usize, el: usize, addr: u32 },
     Break,
     Nop,
 }
@@ -94,6 +99,60 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         //     cpu.wb.reg = 0;
         //     cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
         // }
+        DfState::Cp2LoadByte { reg, el, addr } => {
+            // TODO: Stall cycles
+            let value = bus.read_data::<u8>(addr);
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:02X}]", addr, value);
+            let mut vector = cpu.cp2.reg(reg);
+            vector.write(el, value);
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadHalfword { reg, el, addr } => {
+            // TODO: Stall cycles
+            let value = bus.read_data::<u16>(addr);
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:04X}]", addr, value);
+            let mut vector = cpu.cp2.reg(reg);
+            vector.write(el, value);
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadWord { reg, el, addr } => {
+            // TODO: Stall cycles
+            let value = bus.read_data::<u32>(addr);
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:08X}]", addr, value);
+            let mut vector = cpu.cp2.reg(reg);
+            vector.write(el, value);
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadDoubleword { reg, el, addr } => {
+            // TODO: Stall cycles
+            let value = bus.read_data::<u64>(addr);
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:016X}]", addr, value);
+            let mut vector = cpu.cp2.reg(reg);
+            vector.write(el, value);
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadQuadword { reg, el, addr } => {
+            // TODO: Stall cycles
+            let value = bus.read_data::<u128>(addr);
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} => {:032X}]", addr, value);
+
+            if el == 0 && (addr & 7) == 0 {
+                // Aligned load
+                cpu.cp2.set_reg(reg, value.into());
+            } else {
+                todo!("Misaligned quadword load");
+            }
+        }
         DfState::Break => {
             bus.break_();
             cpu.rf.word = 0;

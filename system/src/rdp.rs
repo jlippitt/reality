@@ -15,7 +15,7 @@ impl Rdp {
     }
 
     pub fn read_command<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             3 => self.status.into(),
             _ => todo!("RDP Command Register Read: {:08X}", address),
         })

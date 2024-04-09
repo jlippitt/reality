@@ -106,7 +106,7 @@ impl Rdram {
         for (index, module) in self.modules.iter().enumerate() {
             // Assume all modules are 2Mbit
             if (module.device_id & !1) == device_id {
-                return T::from_u32(self.read_module_register(mi, index, address));
+                return T::truncate_u32(self.read_module_register(mi, index, address));
             }
         }
 
@@ -148,7 +148,7 @@ impl Rdram {
     }
 
     pub fn read_interface<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             0 => self.ri.mode.into(),
             3 => self.ri.select.into(),
             4 => self.ri.refresh.into(),

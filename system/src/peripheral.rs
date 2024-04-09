@@ -78,7 +78,7 @@ impl PeripheralInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             0 => self.regs.dram_addr,
             1 => self.regs.cart_addr,
             4 => {

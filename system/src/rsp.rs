@@ -147,7 +147,7 @@ impl Rsp {
             return self.bus.mem.read(address as usize);
         }
 
-        T::from_u32(if (address & 0x0004_0000) == 0x0004_0000 {
+        T::truncate_u32(if (address & 0x0004_0000) == 0x0004_0000 {
             self.bus.read_register(address)
         } else if address == 0x0008_0000 {
             self.core.pc()

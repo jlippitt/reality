@@ -192,7 +192,7 @@ impl VideoInterface {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        T::from_u32(match address >> 2 {
+        T::truncate_u32(match address >> 2 {
             0 => self.regs.ctrl.into(),
             1 => self.regs.origin.into(),
             2 => self.regs.width.into(),

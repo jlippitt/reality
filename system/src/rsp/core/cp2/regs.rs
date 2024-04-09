@@ -1,8 +1,9 @@
+pub use vector::Vector;
+
 use bitflags::bitflags;
 use std::fmt::{self, Display};
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-pub struct Vector([u16; 8]);
+mod vector;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Accumulator([u64; 8]);
@@ -18,18 +19,8 @@ bitflags! {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FlagVector([Flags; 8]);
-
-impl Display for Vector {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:04X} {:04X} {:04X} {:04X} {:04X} {:04X} {:04X} {:04X}",
-            self.0[7], self.0[6], self.0[5], self.0[4], self.0[3], self.0[2], self.0[1], self.0[0],
-        )
-    }
-}
 
 impl Display for Accumulator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
