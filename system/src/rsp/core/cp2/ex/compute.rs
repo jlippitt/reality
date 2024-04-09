@@ -49,6 +49,24 @@ pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfSt
     DfState::Nop
 }
 
+pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let el = ((word >> 21) & 15) as usize;
+    let vd = ((word >> 6) & 31) as usize;
+
+    trace!("{:08X}: VSAR V{:02}, V{:02}[E{}]", pc, vd, vd, el);
+
+    if (8..=10).contains(&el) {
+        let shift = 32 - ((el - 8) << 4);
+        let acc = core.cp2.acc.as_le_array();
+        let result = std::array::from_fn(|index| (acc[index] >> shift) as u16);
+        core.cp2.set_reg(vd, Vector::from_le_array(result));
+    } else {
+        core.cp2.set_reg(vd, Vector::default());
+    }
+
+    DfState::Nop
+}
+
 fn clamp_signed(value: i32) -> i16 {
     value.clamp(i16::MIN as i32, i16::MAX as i32) as i16
 }

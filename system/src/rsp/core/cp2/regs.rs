@@ -19,6 +19,10 @@ impl Display for Accumulator {
 }
 
 impl Accumulator {
+    pub fn as_le_array(&self) -> &[u64; 8] {
+        &self.0
+    }
+
     pub fn as_le_array_mut(&mut self) -> &mut [u64; 8] {
         &mut self.0
     }

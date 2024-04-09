@@ -7,6 +7,7 @@ mod store;
 pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
     match word & 31 {
         0x10 => compute::compute::<compute::VAdd>(core, pc, word),
+        0x1d => compute::vsar(core, pc, word),
         opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
     }
 }
