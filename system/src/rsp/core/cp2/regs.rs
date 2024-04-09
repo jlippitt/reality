@@ -62,4 +62,14 @@ impl FlagVector {
     pub fn as_le_array_mut(&mut self) -> &mut [Flags; 8] {
         &mut self.0
     }
+
+    pub fn get(&self, flag: Flags) -> u8 {
+        let mut value = 0;
+
+        for (index, flags) in self.0.iter().enumerate() {
+            value |= (flags.contains(flag) as u8) << (7 - index);
+        }
+
+        value
+    }
 }

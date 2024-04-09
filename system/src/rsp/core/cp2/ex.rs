@@ -1,13 +1,20 @@
-use super::{Core, DfState, Flags, Vector};
+use super::{Core, Cp2, DfState, Flags, Vector};
 
 mod compute;
 mod load;
 mod store;
 
 pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
-    match word & 31 {
-        0x10 => compute::compute::<compute::VAdd>(core, pc, word),
-        0x1d => compute::vsar(core, pc, word),
+    match (word >> 21) & 31 {
+        //0o00 => store::mfc2(core, pc, word),
+        0o02 => store::cfc2(core, pc, word),
+        //0o04 => load::mtc2(core, pc, word),
+        //0o06 => load::ctc2(core, pc, word),
+        0o20..=0o37 => match word & 31 {
+            0x10 => compute::compute::<compute::VAdd>(core, pc, word),
+            0x1d => compute::vsar(core, pc, word),
+            opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc()),
+        },
         opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
     }
 }

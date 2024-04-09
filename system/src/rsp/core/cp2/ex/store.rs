@@ -1,4 +1,4 @@
-use super::{Core, DfState, Vector};
+use super::{Core, Cp2, DfState, Vector};
 use tracing::trace;
 
 pub trait StoreOperator {
@@ -95,4 +95,21 @@ pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfState 
         el,
         core.regs[base].wrapping_add(offset) as u32,
     )
+}
+
+pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
+    trace!(
+        "{:08X}: CFC2 {}, {}",
+        pc,
+        Core::REG_NAMES[rt],
+        Cp2::CONTROL_REG_NAMES[rd]
+    );
+
+    DfState::RegWrite {
+        reg: rt,
+        value: core.cp2.control_reg(rd),
+    }
 }
