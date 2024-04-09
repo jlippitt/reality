@@ -4,7 +4,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
 use std::mem;
-use tracing::{debug, debug_span, trace, warn};
+use tracing::{debug, debug_span, trace};
 
 mod core;
 mod regs;
@@ -169,7 +169,7 @@ impl Rsp {
             let mut pc = self.core.pc();
             mask.write(&mut pc);
             self.core.set_pc(pc);
-            debug!("RSP PC: {:08X}", pc);
+            debug!("SP_PC: {:08X}", pc);
         } else {
             panic!("Write to unmapped RSP address: {:08X}", address);
         }
@@ -205,11 +205,11 @@ impl Bus {
                 }
 
                 if (raw & 0x0000_0008) != 0 {
-                    warn!("TODO: Acknowledge RSP Interrupt");
+                    self.rcp_int.clear(RcpIntType::SP);
                 }
 
                 if (raw & 0x0000_0010) != 0 {
-                    todo!("Trigger RSP interrupt");
+                    self.rcp_int.raise(RcpIntType::SP);
                 }
 
                 mask.set_or_clear(status, Status::set_halted, 1, 0);

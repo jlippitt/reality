@@ -12,7 +12,7 @@ use tracing::subscriber::{DefaultGuard, Interest};
 use tracing::{Event, Level, Metadata, Subscriber};
 
 const ENV_VAR_NAME: &str = "LOG_LEVEL";
-const DEFAULT_KEY: &str = "main";
+const DEFAULT_KEY: &str = "cpu";
 const DEFAULT_LEVEL: Level = Level::DEBUG;
 const LOG_BUFFER_SIZE: usize = 262144;
 

@@ -36,7 +36,7 @@ pub trait Bus {
 
 pub struct Core {
     wb: WbState,
-    dc: DfState,
+    df: DfState,
     ex: ExState,
     rf: RfState,
     pc: u32,
@@ -54,7 +54,7 @@ impl Core {
         Self {
             rf: Default::default(),
             ex: Default::default(),
-            dc: DfState::Nop,
+            df: DfState::Nop,
             wb: WbState {
                 reg: 0,
                 value: 0,
@@ -91,7 +91,9 @@ impl Core {
         // }
 
         // DF
-        df::execute(self, bus);
+        if df::execute(self, bus) {
+            return;
+        }
 
         // EX
         if self.ex.word != 0 {
@@ -99,11 +101,11 @@ impl Core {
             let tmp = self.regs[self.wb.reg];
             self.regs[self.wb.reg] = self.wb.value;
             self.regs[0] = 0;
-            self.dc = ex::execute(self, self.ex.pc, self.ex.word);
+            self.df = ex::execute(self, self.ex.pc, self.ex.word);
             self.regs[self.wb.reg] = tmp;
         } else {
             trace!("{:08X}: NOP", self.ex.pc);
-            self.dc = DfState::Nop;
+            self.df = DfState::Nop;
         }
 
         // RF

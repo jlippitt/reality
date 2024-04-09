@@ -17,8 +17,8 @@ pub enum DfState {
     Nop,
 }
 
-pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
-    match cpu.dc {
+pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
+    match cpu.df {
         DfState::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
@@ -96,10 +96,16 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) {
         // }
         DfState::Break => {
             bus.break_();
+            cpu.rf.word = 0;
+            cpu.ex.word = 0;
+            cpu.df = DfState::Nop;
+            return true;
         }
         DfState::Nop => {
             cpu.wb.reg = 0;
             cpu.wb.op = None;
         }
     }
+
+    false
 }
