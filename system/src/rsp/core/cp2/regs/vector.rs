@@ -10,7 +10,7 @@ impl Vector {
         Self(bytemuck::must_cast(value))
     }
 
-    pub fn to_le_array(&self) -> [u16; 8] {
+    pub fn to_le_array(self) -> [u16; 8] {
         bytemuck::must_cast(self.0)
     }
 
