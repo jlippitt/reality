@@ -7,10 +7,43 @@ pub trait ComputeOperator {
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16;
 }
 
+pub struct VMulf;
+pub struct VMulu;
 pub struct VAdd;
 pub struct VAddc;
 pub struct VSub;
 pub struct VSubc;
+
+impl ComputeOperator for VMulf {
+    const NAME: &'static str = "VMULF";
+    const CLEAR_FLAGS: Flags = Flags::empty();
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
+        *acc = (0x8000 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_high(*acc)
+    }
+}
+
+impl ComputeOperator for VMulu {
+    const NAME: &'static str = "VMULU";
+    const CLEAR_FLAGS: Flags = Flags::empty();
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
+        *acc = (0x8000 + result) as u64 & 0xffff_ffff_ffff;
+
+        if ((*acc >> 32) as i16) < 0 {
+            return 0;
+        }
+
+        if ((*acc >> 32) as i16) ^ ((*acc >> 16) as i16) < 0 {
+            return u16::MAX;
+        }
+
+        (*acc >> 16) as u16
+    }
+}
 
 impl ComputeOperator for VAdd {
     const NAME: &'static str = "VADD";
@@ -115,4 +148,16 @@ pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfState {
 
 fn clamp_signed(value: i32) -> i16 {
     value.clamp(i16::MIN as i32, i16::MAX as i32) as i16
+}
+
+fn clamp_accumulator_high(value: u64) -> u16 {
+    if ((value >> 32) as i16) < 0 {
+        if (value >> 32) as u16 != 0xffff || ((value >> 16) as i16) >= 0 {
+            return 0x8000;
+        }
+    } else if (((value >> 32) as u16) != 0) || ((value >> 16) as i16) < 0 {
+        return 0x7fff;
+    }
+
+    (value >> 16) as u16
 }
