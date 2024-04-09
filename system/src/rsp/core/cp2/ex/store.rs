@@ -81,10 +81,10 @@ pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfState 
     let offset = ((word & 0x7f).wrapping_sub((word & 0x40) << 1) as i32) << Op::SHIFT;
 
     trace!(
-        "{:08X}: {} V{:02}[e{}], {}({})",
+        "{:08X}: {} V{:02}[E{}], {}({})",
         pc,
         Op::NAME,
-        Core::REG_NAMES[vt],
+        vt,
         el,
         offset,
         Core::REG_NAMES[base],
