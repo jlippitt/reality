@@ -4,7 +4,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
 use std::mem;
-use tracing::{debug, trace, warn};
+use tracing::{debug, debug_span, trace, warn};
 
 mod core;
 mod regs;
@@ -59,7 +59,11 @@ impl Rsp {
             return;
         }
 
-        self.core.step(&mut self.bus);
+        {
+            let _span = debug_span!("rsp").entered();
+            self.core.step(&mut self.bus);
+        }
+
         let status = &mut self.bus.regs.status;
         status.set_halted(status.halted() | status.sstep());
     }
