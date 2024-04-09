@@ -13,6 +13,8 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
         0o20..=0o37 => match word & 31 {
             0x00 => compute::compute::<compute::VMulf>(core, pc, word),
             0x01 => compute::compute::<compute::VMulu>(core, pc, word),
+            0x08 => compute::compute::<compute::VMacf>(core, pc, word),
+            0x09 => compute::compute::<compute::VMacu>(core, pc, word),
             0x10 => compute::compute::<compute::VAdd>(core, pc, word),
             0x11 => compute::compute::<compute::VSub>(core, pc, word),
             0x14 => compute::compute::<compute::VAddc>(core, pc, word),

@@ -9,6 +9,8 @@ pub trait ComputeOperator {
 
 pub struct VMulf;
 pub struct VMulu;
+pub struct VMacf;
+pub struct VMacu;
 pub struct VAdd;
 pub struct VAddc;
 pub struct VSub;
@@ -32,6 +34,36 @@ impl ComputeOperator for VMulu {
     fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
         *acc = (0x8000 + result) as u64 & 0xffff_ffff_ffff;
+
+        if ((*acc >> 32) as i16) < 0 {
+            return 0;
+        }
+
+        if ((*acc >> 32) as i16) ^ ((*acc >> 16) as i16) < 0 {
+            return u16::MAX;
+        }
+
+        (*acc >> 16) as u16
+    }
+}
+impl ComputeOperator for VMacf {
+    const NAME: &'static str = "VMACF";
+    const CLEAR_FLAGS: Flags = Flags::empty();
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_high(*acc)
+    }
+}
+
+impl ComputeOperator for VMacu {
+    const NAME: &'static str = "VMACU";
+    const CLEAR_FLAGS: Flags = Flags::empty();
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
 
         if ((*acc >> 32) as i16) < 0 {
             return 0;
