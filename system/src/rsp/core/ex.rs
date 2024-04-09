@@ -42,6 +42,7 @@ pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         0o51 => store::store::<store::Sh>(cpu, pc, word),
         0o53 => store::store::<store::Sw>(cpu, pc, word),
         0o62 => cp2::lwc2(cpu, pc, word),
+        0o72 => cp2::swc2(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
 }

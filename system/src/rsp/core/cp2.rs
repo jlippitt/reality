@@ -1,7 +1,8 @@
-pub use ex::{cop2, lwc2};
+pub use ex::{cop2, lwc2, swc2};
+pub use regs::Vector;
 
 use super::{Core, DfState};
-use regs::{Accumulator, FlagVector, Flags, Vector};
+use regs::{Accumulator, FlagVector, Flags};
 use tracing::trace;
 
 mod ex;

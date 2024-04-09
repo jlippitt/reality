@@ -1,3 +1,4 @@
+use super::cp2::Vector;
 use super::{Bus, Core};
 use tracing::trace;
 
@@ -18,6 +19,11 @@ pub enum DfState {
     Cp2LoadWord { reg: usize, el: usize, addr: u32 },
     Cp2LoadDoubleword { reg: usize, el: usize, addr: u32 },
     Cp2LoadQuadword { reg: usize, el: usize, addr: u32 },
+    Cp2StoreByte { value: u8, addr: u32 },
+    Cp2StoreHalfword { value: u16, addr: u32 },
+    Cp2StoreWord { value: u32, addr: u32 },
+    Cp2StoreDoubleword { value: u64, addr: u32 },
+    Cp2StoreQuadword { vec: Vector, el: usize, addr: u32 },
     Break,
     Nop,
 }
@@ -149,6 +155,48 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             if el == 0 && (addr & 7) == 0 {
                 // Aligned load
                 cpu.cp2.set_reg(reg, value.into());
+            } else {
+                todo!("Misaligned quadword load");
+            }
+        }
+        DfState::Cp2StoreByte { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:02X}]", addr, value);
+            bus.write_data(addr, value);
+        }
+        DfState::Cp2StoreHalfword { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:04X}]", addr, value);
+            bus.write_data(addr, value);
+        }
+        DfState::Cp2StoreWord { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:08X}]", addr, value);
+            bus.write_data(addr, value);
+        }
+        DfState::Cp2StoreDoubleword { value, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+            trace!("  [{:08X} <= {:016X}]", addr, value);
+            bus.write_data(addr, value);
+        }
+        DfState::Cp2StoreQuadword { vec, el, addr } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+            cpu.wb.op = None;
+
+            if el == 0 && (addr & 7) == 0 {
+                // Aligned store
+                let value: u128 = vec.into();
+                trace!("  [{:08X} <= {:032X}]", addr, value);
+                bus.write_data(addr, value);
             } else {
                 todo!("Misaligned quadword load");
             }
