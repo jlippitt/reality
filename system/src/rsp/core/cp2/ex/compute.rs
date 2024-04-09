@@ -9,6 +9,8 @@ pub trait ComputeOperator {
 
 pub struct VAdd;
 pub struct VAddc;
+pub struct VSub;
+pub struct VSubc;
 
 impl ComputeOperator for VAdd {
     const NAME: &'static str = "VADD";
@@ -30,6 +32,31 @@ impl ComputeOperator for VAddc {
         let result = lhs as u32 + rhs as u32;
         *acc = (*acc & !0xffff) | (result as u16 as u64);
         flags.set(Flags::CARRY, (result & 0x0001_0000) != 0);
+        result as u16
+    }
+}
+
+impl ComputeOperator for VSub {
+    const NAME: &'static str = "VSUB";
+    const CLEAR_FLAGS: Flags = Flags::NOT_EQUAL.union(Flags::CARRY);
+
+    fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let carry = flags.contains(Flags::CARRY);
+        let result = lhs as i16 as i32 - rhs as i16 as i32 - carry as i32;
+        *acc = (*acc & !0xffff) | (result as u16 as u64);
+        clamp_signed(result) as u16
+    }
+}
+
+impl ComputeOperator for VSubc {
+    const NAME: &'static str = "VSUBC";
+    const CLEAR_FLAGS: Flags = Flags::empty();
+
+    fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = lhs as i32 - rhs as i32;
+        *acc = (*acc & !0xffff) | (result as u16 as u64);
+        flags.set(Flags::CARRY, result < 0);
+        flags.set(Flags::NOT_EQUAL, result != 0);
         result as u16
     }
 }
