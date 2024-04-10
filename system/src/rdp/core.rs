@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 mod image;
 mod mode;
 mod param;
+mod rect;
 
 pub struct Bus<'a> {
     pub renderer: &'a mut Renderer,
@@ -47,6 +48,7 @@ impl Core {
         match (word >> 56) & 0x3f {
             0x2d => image::set_scissor(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
+            0x36 => rect::fill_rectangle(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
             0x3f => image::set_color_image(self, bus, word),
             opcode => todo!("RDP Command: {:#02X}", opcode),
