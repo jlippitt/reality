@@ -132,11 +132,11 @@ impl Rsp {
         } else {
             dma_active
                 .ram_addr
-                .set_dram_addr((dram_addr + block_len) as u32);
+                .set_dram_addr((dram_addr + block_len) as u32 & 0x00ff_ffff);
 
             dma_active
                 .sp_addr
-                .set_mem_addr((mem_addr + block_len) as u32);
+                .set_mem_addr((mem_addr + block_len) as u32 & 0x0fff);
 
             dma_active.len.set_len(bytes_remaining);
         }
