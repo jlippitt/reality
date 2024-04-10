@@ -24,6 +24,12 @@ pub struct VAddc;
 pub struct VSub;
 pub struct VSubc;
 pub struct VAbs;
+pub struct VAnd;
+pub struct VNand;
+pub struct VOr;
+pub struct VNor;
+pub struct VXor;
+pub struct VNxor;
 
 impl ComputeOperator for VMulf {
     const NAME: &'static str = "VMULF";
@@ -228,6 +234,66 @@ impl ComputeOperator for VAbs {
             Ordering::Greater => (rhs, rhs),
         };
         *acc = (*acc & !0xffff) | (acc_result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VAnd {
+    const NAME: &'static str = "VAND";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = lhs & rhs;
+        *acc = (*acc & !0xffff) | (result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VNand {
+    const NAME: &'static str = "VNAND";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = !(lhs & rhs);
+        *acc = (*acc & !0xffff) | (result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VOr {
+    const NAME: &'static str = "VOR";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = lhs | rhs;
+        *acc = (*acc & !0xffff) | (result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VNor {
+    const NAME: &'static str = "VNOR";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = !(lhs | rhs);
+        *acc = (*acc & !0xffff) | (result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VXor {
+    const NAME: &'static str = "VXOR";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = lhs ^ rhs;
+        *acc = (*acc & !0xffff) | (result as u64);
+        result
+    }
+}
+
+impl ComputeOperator for VNxor {
+    const NAME: &'static str = "VNXOR";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = !(lhs ^ rhs);
+        *acc = (*acc & !0xffff) | (result as u64);
         result
     }
 }
