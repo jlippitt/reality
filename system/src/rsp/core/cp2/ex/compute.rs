@@ -1,4 +1,5 @@
 use super::{Core, DfState, Flags, Vector};
+use std::cmp::Ordering;
 use tracing::trace;
 
 pub trait ComputeOperator {
@@ -22,6 +23,7 @@ pub struct VAdd;
 pub struct VAddc;
 pub struct VSub;
 pub struct VSubc;
+pub struct VAbs;
 
 impl ComputeOperator for VMulf {
     const NAME: &'static str = "VMULF";
@@ -206,6 +208,27 @@ impl ComputeOperator for VSubc {
         flags.set(Flags::CARRY, result < 0);
         flags.set(Flags::NOT_EQUAL, result != 0);
         result as u16
+    }
+}
+
+impl ComputeOperator for VAbs {
+    const NAME: &'static str = "VABS";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let (result, acc_result) = match (lhs as i16).cmp(&0) {
+            Ordering::Less => {
+                if rhs == 0x8000 {
+                    (0x7fff, 0x8000)
+                } else {
+                    let negated = -(rhs as i16) as u16;
+                    (negated, negated)
+                }
+            }
+            Ordering::Equal => (0, 0),
+            Ordering::Greater => (rhs, rhs),
+        };
+        *acc = (*acc & !0xffff) | (acc_result as u64);
+        result
     }
 }
 

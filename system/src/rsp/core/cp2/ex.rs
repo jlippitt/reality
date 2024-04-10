@@ -25,6 +25,7 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
             0x0f => compute::compute::<compute::VMadh>(core, pc, word),
             0x10 => compute::compute::<compute::VAdd>(core, pc, word),
             0x11 => compute::compute::<compute::VSub>(core, pc, word),
+            0x13 => compute::compute::<compute::VAbs>(core, pc, word),
             0x14 => compute::compute::<compute::VAddc>(core, pc, word),
             0x15 => compute::compute::<compute::VSubc>(core, pc, word),
             0x1d => compute::vsar(core, pc, word),
