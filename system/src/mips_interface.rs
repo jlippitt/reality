@@ -1,7 +1,7 @@
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use regs::{Mode, Regs};
-use tracing::{debug, warn};
+use tracing::debug;
 
 mod regs;
 
@@ -58,7 +58,7 @@ impl MipsInterface {
                 assert!(!self.regs.mode.ebus(), "EBus mode not supported");
 
                 if (mask.raw() & 0x0800) != 0 {
-                    warn!("TODO: Acknowledge RDP interrupt")
+                    self.rcp_int.clear(RcpIntType::DP);
                 }
             }
             3 => {

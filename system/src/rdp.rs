@@ -1,4 +1,5 @@
 use crate::gfx::GfxContext;
+use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
 use core::{Bus, Core};
@@ -26,10 +27,11 @@ pub struct Rdp {
     shared: RdpShared,
     core: Core,
     renderer: Renderer,
+    rcp_int: RcpInterrupt,
 }
 
 impl Rdp {
-    pub fn new() -> Self {
+    pub fn new(rcp_int: RcpInterrupt) -> Self {
         Self {
             shared: RdpShared {
                 regs: Regs::default(),
@@ -38,6 +40,7 @@ impl Rdp {
             },
             core: Core::new(),
             renderer: Renderer::new(),
+            rcp_int,
         }
     }
 
@@ -46,13 +49,20 @@ impl Rdp {
             return;
         }
 
-        let _span = error_span!("rdp").entered();
+        let sync_full = {
+            let _span = error_span!("rdp").entered();
 
-        self.core.step(Bus {
-            renderer: &mut self.renderer,
-            rdram,
-            gfx,
-        });
+            self.core.step(Bus {
+                renderer: &mut self.renderer,
+                rdram,
+                gfx,
+            })
+        };
+
+        if sync_full {
+            self.rcp_int.raise(RcpIntType::DP);
+            self.shared.regs.status.set_buf_busy(false);
+        }
     }
 
     pub fn step_dma(&mut self, rdram: &Rdram) {
@@ -74,13 +84,14 @@ impl Rdp {
             current = current.wrapping_add(8) & 0x00ff_fff8;
         }
 
-        self.core.restart();
-
         debug!(
             "RSP DMA: {} bytes read from {:08X}",
             block_len * 8,
             dma.start
         );
+
+        self.core.restart();
+        self.shared.regs.status.set_buf_busy(true);
 
         dma.start = current;
 
