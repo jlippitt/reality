@@ -1,8 +1,11 @@
+use crate::gfx::GfxContext;
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
+use core::Core;
 use regs::{Regs, Status};
 use tracing::debug;
 
+mod core;
 mod regs;
 
 #[derive(Debug)]
@@ -17,9 +20,21 @@ pub struct RdpShared {
     dma_pending: Option<Dma>,
 }
 
+struct BusState {
+    running: bool,
+    cmd_list: Vec<u8>,
+}
+
+struct Bus<'a> {
+    rdp: &'a mut BusState,
+    rdram: &'a mut Rdram,
+    gfx: &'a GfxContext,
+}
+
 pub struct Rdp {
     shared: RdpShared,
-    cmd_list: Vec<u8>,
+    core: Core,
+    bus_state: BusState,
 }
 
 impl Rdp {
@@ -30,8 +45,24 @@ impl Rdp {
                 dma_active: Dma { start: 0, end: 0 },
                 dma_pending: None,
             },
-            cmd_list: vec![],
+            core: Core::new(),
+            bus_state: BusState {
+                running: false,
+                cmd_list: vec![],
+            },
         }
+    }
+
+    pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
+        if !self.bus_state.running {
+            return;
+        }
+
+        self.core.step(&mut Bus {
+            rdp: &mut self.bus_state,
+            rdram,
+            gfx,
+        });
     }
 
     pub fn step_dma(&mut self, rdram: &Rdram) {
@@ -47,7 +78,8 @@ impl Rdp {
         let data = &mut buf[0..(block_len as usize)];
 
         rdram.read_block(dma.start as usize & 0x00ff_ffff, data);
-        self.cmd_list.extend_from_slice(data);
+        self.bus_state.cmd_list.extend_from_slice(data);
+        self.bus_state.running = true;
 
         debug!("RSP DMA: {} bytes read from {:08X}", block_len, dma.start);
 
@@ -196,4 +228,8 @@ impl RdpShared {
             ),
         }
     }
+}
+
+impl<'a> core::Bus for Bus<'a> {
+    //
 }

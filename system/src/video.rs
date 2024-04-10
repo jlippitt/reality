@@ -1,7 +1,8 @@
-use super::interrupt::{RcpIntType, RcpInterrupt};
-use super::memory::{Size, WriteMask};
-use super::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
+use crate::gfx::GfxContext;
+use crate::interrupt::{RcpIntType, RcpInterrupt};
+use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
+use crate::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
@@ -12,22 +13,12 @@ mod framebuffer;
 mod regs;
 mod upscaler;
 
-pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
-    pub window: T,
-    pub width: u32,
-    pub height: u32,
-}
-
 pub struct VideoInterface {
     regs: Regs,
     cycles_remaining: u32,
     cycles_per_line: u32,
     frame_counter: u64,
     rcp_int: RcpInterrupt,
-    surface: wgpu::Surface<'static>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
     upscaler: Upscaler,
     frame_buffer: Framebuffer,
 }
@@ -35,57 +26,12 @@ pub struct VideoInterface {
 impl VideoInterface {
     pub fn new(
         rcp_int: RcpInterrupt,
-        display_target: DisplayTarget<impl wgpu::WindowHandle>,
+        gfx: &GfxContext,
         skip_pif_rom: bool,
     ) -> Result<Self, Box<dyn Error>> {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
+        let upscaler = Upscaler::new(gfx.device(), gfx.output_format());
 
-        let surface = instance.create_surface(display_target.window)?;
-
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }))
-        .ok_or("Failed to find adapter compatible with window surface")?;
-
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default().using_resolution(adapter.limits()),
-                label: None,
-            },
-            None,
-        ))?;
-
-        let capabilities = surface.get_capabilities(&adapter);
-
-        let output_format = capabilities
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(capabilities.formats[0]);
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: output_format,
-            width: display_target.width,
-            height: display_target.height,
-            present_mode: wgpu::PresentMode::AutoVsync,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-
-        surface.configure(&device, &config);
-
-        let upscaler = Upscaler::new(&device, output_format);
-
-        let frame_buffer = Framebuffer::new(&device, upscaler.texture_bind_group_layout());
+        let frame_buffer = Framebuffer::new(gfx.device(), upscaler.texture_bind_group_layout());
 
         let mut regs = Regs::default();
 
@@ -101,32 +47,18 @@ impl VideoInterface {
             cycles_per_line,
             frame_counter: 0,
             rcp_int,
-            surface,
-            device,
-            queue,
-            config,
             upscaler,
             frame_buffer,
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width == self.config.width && height == self.config.height {
-            return;
-        }
-
-        self.config.width = width;
-        self.config.height = height;
-        self.surface.configure(&self.device, &self.config);
-    }
-
-    pub fn render(&mut self, rdram: &Rdram) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) -> Result<(), wgpu::SurfaceError> {
         let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
 
         let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;
 
         self.frame_buffer.resize(
-            &self.device,
+            gfx.device(),
             self.upscaler.texture_bind_group_layout(),
             self.regs.ctrl.aa_mode(),
             video_width,
@@ -136,27 +68,27 @@ impl VideoInterface {
         // TODO: We should technically upload each display pixel as it occurs
         // rather than doing things all at once at the end of the frame.
         self.frame_buffer.upload(
-            &self.queue,
+            gfx.queue(),
             rdram,
             self.regs.ctrl.display_mode(),
             self.regs.origin.origin(),
             self.regs.width.width(),
         );
 
-        let output = self.surface.get_current_texture()?;
+        let output = gfx.surface_texture()?;
 
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self
-            .device
+        let mut encoder = gfx
+            .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         self.upscaler
             .render(&mut encoder, &view, self.frame_buffer.bind_group());
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        gfx.queue().submit(std::iter::once(encoder.finish()));
         output.present();
 
         Ok(())
