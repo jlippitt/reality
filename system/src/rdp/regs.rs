@@ -4,7 +4,6 @@ use bitfield_struct::bitfield;
 pub struct Regs {
     pub start: u32,
     pub end: u32,
-    pub current: u32,
     pub status: Status,
 }
 

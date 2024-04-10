@@ -1,15 +1,25 @@
 use crate::memory::{Size, WriteMask};
+use crate::rdram::Rdram;
 use regs::{Regs, Status};
 use tracing::debug;
 
 mod regs;
 
+#[derive(Debug)]
+struct Dma {
+    start: u32,
+    end: u32,
+}
+
 pub struct RdpShared {
     regs: Regs,
+    dma_active: Dma,
+    dma_pending: Option<Dma>,
 }
 
 pub struct Rdp {
     shared: RdpShared,
+    cmd_list: Vec<u8>,
 }
 
 impl Rdp {
@@ -17,7 +27,40 @@ impl Rdp {
         Self {
             shared: RdpShared {
                 regs: Regs::default(),
+                dma_active: Dma { start: 0, end: 0 },
+                dma_pending: None,
             },
+            cmd_list: vec![],
+        }
+    }
+
+    pub fn step_dma(&mut self, rdram: &Rdram) {
+        let dma = &mut self.shared.dma_active;
+
+        if dma.start >= dma.end {
+            return;
+        }
+
+        let block_len = (dma.end - dma.start).min(128);
+
+        let mut buf = [0u8; 128];
+        let data = &mut buf[0..(block_len as usize)];
+
+        rdram.read_block(dma.start as usize & 0x00ff_ffff, data);
+        self.cmd_list.extend_from_slice(data);
+
+        debug!("RSP DMA: {} bytes read from {:08X}", block_len, dma.start);
+
+        dma.start = (dma.start + block_len) & 0x00ff_ffff;
+
+        if dma.start < dma.end {
+            return;
+        }
+
+        if let Some(dma_pending) = self.shared.dma_pending.take() {
+            self.shared.dma_active = dma_pending;
+            debug!("RSP DMA Active: {:?}", self.shared.dma_active);
+            debug!("RSP DMA Pending: {:?}", self.shared.dma_pending);
         }
     }
 
@@ -54,7 +97,7 @@ impl RdpShared {
         match index {
             0 => self.regs.start,
             1 => self.regs.end,
-            2 => self.regs.current,
+            2 => self.dma_active.start,
             3 => self.regs.status.into(),
             _ => todo!("RDP Command Register Read: {}", index),
         }
@@ -62,10 +105,50 @@ impl RdpShared {
 
     pub fn write_register(&mut self, index: usize, mask: WriteMask) {
         match index {
-            0 => mask.write_reg("DPC_START", &mut self.regs.start),
+            0 => {
+                mask.write_reg_hex("DPC_START", &mut self.regs.start);
+
+                let status = &mut self.regs.status;
+                status.set_start_pending(true);
+                debug!("DPC_STATUS: {:?}", status);
+            }
             1 => {
-                mask.write_reg("DPC_END", &mut self.regs.end);
-                todo!("RDP DMA");
+                mask.write_reg_hex("DPC_END", &mut self.regs.end);
+
+                let end = self.regs.end & 0x00ff_ffff;
+                let status = &mut self.regs.status;
+
+                if status.start_pending() {
+                    // New transfer
+                    if self.dma_active.start >= self.dma_active.end {
+                        status.set_start_pending(false);
+                        debug!("DPC_STATUS: {:?}", status);
+
+                        self.dma_active = Dma {
+                            start: self.regs.start & 0x00ff_ffff,
+                            end,
+                        };
+                    } else if let Some(dma) = &mut self.dma_pending {
+                        assert!(status.end_pending());
+                        dma.end = end;
+                    } else {
+                        assert!(!status.end_pending());
+                        status.set_end_pending(true);
+                        debug!("DPC_STATUS: {:?}", status);
+
+                        self.dma_pending = Some(Dma {
+                            start: self.regs.start & 0x00ff_ffff,
+                            end,
+                        });
+                    }
+                } else {
+                    // Incremental transfer
+                    assert!(self.dma_pending.is_none());
+                    self.dma_active.end = end;
+                }
+
+                debug!("RSP DMA Active: {:?}", self.dma_active);
+                debug!("RSP DMA Pending: {:?}", self.dma_pending);
             }
             3 => {
                 let status = &mut self.regs.status;
