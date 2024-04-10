@@ -1,6 +1,7 @@
-use super::memory::{Memory, Size, WriteMask};
-use super::rdram::Rdram;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
+use crate::memory::{Memory, Size, WriteMask};
+use crate::rdp::RdpShared;
+use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
 use std::mem;
@@ -19,7 +20,7 @@ struct Dma {
     write: bool,
 }
 
-struct Bus {
+struct RspShared {
     mem: Memory<u128>,
     regs: Regs,
     dma_active: Option<Dma>,
@@ -27,9 +28,14 @@ struct Bus {
     rcp_int: RcpInterrupt,
 }
 
+struct Bus<'a> {
+    rsp: &'a mut RspShared,
+    rdp: &'a mut RdpShared,
+}
+
 pub struct Rsp {
     core: Core,
-    bus: Bus,
+    shared: RspShared,
 }
 
 impl Rsp {
@@ -44,7 +50,7 @@ impl Rsp {
 
         Self {
             core: Core::new(),
-            bus: Bus {
+            shared: RspShared {
                 mem,
                 dma_active: None,
                 dma_pending: None,
@@ -54,22 +60,26 @@ impl Rsp {
         }
     }
 
-    pub fn step_core(&mut self) {
-        if self.bus.regs.status.halted() {
+    pub fn step_core(&mut self, rdp_shared: &mut RdpShared) {
+        if self.shared.regs.status.halted() {
             return;
         }
 
         {
             let _span = debug_span!("rsp").entered();
-            self.core.step(&mut self.bus);
+
+            self.core.step(&mut Bus {
+                rsp: &mut self.shared,
+                rdp: rdp_shared,
+            });
         }
 
-        let status = &mut self.bus.regs.status;
+        let status = &mut self.shared.regs.status;
         status.set_halted(status.halted() | status.sstep());
     }
 
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
-        let Some(dma_active) = &mut self.bus.dma_active else {
+        let Some(dma_active) = &mut self.shared.dma_active else {
             return;
         };
 
@@ -90,7 +100,7 @@ impl Rsp {
             let mut byte_addr = mem_addr;
 
             for byte in data.iter_mut() {
-                *byte = self.bus.mem[bank_offset + byte_addr];
+                *byte = self.shared.mem[bank_offset + byte_addr];
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
@@ -108,7 +118,7 @@ impl Rsp {
             let mut byte_addr = mem_addr;
 
             for byte in data.iter() {
-                self.bus.mem[bank_offset + byte_addr] = *byte;
+                self.shared.mem[bank_offset + byte_addr] = *byte;
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
@@ -123,11 +133,11 @@ impl Rsp {
         let bytes_remaining = len - block_len as u32;
 
         if bytes_remaining == 0 {
-            self.bus.dma_active = self.bus.dma_pending.take();
-            trace!("RSP DMA Active: {:08X?}", self.bus.dma_active);
+            self.shared.dma_active = self.shared.dma_pending.take();
+            trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
 
-            if self.bus.dma_active.is_some() {
-                trace!("RSP DMA Pending: {:08X?}", self.bus.dma_active);
+            if self.shared.dma_active.is_some() {
+                trace!("RSP DMA Pending: {:08X?}", self.shared.dma_active);
             }
         } else {
             dma_active
@@ -144,11 +154,11 @@ impl Rsp {
 
     pub fn read<T: Size>(&self, address: u32) -> T {
         if (address as usize) < MEM_SIZE {
-            return self.bus.mem.read(address as usize);
+            return self.shared.mem.read(address as usize);
         }
 
         T::truncate_u32(if (address & 0x0004_0000) == 0x0004_0000 {
-            self.bus.read_rsp_register((address as usize & 0xffff) >> 2)
+            self.shared.read_register((address as usize & 0xffff) >> 2)
         } else if address == 0x0008_0000 {
             self.core.pc()
         } else {
@@ -158,14 +168,14 @@ impl Rsp {
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
         if (address as usize) < MEM_SIZE {
-            return self.bus.mem.write(address as usize, value);
+            return self.shared.mem.write(address as usize, value);
         }
 
         let mask = WriteMask::new(address, value);
 
         if (address & 0x0004_0000) == 0x0004_0000 {
-            self.bus
-                .write_rsp_register((address as usize & 0xffff) >> 2, mask);
+            self.shared
+                .write_register((address as usize & 0xffff) >> 2, mask);
         } else if address == 0x0008_0000 {
             let mut pc = self.core.pc();
             mask.write(&mut pc);
@@ -177,8 +187,8 @@ impl Rsp {
     }
 }
 
-impl Bus {
-    fn read_rsp_register(&self, index: usize) -> u32 {
+impl RspShared {
+    fn read_register(&self, index: usize) -> u32 {
         match index {
             4 => self
                 .regs
@@ -198,7 +208,7 @@ impl Bus {
         }
     }
 
-    fn write_rsp_register(&mut self, index: usize, mask: WriteMask) {
+    fn write_register(&mut self, index: usize, mask: WriteMask) {
         match index {
             0 => mask.write_reg_hex("SP_DMA_SPADDR", &mut self.regs.dma_sp_addr),
             1 => mask.write_reg_hex("SP_DMA_RAMADDR", &mut self.regs.dma_ram_addr),
@@ -269,33 +279,33 @@ impl Bus {
     }
 }
 
-impl core::Bus for Bus {
+impl<'a> core::Bus for Bus<'a> {
     fn read_opcode(&self, address: u32) -> u32 {
         let address = address as usize;
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & 3) == 0);
-        self.mem.read(0x1000 | address)
+        self.rsp.mem.read(0x1000 | address)
     }
 
     fn read_data<T: Size>(&self, address: u32) -> T {
         let address = address as usize;
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
-        self.mem.read(address)
+        self.rsp.mem.read(address)
     }
 
     fn write_data<T: Size>(&mut self, address: u32, value: T) {
         let address = address as usize;
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
-        self.mem.write(address, value)
+        self.rsp.mem.write(address, value)
     }
 
     fn read_register(&self, index: usize) -> u32 {
         if index < 8 {
-            self.read_rsp_register(index)
+            self.rsp.read_register(index)
         } else {
-            todo!("RDP Register Read: {}", index - 8);
+            self.rdp.read_register(index - 8)
         }
     }
 
@@ -303,18 +313,18 @@ impl core::Bus for Bus {
         let mask = WriteMask::unmasked(value);
 
         if index < 8 {
-            self.write_rsp_register(index, mask);
+            self.rsp.write_register(index, mask);
         } else {
-            todo!("RDP Register Read: {}", index - 8);
+            self.rdp.write_register(index - 8, mask);
         }
     }
 
     fn break_(&mut self) {
-        self.regs.status.set_halted(true);
-        self.regs.status.set_broke(true);
+        self.rsp.regs.status.set_halted(true);
+        self.rsp.regs.status.set_broke(true);
 
-        if self.regs.status.intbreak() {
-            self.rcp_int.raise(RcpIntType::SP);
+        if self.rsp.regs.status.intbreak() {
+            self.rsp.rcp_int.raise(RcpIntType::SP);
         }
     }
 }
