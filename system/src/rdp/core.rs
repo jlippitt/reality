@@ -5,6 +5,8 @@ use bitfield_struct::bitfield;
 use std::collections::VecDeque;
 use tracing::trace;
 
+mod mode;
+
 pub struct Bus<'a> {
     pub renderer: &'a mut Renderer,
     pub rdram: &'a mut Rdram,
@@ -44,6 +46,7 @@ impl Core {
 
         match (word >> 56) & 0x3f {
             0x2d => set_scissor(self, bus, word),
+            0x2f => mode::set_other_modes(self, bus, word),
             opcode => todo!("RDP Command: {:#02X}", opcode),
         }
     }
@@ -58,7 +61,7 @@ fn set_scissor(_core: &mut Core, _bus: Bus, word: u64) {
         todo!("Set_Scissor interlace suppport");
     }
 
-    //bus.set_scissor(cmd.xh(), cmd.yh(), cmd.xl(), cmd.yl());
+    // bus.renderer.set_scissor(cmd.xh(), cmd.yh(), cmd.xl(), cmd.yl());
 }
 
 #[bitfield(u64)]
