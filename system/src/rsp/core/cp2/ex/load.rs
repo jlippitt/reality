@@ -76,3 +76,23 @@ pub fn load<Op: LoadOperator>(core: &mut Core, pc: u32, word: u32) -> DfState {
 
     Op::apply(vt, el, core.regs[base].wrapping_add(offset) as u32)
 }
+
+pub fn mtc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+    let el = ((word >> 7) & 15) as usize;
+
+    trace!(
+        "{:08X}: MTC2 {}, V{:02}[E{}]",
+        pc,
+        Core::REG_NAMES[rt],
+        rd,
+        el
+    );
+
+    let mut vector = core.cp2.reg(rd);
+    vector.write(el, core.regs[rt] as u16);
+    core.cp2.set_reg(rd, vector);
+
+    DfState::Nop
+}
