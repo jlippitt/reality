@@ -2,6 +2,7 @@ use super::{Core, Cp2, DfState, Flags, Vector};
 
 mod compute;
 mod load;
+mod select;
 mod single_lane;
 mod store;
 
@@ -30,6 +31,10 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
             0x14 => compute::compute::<compute::VAddc>(core, pc, word),
             0x15 => compute::compute::<compute::VSubc>(core, pc, word),
             0x1d => compute::vsar(core, pc, word),
+            0x20 => compute::compute::<select::VLt>(core, pc, word),
+            0x21 => compute::compute::<select::VEq>(core, pc, word),
+            0x22 => compute::compute::<select::VNe>(core, pc, word),
+            0x23 => compute::compute::<select::VGe>(core, pc, word),
             0x28 => compute::compute::<compute::VAnd>(core, pc, word),
             0x29 => compute::compute::<compute::VNand>(core, pc, word),
             0x2a => compute::compute::<compute::VOr>(core, pc, word),
