@@ -2,6 +2,7 @@ use super::{Core, Cp2, DfState, Flags, Vector};
 
 mod compute;
 mod load;
+mod single_lane;
 mod store;
 
 pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
@@ -28,13 +29,14 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
             0x13 => compute::compute::<compute::VAbs>(core, pc, word),
             0x14 => compute::compute::<compute::VAddc>(core, pc, word),
             0x15 => compute::compute::<compute::VSubc>(core, pc, word),
+            0x1d => compute::vsar(core, pc, word),
             0x28 => compute::compute::<compute::VAnd>(core, pc, word),
             0x29 => compute::compute::<compute::VNand>(core, pc, word),
             0x2a => compute::compute::<compute::VOr>(core, pc, word),
             0x2b => compute::compute::<compute::VNor>(core, pc, word),
             0x2c => compute::compute::<compute::VXor>(core, pc, word),
             0x2d => compute::compute::<compute::VNxor>(core, pc, word),
-            0x1d => compute::vsar(core, pc, word),
+            0x33 => single_lane::single_lane::<single_lane::VMov>(core, pc, word),
             opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc()),
         },
         opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),

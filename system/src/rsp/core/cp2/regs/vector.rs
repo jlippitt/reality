@@ -14,6 +14,18 @@ impl Vector {
         bytemuck::must_cast(self.0)
     }
 
+    pub fn lane(&self, index: usize) -> u16 {
+        let shift = (index ^ 7) << 4;
+        (self.0 >> shift) as u16
+    }
+
+    pub fn set_lane(&mut self, index: usize, value: u16) {
+        let shift = (index ^ 7) << 4;
+        let mask = (u16::MAX as u128) << shift;
+        let value = (value as u128) << shift;
+        self.0 = (self.0 & !mask) | value;
+    }
+
     pub fn read<T: Size>(&self, el: usize) -> T {
         let size = mem::size_of::<T>();
         let shift = 128 - (((size + el) as i32) << 3);
