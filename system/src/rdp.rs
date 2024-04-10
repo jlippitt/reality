@@ -58,6 +58,11 @@ impl Rdp {
         }
 
         if let Some(dma_pending) = self.shared.dma_pending.take() {
+            let status = &mut self.shared.regs.status;
+            status.set_start_pending(false);
+            status.set_end_pending(false);
+            debug!("DPC_STATUS: {:?}", status);
+
             self.shared.dma_active = dma_pending;
             debug!("RSP DMA Active: {:08X?}", self.shared.dma_active);
             debug!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
