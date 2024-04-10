@@ -1,10 +1,12 @@
 use bitfield_struct::bitfield;
+use std::cell::Cell;
 
 #[derive(Debug, Default)]
 pub struct Regs {
     pub dma_sp_addr: DmaSpAddr,
     pub dma_ram_addr: DmaRamAddr,
     pub status: Status,
+    pub semaphore: Cell<bool>,
 }
 
 #[bitfield(u32)]

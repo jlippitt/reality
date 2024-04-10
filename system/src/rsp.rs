@@ -188,6 +188,12 @@ impl Bus {
                 .into(),
             5 => self.dma_pending.is_some() as u32,
             6 => self.dma_active.is_some() as u32,
+            7 => {
+                let value = self.regs.semaphore.get();
+                self.regs.semaphore.set(true);
+                trace!("SP_SEMAPHORE: {}", self.regs.semaphore.get());
+                value as u32
+            }
             _ => todo!("RSP Register Read: {}", index),
         }
     }
@@ -227,6 +233,10 @@ impl Bus {
                 mask.set_or_clear(status, Status::set_sig7, 24, 23);
 
                 debug!("SP_STATUS: {:?}", status);
+            }
+            7 => {
+                self.regs.semaphore.set((mask.raw() & 1) != 0);
+                trace!("SP_SEMAPHORE: {}", self.regs.semaphore.get());
             }
             _ => todo!("RSP Register Write: {} <= {:08X}", index, mask.raw()),
         }
