@@ -3,15 +3,22 @@ pub use regs::Vector;
 
 use super::{Core, DfState};
 use regs::{Accumulator, FlagVector, Flags};
+use std::array;
 use tracing::trace;
 
 mod ex;
 mod regs;
 
+const LOOKUP_TABLE_SIZE: usize = 512;
+
 pub struct Cp2 {
     regs: [Vector; 32],
     acc: Accumulator,
     flags: FlagVector,
+    div_in: u32,
+    div_out: u32,
+    reciprocal: [u16; LOOKUP_TABLE_SIZE],
+    inv_sqrt: [u16; LOOKUP_TABLE_SIZE],
 }
 
 impl Cp2 {
@@ -26,6 +33,10 @@ impl Cp2 {
             regs: Default::default(),
             acc: Accumulator::default(),
             flags: FlagVector::default(),
+            div_in: 0,
+            div_out: 0,
+            reciprocal: array::from_fn(reciprocal),
+            inv_sqrt: array::from_fn(inv_sqrt),
         }
     }
 
@@ -58,4 +69,23 @@ impl Cp2 {
         // TODO: Verify that this is actual behaviour
         value as i16 as i32
     }
+}
+
+fn reciprocal(index: usize) -> u16 {
+    if index == 0 {
+        return 0xffff;
+    }
+
+    ((((1u64 << 34) / (index as u64 + 512)) + 1) >> 8) as u16
+}
+
+fn inv_sqrt(index: usize) -> u16 {
+    let input = (index as u64 + 512) >> (index as u64 & 1);
+    let mut result = 1u64 << 17;
+
+    while (input * (result + 1) * (result + 1)) < (1u64 << 44) {
+        result += 1;
+    }
+
+    (result >> 1) as u16
 }
