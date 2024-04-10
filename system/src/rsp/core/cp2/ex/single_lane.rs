@@ -14,6 +14,14 @@ pub struct VRsq;
 pub struct VRsql;
 pub struct VRsqh;
 
+trait ReciprocalOperator {
+    const MOD_SHIFT: u32;
+    fn apply(cp2: &Cp2, index: usize, _shift: usize) -> u16;
+}
+
+struct Rcp;
+struct Rsq;
+
 impl SingleLaneOperator for VMov {
     const NAME: &'static str = "VMOV";
 
@@ -22,12 +30,20 @@ impl SingleLaneOperator for VMov {
     }
 }
 
+impl ReciprocalOperator for Rcp {
+    const MOD_SHIFT: u32 = 0;
+
+    fn apply(cp2: &Cp2, index: usize, _shift: usize) -> u16 {
+        cp2.reciprocal[index]
+    }
+}
+
 impl SingleLaneOperator for VRcp {
     const NAME: &'static str = "VRCP";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = input as i16 as i32;
-        calc_reciprocal(cp2, rcp_input, value_reciprocal, 0)
+        calc_reciprocal::<Rcp>(cp2, rcp_input)
     }
 }
 
@@ -36,7 +52,7 @@ impl SingleLaneOperator for VRcpl {
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
-        calc_reciprocal(cp2, rcp_input, value_reciprocal, 0)
+        calc_reciprocal::<Rcp>(cp2, rcp_input)
     }
 }
 
@@ -49,12 +65,20 @@ impl SingleLaneOperator for VRcph {
     }
 }
 
+impl ReciprocalOperator for Rsq {
+    const MOD_SHIFT: u32 = 1;
+
+    fn apply(cp2: &Cp2, index: usize, shift: usize) -> u16 {
+        cp2.inv_sqrt[(index & 0x1fe) | (shift & 1)]
+    }
+}
+
 impl SingleLaneOperator for VRsq {
     const NAME: &'static str = "VRSQ";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = input as i16 as i32;
-        calc_reciprocal(cp2, rcp_input, value_inv_sqrt, 1)
+        calc_reciprocal::<Rsq>(cp2, rcp_input)
     }
 }
 
@@ -63,7 +87,7 @@ impl SingleLaneOperator for VRsql {
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
-        calc_reciprocal(cp2, rcp_input, value_inv_sqrt, 1)
+        calc_reciprocal::<Rsq>(cp2, rcp_input)
     }
 }
 
@@ -115,12 +139,7 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
     DfState::Nop
 }
 
-fn calc_reciprocal(
-    cp2: &mut Cp2,
-    input: i32,
-    value_cb: impl Fn(&Cp2, usize, usize) -> u16,
-    mod_shift: u32,
-) -> u16 {
+fn calc_reciprocal<Op: ReciprocalOperator>(cp2: &mut Cp2, input: i32) -> u16 {
     let mask = input >> 31;
     let div_in = input.wrapping_abs();
 
@@ -130,8 +149,9 @@ fn calc_reciprocal(
         _ => {
             let shift = div_in.leading_zeros();
             let index = ((div_in << shift) & 0x7fc0_0000) >> 22;
-            let value = value_cb(cp2, index as usize, shift as usize);
-            ((((0x10000 | value as u32 as i32) << 14) >> ((31 - shift) >> mod_shift)) ^ mask) as u32
+            let value = Op::apply(cp2, index as usize, shift as usize);
+            ((((0x10000 | value as u32 as i32) << 14) >> ((31 - shift) >> Op::MOD_SHIFT)) ^ mask)
+                as u32
         }
     };
 
@@ -139,12 +159,4 @@ fn calc_reciprocal(
     cp2.div_out = result;
 
     result as u16
-}
-
-fn value_reciprocal(cp2: &Cp2, index: usize, _shift: usize) -> u16 {
-    cp2.reciprocal[index]
-}
-
-fn value_inv_sqrt(cp2: &Cp2, index: usize, shift: usize) -> u16 {
-    cp2.inv_sqrt[(index & 0x1fe) | (shift & 1)]
 }
