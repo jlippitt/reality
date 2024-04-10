@@ -1,10 +1,10 @@
 use crate::memory::{Size, WriteMask};
-use regs::Status;
+use regs::Regs;
 
 mod regs;
 
 pub struct RdpShared {
-    status: Status,
+    regs: Regs,
 }
 
 pub struct Rdp {
@@ -15,7 +15,7 @@ impl Rdp {
     pub fn new() -> Self {
         Self {
             shared: RdpShared {
-                status: Status::new(),
+                regs: Regs::default(),
             },
         }
     }
@@ -51,7 +51,10 @@ impl Rdp {
 impl RdpShared {
     pub fn read_register(&self, index: usize) -> u32 {
         match index {
-            3 => self.status.into(),
+            0 => self.regs.start,
+            1 => self.regs.end,
+            2 => self.regs.current,
+            3 => self.regs.status.into(),
             _ => todo!("RDP Command Register Read: {}", index),
         }
     }
