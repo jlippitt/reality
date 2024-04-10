@@ -4,7 +4,7 @@ use tracing::trace;
 
 pub fn set_other_modes(_core: &mut Core, _bus: Bus, word: u64) {
     let cmd = SetOtherModes::from(word);
-    trace!("SET_OTHER_MODES: {:?}", cmd);
+    trace!("{:?}", cmd);
     // TODO
 }
 
