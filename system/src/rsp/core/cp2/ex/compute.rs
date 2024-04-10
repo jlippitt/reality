@@ -8,8 +8,16 @@ pub trait ComputeOperator {
 
 pub struct VMulf;
 pub struct VMulu;
+pub struct VMudl;
+pub struct VMudm;
+pub struct VMudn;
+pub struct VMudh;
+pub struct VMadl;
 pub struct VMacf;
 pub struct VMacu;
+pub struct VMadm;
+pub struct VMadn;
+pub struct VMadh;
 pub struct VAdd;
 pub struct VAddc;
 pub struct VSub;
@@ -43,6 +51,47 @@ impl ComputeOperator for VMulu {
         (*acc >> 16) as u16
     }
 }
+
+impl ComputeOperator for VMudl {
+    const NAME: &'static str = "VMUDL";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = ((lhs as u32).wrapping_mul(rhs as u32) >> 16) as i32 as i64;
+        *acc = result as u64;
+        *acc as u16
+    }
+}
+
+impl ComputeOperator for VMudm {
+    const NAME: &'static str = "VMUDM";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as u32).wrapping_mul(rhs as u32) as i32 as i64;
+        *acc = result as u64;
+        (*acc as i64 >> 16) as u16
+    }
+}
+
+impl ComputeOperator for VMudn {
+    const NAME: &'static str = "VMUDN";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as u32).wrapping_mul(rhs as i16 as u32) as i32 as i64;
+        *acc = result as u64;
+        *acc as u16
+    }
+}
+
+impl ComputeOperator for VMudh {
+    const NAME: &'static str = "VMUDH";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = ((lhs as i16 as i32).wrapping_mul(rhs as i16 as i32) as i64) << 16;
+        *acc = result as u64;
+        clamp_accumulator_high(*acc)
+    }
+}
+
 impl ComputeOperator for VMacf {
     const NAME: &'static str = "VMACF";
 
@@ -69,6 +118,46 @@ impl ComputeOperator for VMacu {
         }
 
         (*acc >> 16) as u16
+    }
+}
+
+impl ComputeOperator for VMadl {
+    const NAME: &'static str = "VMADL";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = ((lhs as u32).wrapping_mul(rhs as u32) >> 16) as i64;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_low(*acc)
+    }
+}
+
+impl ComputeOperator for VMadm {
+    const NAME: &'static str = "VMADM";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = (lhs as i16 as u32).wrapping_mul(rhs as u32) as i32 as i64;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_high(*acc)
+    }
+}
+
+impl ComputeOperator for VMadn {
+    const NAME: &'static str = "VMADN";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = lhs as u64 as i64 * rhs as i16 as i64;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_low(*acc)
+    }
+}
+
+impl ComputeOperator for VMadh {
+    const NAME: &'static str = "VMADH";
+
+    fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
+        let result = ((lhs as i16 as i32).wrapping_mul(rhs as i16 as i32) as i64) << 16;
+        *acc = (*acc as i64 + result) as u64 & 0xffff_ffff_ffff;
+        clamp_accumulator_high(*acc)
     }
 }
 
@@ -182,4 +271,16 @@ fn clamp_accumulator_high(value: u64) -> u16 {
     }
 
     (value >> 16) as u16
+}
+
+fn clamp_accumulator_low(value: u64) -> u16 {
+    if ((value >> 32) as i16) < 0 {
+        if (value >> 32) as u16 != 0xffff || ((value >> 16) as i16) >= 0 {
+            return 0;
+        }
+    } else if (((value >> 32) as u16) != 0) || ((value >> 16) as i16) < 0 {
+        return 0xffff;
+    }
+
+    value as u16
 }
