@@ -1,12 +1,14 @@
 use crate::gfx::GfxContext;
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
-use core::Core;
+use core::{Bus, Core};
 use regs::{Regs, Status};
-use tracing::debug;
+use renderer::Renderer;
+use tracing::{debug, error_span};
 
 mod core;
 mod regs;
+mod renderer;
 
 #[derive(Debug)]
 struct Dma {
@@ -20,21 +22,10 @@ pub struct RdpShared {
     dma_pending: Option<Dma>,
 }
 
-struct BusState {
-    running: bool,
-    cmd_list: Vec<u8>,
-}
-
-struct Bus<'a> {
-    rdp: &'a mut BusState,
-    rdram: &'a mut Rdram,
-    gfx: &'a GfxContext,
-}
-
 pub struct Rdp {
     shared: RdpShared,
     core: Core,
-    bus_state: BusState,
+    renderer: Renderer,
 }
 
 impl Rdp {
@@ -46,20 +37,19 @@ impl Rdp {
                 dma_pending: None,
             },
             core: Core::new(),
-            bus_state: BusState {
-                running: false,
-                cmd_list: vec![],
-            },
+            renderer: Renderer::new(),
         }
     }
 
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
-        if !self.bus_state.running {
+        if !self.core.running() {
             return;
         }
 
-        self.core.step(&mut Bus {
-            rdp: &mut self.bus_state,
+        let _span = error_span!("rdp").entered();
+
+        self.core.step(Bus {
+            renderer: &mut self.renderer,
             rdram,
             gfx,
         });
@@ -72,18 +62,27 @@ impl Rdp {
             return;
         }
 
-        let block_len = (dma.end - dma.start).min(128);
+        assert!((dma.start & 7) == 0);
+        assert!((dma.end & 7) == 0);
 
-        let mut buf = [0u8; 128];
-        let data = &mut buf[0..(block_len as usize)];
+        let block_len = ((dma.end >> 3) - (dma.start >> 3)).min(16);
+        let mut current = dma.start;
 
-        rdram.read_block(dma.start as usize & 0x00ff_ffff, data);
-        self.bus_state.cmd_list.extend_from_slice(data);
-        self.bus_state.running = true;
+        for _ in 0..block_len {
+            let command: u64 = rdram.read_single(current as usize);
+            self.core.write_command(command);
+            current = current.wrapping_add(8) & 0x00ff_fff8;
+        }
 
-        debug!("RSP DMA: {} bytes read from {:08X}", block_len, dma.start);
+        self.core.restart();
 
-        dma.start = (dma.start + block_len) & 0x00ff_ffff;
+        debug!(
+            "RSP DMA: {} bytes read from {:08X}",
+            block_len * 8,
+            dma.start
+        );
+
+        dma.start = current;
 
         if dma.start < dma.end {
             return;
@@ -152,7 +151,7 @@ impl RdpShared {
             1 => {
                 mask.write_reg_hex("DPC_END", &mut self.regs.end);
 
-                let end = self.regs.end & 0x00ff_ffff;
+                let end = self.regs.end & 0x00ff_fff8;
                 let status = &mut self.regs.status;
 
                 if status.start_pending() {
@@ -162,7 +161,7 @@ impl RdpShared {
                         debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_active = Dma {
-                            start: self.regs.start & 0x00ff_ffff,
+                            start: self.regs.start & 0x00ff_fff8,
                             end,
                         };
                     } else if let Some(dma) = &mut self.dma_pending {
@@ -174,7 +173,7 @@ impl RdpShared {
                         debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_pending = Some(Dma {
-                            start: self.regs.start & 0x00ff_ffff,
+                            start: self.regs.start & 0x00ff_fff8,
                             end,
                         });
                     }
@@ -228,8 +227,4 @@ impl RdpShared {
             ),
         }
     }
-}
-
-impl<'a> core::Bus for Bus<'a> {
-    //
 }
