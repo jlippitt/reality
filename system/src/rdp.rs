@@ -1,5 +1,6 @@
 use crate::memory::{Size, WriteMask};
-use regs::Regs;
+use regs::{Regs, Status};
+use tracing::debug;
 
 mod regs;
 
@@ -60,10 +61,51 @@ impl RdpShared {
     }
 
     pub fn write_register(&mut self, index: usize, mask: WriteMask) {
-        todo!(
-            "RDP Command Register Write: {} <= {:08X}",
-            index,
-            mask.raw()
-        );
+        match index {
+            0 => mask.write_reg("DPC_START", &mut self.regs.start),
+            1 => {
+                mask.write_reg("DPC_END", &mut self.regs.end);
+                todo!("RDP DMA");
+            }
+            3 => {
+                let status = &mut self.regs.status;
+                let raw = mask.raw();
+
+                mask.set_or_clear(status, Status::set_xbus, 1, 0);
+                mask.set_or_clear(status, Status::set_freeze, 3, 2);
+                mask.set_or_clear(status, Status::set_flush, 5, 4);
+
+                if (raw & 0x0040) != 0 {
+                    status.set_tmem_busy(false)
+                }
+
+                if (raw & 0x0080) != 0 {
+                    status.set_pipe_busy(false)
+                }
+
+                if (raw & 0x0100) != 0 {
+                    status.set_buf_busy(false)
+                }
+
+                if (raw & 0x0200) != 0 {
+                    todo!("RDP clock");
+                }
+
+                debug!("DPC_STATUS: {:?}", status);
+
+                if status.freeze() {
+                    todo!("RDP DMA freeze");
+                }
+
+                if status.flush() {
+                    todo!("RDP DMA flush");
+                }
+            }
+            _ => todo!(
+                "RDP Command Register Write: {} <= {:08X}",
+                index,
+                mask.raw()
+            ),
+        }
     }
 }
