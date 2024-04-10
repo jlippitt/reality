@@ -59,8 +59,8 @@ impl Rdp {
 
         if let Some(dma_pending) = self.shared.dma_pending.take() {
             self.shared.dma_active = dma_pending;
-            debug!("RSP DMA Active: {:?}", self.shared.dma_active);
-            debug!("RSP DMA Pending: {:?}", self.shared.dma_pending);
+            debug!("RSP DMA Active: {:08X?}", self.shared.dma_active);
+            debug!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
         }
     }
 
@@ -147,8 +147,8 @@ impl RdpShared {
                     self.dma_active.end = end;
                 }
 
-                debug!("RSP DMA Active: {:?}", self.dma_active);
-                debug!("RSP DMA Pending: {:?}", self.dma_pending);
+                debug!("RSP DMA Active: {:08X?}", self.dma_active);
+                debug!("RSP DMA Pending: {:08X?}", self.dma_pending);
             }
             3 => {
                 let status = &mut self.regs.status;
