@@ -3,7 +3,6 @@ use tracing::trace;
 
 pub trait ComputeOperator {
     const NAME: &'static str;
-    const CLEAR_FLAGS: Flags;
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16;
 }
 
@@ -18,7 +17,6 @@ pub struct VSubc;
 
 impl ComputeOperator for VMulf {
     const NAME: &'static str = "VMULF";
-    const CLEAR_FLAGS: Flags = Flags::empty();
 
     fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
@@ -29,7 +27,6 @@ impl ComputeOperator for VMulf {
 
 impl ComputeOperator for VMulu {
     const NAME: &'static str = "VMULU";
-    const CLEAR_FLAGS: Flags = Flags::empty();
 
     fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
@@ -48,7 +45,6 @@ impl ComputeOperator for VMulu {
 }
 impl ComputeOperator for VMacf {
     const NAME: &'static str = "VMACF";
-    const CLEAR_FLAGS: Flags = Flags::empty();
 
     fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
@@ -59,7 +55,6 @@ impl ComputeOperator for VMacf {
 
 impl ComputeOperator for VMacu {
     const NAME: &'static str = "VMACU";
-    const CLEAR_FLAGS: Flags = Flags::empty();
 
     fn apply(_flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = (lhs as i16 as i64 * rhs as i16 as i64) << 1;
@@ -79,43 +74,42 @@ impl ComputeOperator for VMacu {
 
 impl ComputeOperator for VAdd {
     const NAME: &'static str = "VADD";
-    const CLEAR_FLAGS: Flags = Flags::NOT_EQUAL.union(Flags::CARRY);
 
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let carry = flags.contains(Flags::CARRY);
         let result = lhs as i16 as i32 + rhs as i16 as i32 + carry as i32;
         *acc = (*acc & !0xffff) | (result as u16 as u64);
+        flags.remove(Flags::CARRY | Flags::NOT_EQUAL);
         clamp_signed(result) as u16
     }
 }
 
 impl ComputeOperator for VAddc {
     const NAME: &'static str = "VADDC";
-    const CLEAR_FLAGS: Flags = Flags::NOT_EQUAL;
 
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = lhs as u32 + rhs as u32;
         *acc = (*acc & !0xffff) | (result as u16 as u64);
         flags.set(Flags::CARRY, (result & 0x0001_0000) != 0);
+        flags.remove(Flags::NOT_EQUAL);
         result as u16
     }
 }
 
 impl ComputeOperator for VSub {
     const NAME: &'static str = "VSUB";
-    const CLEAR_FLAGS: Flags = Flags::NOT_EQUAL.union(Flags::CARRY);
 
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let carry = flags.contains(Flags::CARRY);
         let result = lhs as i16 as i32 - rhs as i16 as i32 - carry as i32;
         *acc = (*acc & !0xffff) | (result as u16 as u64);
+        flags.remove(Flags::CARRY | Flags::NOT_EQUAL);
         clamp_signed(result) as u16
     }
 }
 
 impl ComputeOperator for VSubc {
     const NAME: &'static str = "VSUBC";
-    const CLEAR_FLAGS: Flags = Flags::empty();
 
     fn apply(flags: &mut Flags, acc: &mut u64, lhs: u16, rhs: u16) -> u16 {
         let result = lhs as i32 - rhs as i32;
@@ -152,10 +146,6 @@ pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfSt
     });
 
     core.cp2.set_reg(vd, Vector::from_le_array(result));
-
-    if Op::CLEAR_FLAGS != Flags::empty() {
-        core.cp2.flags.clear(Op::CLEAR_FLAGS);
-    }
 
     DfState::Nop
 }

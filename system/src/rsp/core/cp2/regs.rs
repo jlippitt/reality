@@ -72,10 +72,4 @@ impl FlagVector {
 
         value
     }
-
-    pub fn clear(&mut self, flag: Flags) {
-        for flags in &mut self.0 {
-            flags.remove(flag);
-        }
-    }
 }
