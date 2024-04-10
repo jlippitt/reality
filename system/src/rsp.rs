@@ -186,6 +186,7 @@ impl Bus {
                 .with_dma_busy(self.dma_active.is_some())
                 .with_dma_full(self.dma_pending.is_some())
                 .into(),
+            5 => self.dma_pending.is_some() as u32,
             6 => self.dma_active.is_some() as u32,
             _ => todo!("RSP Register Read: {}", index),
         }
