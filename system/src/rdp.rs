@@ -1,6 +1,6 @@
 use crate::gfx::GfxContext;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
-use crate::memory::{Size, WriteMask};
+use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
 use core::{Bus, Core};
 use regs::{Regs, Status};
@@ -65,7 +65,7 @@ impl Rdp {
         }
     }
 
-    pub fn step_dma(&mut self, rdram: &Rdram) {
+    pub fn step_dma(&mut self, rdram: &Rdram, _xbus: &Memory<u128>) {
         let dma = &mut self.shared.dma_active;
 
         if dma.start >= dma.end {
@@ -74,6 +74,8 @@ impl Rdp {
 
         assert!((dma.start & 7) == 0);
         assert!((dma.end & 7) == 0);
+
+        assert!(!self.shared.regs.status.xbus());
 
         let block_len = ((dma.end >> 3) - (dma.start >> 3)).min(16);
         let mut current = dma.start;

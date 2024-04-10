@@ -60,6 +60,10 @@ impl Rsp {
         }
     }
 
+    pub fn mem(&self) -> &Memory<u128> {
+        &self.shared.mem
+    }
+
     pub fn step_core(&mut self, rdp_shared: &mut RdpShared) {
         if self.shared.regs.status.halted() {
             return;
