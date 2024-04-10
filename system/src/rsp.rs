@@ -288,16 +288,14 @@ impl<'a> core::Bus for Bus<'a> {
     }
 
     fn read_data<T: Size>(&self, address: u32) -> T {
-        let address = address as usize;
-        debug_assert!(address < (MEM_SIZE / 2));
-        debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
+        let address = address as usize & 0x0fff;
+        assert!((address & (mem::size_of::<T>() - 1)) == 0);
         self.rsp.mem.read(address)
     }
 
     fn write_data<T: Size>(&mut self, address: u32, value: T) {
-        let address = address as usize;
-        debug_assert!(address < (MEM_SIZE / 2));
-        debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
+        let address = address as usize & 0x0fff;
+        assert!((address & (mem::size_of::<T>() - 1)) == 0);
         self.rsp.mem.write(address, value)
     }
 
