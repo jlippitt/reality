@@ -43,6 +43,8 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
             0x34 => single_lane::single_lane::<single_lane::VRsq>(core, pc, word),
             0x35 => single_lane::single_lane::<single_lane::VRsql>(core, pc, word),
             0x36 => single_lane::single_lane::<single_lane::VRsqh>(core, pc, word),
+            0x37 => single_lane::vnop(core, pc),
+            0x3f => single_lane::vnull(core, pc),
             opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc()),
         },
         opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),

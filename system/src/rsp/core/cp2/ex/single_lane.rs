@@ -139,6 +139,16 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
     DfState::Nop
 }
 
+pub fn vnop(_core: &mut Core, pc: u32) -> DfState {
+    trace!("{:08x}: VNOP", pc);
+    DfState::Nop
+}
+
+pub fn vnull(_core: &mut Core, pc: u32) -> DfState {
+    trace!("{:08x}: VNULL", pc);
+    DfState::Nop
+}
+
 fn calc_reciprocal<Op: ReciprocalOperator>(cp2: &mut Cp2, input: i32) -> u16 {
     let mask = input >> 31;
     let div_in = input.wrapping_abs();
