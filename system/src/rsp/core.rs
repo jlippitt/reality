@@ -3,6 +3,7 @@ use cp2::Cp2;
 use df::DfState;
 use tracing::trace;
 
+mod cp0;
 mod cp2;
 mod df;
 mod ex;
@@ -19,20 +20,17 @@ struct ExState {
     word: u32,
 }
 
-enum WbOperation {
-    //Cp0RegWrite { reg: usize, value: i32 },
-}
-
 struct WbState {
     reg: usize,
     value: i32,
-    op: Option<WbOperation>,
 }
 
 pub trait Bus {
     fn read_opcode(&self, address: u32) -> u32;
     fn read_data<T: Size>(&self, address: u32) -> T;
     fn write_data<T: Size>(&mut self, address: u32, value: T);
+    fn read_register(&self, index: usize) -> u32;
+    fn write_register(&mut self, index: usize, value: u32);
     fn break_(&mut self);
 }
 
@@ -58,11 +56,7 @@ impl Core {
             rf: Default::default(),
             ex: Default::default(),
             df: DfState::Nop,
-            wb: WbState {
-                reg: 0,
-                value: 0,
-                op: None,
-            },
+            wb: WbState { reg: 0, value: 0 },
             pc: 0,
             regs: [0; 32],
             cp2: Cp2::new(),
@@ -85,14 +79,6 @@ impl Core {
         if self.wb.reg != 0 {
             trace!("  {}: {:08X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
         }
-
-        // if let Some(op) = &self.wb.op {
-        //     match *op {
-        //         WbOperation::Cp0RegWrite { reg, value } => {
-        //             todo!("RSP CP0");
-        //         }
-        //     }
-        // }
 
         // DF
         if df::execute(self, bus) {

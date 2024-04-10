@@ -148,7 +148,7 @@ impl Rsp {
         }
 
         T::truncate_u32(if (address & 0x0004_0000) == 0x0004_0000 {
-            self.bus.read_register(address)
+            self.bus.read_rsp_register((address as usize & 0xffff) >> 2)
         } else if address == 0x0008_0000 {
             self.core.pc()
         } else {
@@ -164,7 +164,8 @@ impl Rsp {
         let mask = WriteMask::new(address, value);
 
         if (address & 0x0004_0000) == 0x0004_0000 {
-            self.bus.write_register(address, mask);
+            self.bus
+                .write_rsp_register((address as usize & 0xffff) >> 2, mask);
         } else if address == 0x0008_0000 {
             let mut pc = self.core.pc();
             mask.write(&mut pc);
@@ -177,8 +178,8 @@ impl Rsp {
 }
 
 impl Bus {
-    fn read_register(&self, address: u32) -> u32 {
-        match (address & 0xffff) >> 2 {
+    fn read_rsp_register(&self, index: usize) -> u32 {
+        match index {
             4 => self
                 .regs
                 .status
@@ -186,12 +187,12 @@ impl Bus {
                 .with_dma_full(self.dma_pending.is_some())
                 .into(),
             6 => self.dma_active.is_some() as u32,
-            _ => todo!("RSP Register Read: {:08X}", address),
+            _ => todo!("RSP Register Read: {}", index),
         }
     }
 
-    fn write_register(&mut self, address: u32, mask: WriteMask) {
-        match (address & 0xffff) >> 2 {
+    fn write_rsp_register(&mut self, index: usize, mask: WriteMask) {
+        match index {
             0 => mask.write_reg_hex("SP_DMA_SPADDR", &mut self.regs.dma_sp_addr),
             1 => mask.write_reg_hex("SP_DMA_RAMADDR", &mut self.regs.dma_ram_addr),
             2 => self.enqueue_dma(mask.raw(), false),
@@ -226,7 +227,7 @@ impl Bus {
 
                 debug!("SP_STATUS: {:?}", status);
             }
-            _ => todo!("RSP Register Write: {:08X} <= {:08X}", address, mask.raw()),
+            _ => todo!("RSP Register Write: {} <= {:08X}", index, mask.raw()),
         }
     }
 
@@ -277,6 +278,24 @@ impl core::Bus for Bus {
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & (mem::size_of::<T>() - 1)) == 0);
         self.mem.write(address, value)
+    }
+
+    fn read_register(&self, index: usize) -> u32 {
+        if index < 8 {
+            self.read_rsp_register(index)
+        } else {
+            todo!("RDP Register Read: {}", index - 8);
+        }
+    }
+
+    fn write_register(&mut self, index: usize, value: u32) {
+        let mask = WriteMask::unmasked(value);
+
+        if index < 8 {
+            self.write_rsp_register(index, mask);
+        } else {
+            todo!("RDP Register Read: {}", index - 8);
+        }
     }
 
     fn break_(&mut self) {

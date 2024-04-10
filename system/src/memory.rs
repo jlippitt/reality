@@ -198,6 +198,13 @@ impl WriteMask {
         }
     }
 
+    pub fn unmasked(value: u32) -> Self {
+        Self {
+            value,
+            mask: u32::MAX,
+        }
+    }
+
     pub fn rotate(self, bits: u32) -> Self {
         Self {
             value: self.value.rotate_right(bits),
