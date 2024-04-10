@@ -26,7 +26,8 @@ impl SingleLaneOperator for VRcp {
     const NAME: &'static str = "VRCP";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        calc_reciprocal(cp2, input, input_double, value_reciprocal, 0)
+        let rcp_input = input as i16 as i32;
+        calc_reciprocal(cp2, rcp_input, value_reciprocal, 0)
     }
 }
 
@@ -34,7 +35,8 @@ impl SingleLaneOperator for VRcpl {
     const NAME: &'static str = "VRCPL";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        calc_reciprocal(cp2, input, input_low, value_reciprocal, 0)
+        let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
+        calc_reciprocal(cp2, rcp_input, value_reciprocal, 0)
     }
 }
 
@@ -51,7 +53,8 @@ impl SingleLaneOperator for VRsq {
     const NAME: &'static str = "VRSQ";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        calc_reciprocal(cp2, input, input_double, value_inv_sqrt, 1)
+        let rcp_input = input as i16 as i32;
+        calc_reciprocal(cp2, rcp_input, value_inv_sqrt, 1)
     }
 }
 
@@ -59,7 +62,8 @@ impl SingleLaneOperator for VRsql {
     const NAME: &'static str = "VRsql";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        calc_reciprocal(cp2, input, input_low, value_inv_sqrt, 1)
+        let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
+        calc_reciprocal(cp2, rcp_input, value_inv_sqrt, 1)
     }
 }
 
@@ -113,12 +117,10 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
 
 fn calc_reciprocal(
     cp2: &mut Cp2,
-    input: u16,
-    input_cb: impl Fn(&Cp2, u16) -> i32,
+    input: i32,
     value_cb: impl Fn(&Cp2, usize, usize) -> u16,
     mod_shift: u32,
 ) -> u16 {
-    let input = input_cb(cp2, input);
     let mask = input >> 31;
     let div_in = input.wrapping_abs();
 
@@ -137,14 +139,6 @@ fn calc_reciprocal(
     cp2.div_out = result;
 
     result as u16
-}
-
-fn input_double(_cp2: &Cp2, input: u16) -> i32 {
-    input as i16 as i32
-}
-
-fn input_low(cp2: &Cp2, input: u16) -> i32 {
-    ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32
 }
 
 fn value_reciprocal(cp2: &Cp2, index: usize, _shift: usize) -> u16 {
