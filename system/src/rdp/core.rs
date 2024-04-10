@@ -7,6 +7,7 @@ mod image;
 mod mode;
 mod param;
 mod rect;
+mod sync;
 
 pub struct Bus<'a> {
     pub renderer: &'a mut Renderer,
@@ -46,6 +47,7 @@ impl Core {
         };
 
         match (word >> 56) & 0x3f {
+            0x29 => sync::sync_full(self, bus, word),
             0x2d => image::set_scissor(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
             0x36 => rect::fill_rectangle(self, bus, word),
