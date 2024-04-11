@@ -29,6 +29,7 @@ pub enum Mapping {
 pub trait Size: Pod + PrimInt {
     fn truncate_u32(value: u32) -> Self;
     fn truncate_u128(value: u128) -> Self;
+    fn as_u8(self) -> u8;
 }
 
 impl Size for u8 {
@@ -38,6 +39,10 @@ impl Size for u8 {
 
     fn truncate_u128(value: u128) -> Self {
         value as Self
+    }
+
+    fn as_u8(self) -> u8 {
+        self
     }
 }
 
@@ -49,6 +54,10 @@ impl Size for u16 {
     fn truncate_u128(value: u128) -> Self {
         value as Self
     }
+
+    fn as_u8(self) -> u8 {
+        self as u8
+    }
 }
 
 impl Size for u32 {
@@ -58,6 +67,10 @@ impl Size for u32 {
 
     fn truncate_u128(value: u128) -> Self {
         value as Self
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 
@@ -69,6 +82,10 @@ impl Size for u64 {
     fn truncate_u128(value: u128) -> Self {
         value as Self
     }
+
+    fn as_u8(self) -> u8 {
+        self as u8
+    }
 }
 
 impl Size for u128 {
@@ -78,6 +95,10 @@ impl Size for u128 {
 
     fn truncate_u128(value: u128) -> Self {
         value as Self
+    }
+
+    fn as_u8(self) -> u8 {
+        self as u8
     }
 }
 
@@ -98,6 +119,42 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
         let index = address >> mem::size_of::<V>().ilog2();
         let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
         slice[index] = value.swap_bytes();
+    }
+
+    pub fn read_unaligned<V: Size>(&self, address: usize, mirror: usize) -> V {
+        let size = std::mem::size_of::<V>();
+        let align_mask = size - 1;
+
+        if (address & align_mask) == 0 {
+            return self.read(address & mirror);
+        }
+
+        let mut value = V::zeroed();
+
+        for index in 0..size {
+            let byte_address = address.wrapping_add(index) & mirror;
+            let shift = (index ^ align_mask) * 8;
+            let byte_value = V::from(self[byte_address]).unwrap();
+            value = value | (byte_value << shift);
+        }
+
+        value
+    }
+
+    pub fn write_unaligned<V: Size>(&mut self, address: usize, mirror: usize, value: V) {
+        let size = std::mem::size_of::<V>();
+        let align_mask = size - 1;
+
+        if (address & align_mask) == 0 {
+            return self.write(address & mirror, value);
+        }
+
+        for index in 0..size {
+            let byte_address = address.wrapping_add(index) & mirror;
+            let shift = (index ^ align_mask) * 8;
+            let byte_value = value >> shift;
+            self[byte_address] = byte_value.as_u8();
+        }
     }
 
     pub fn read_block<V: Size>(&self, address: usize, data: &mut [V]) {
@@ -308,6 +365,40 @@ mod tests {
         let mut block = [0u8; 4];
         memory.read_block(3, &mut block);
         assert_eq!([0x33, 0x44, 0x55, 0x66], block);
+    }
+
+    #[test]
+    fn memory_read_write_unaligned() {
+        let mut memory =
+            Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+
+        assert_eq!(memory.read_unaligned::<u32>(1, usize::MAX), 0x11223344);
+        assert_eq!(memory.read_unaligned::<u16>(5, usize::MAX), 0x5566);
+        assert_eq!(memory.read_unaligned::<u8>(7, usize::MAX), 0x77);
+
+        memory.write_unaligned::<u32>(3, usize::MAX, 0x8899aabb);
+        memory.write_unaligned::<u16>(1, usize::MAX, 0xccdd);
+        memory.write_unaligned::<u8>(0, usize::MAX, 0xee);
+
+        assert_eq!(
+            memory.as_bytes(),
+            &[0xee, 0xcc, 0xdd, 0x88, 0x99, 0xaa, 0xbb, 0x77]
+        );
+    }
+
+    #[test]
+    fn memory_read_write_unaligned_mirror() {
+        let mut memory =
+            Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+
+        assert_eq!(memory.read_unaligned::<u32>(1, 3), 0x11223300);
+
+        memory.write_unaligned::<u32>(5, 7, 0x8899aabb);
+
+        assert_eq!(
+            memory.as_bytes(),
+            &[0xbb, 0x11, 0x22, 0x33, 0x44, 0x88, 0x99, 0xaa]
+        );
     }
 
     #[test]

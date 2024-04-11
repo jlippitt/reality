@@ -4,7 +4,6 @@ use crate::rdp::RdpShared;
 use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
-use std::mem;
 use tracing::{debug, debug_span, trace};
 
 mod core;
@@ -292,15 +291,13 @@ impl<'a> core::Bus for Bus<'a> {
     }
 
     fn read_data<T: Size>(&self, address: u32) -> T {
-        let address = address as usize & 0x0fff;
-        assert!((address & (mem::size_of::<T>() - 1)) == 0);
-        self.rsp.mem.read(address)
+        self.rsp.mem.read_unaligned(address as usize, 0x0fff)
     }
 
     fn write_data<T: Size>(&mut self, address: u32, value: T) {
-        let address = address as usize & 0x0fff;
-        assert!((address & (mem::size_of::<T>() - 1)) == 0);
-        self.rsp.mem.write(address, value)
+        self.rsp
+            .mem
+            .write_unaligned(address as usize, 0x0fff, value);
     }
 
     fn read_register(&self, index: usize) -> u32 {

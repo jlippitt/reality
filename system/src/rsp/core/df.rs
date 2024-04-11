@@ -51,7 +51,6 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         }
         DfState::LoadHalfword { reg, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 1) == 0);
             let value = bus.read_data::<u16>(addr) as i16 as i64;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i16 as i32;
@@ -59,7 +58,6 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         }
         DfState::LoadHalfwordUnsigned { reg, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 1) == 0);
             let value = bus.read_data::<u16>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32;
@@ -67,7 +65,6 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         }
         DfState::LoadWord { reg, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 3) == 0);
             let value = bus.read_data::<u32>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32;
@@ -81,14 +78,12 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         }
         DfState::StoreHalfword { value, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 1) == 0);
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:04X}]", addr, value);
             bus.write_data(addr, value);
         }
         DfState::StoreWord { value, addr } => {
             // TODO: Stall cycles
-            assert!((addr & 3) == 0);
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             bus.write_data(addr, value);
