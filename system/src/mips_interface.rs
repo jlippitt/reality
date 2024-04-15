@@ -61,6 +61,7 @@ impl MipsInterface {
                     self.rcp_int.clear(RcpIntType::DP);
                 }
             }
+            2 => (), // MI_INTERRUPT is read-only
             3 => {
                 let mut int_mask = self.rcp_int.mask();
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::SP, 1, 0);
