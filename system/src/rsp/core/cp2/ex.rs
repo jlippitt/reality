@@ -8,7 +8,7 @@ mod store;
 
 pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
     match (word >> 21) & 31 {
-        //0o00 => store::mfc2(core, pc, word),
+        0o00 => store::mfc2(core, pc, word),
         0o02 => store::cfc2(core, pc, word),
         0o04 => load::mtc2(core, pc, word),
         //0o06 => load::ctc2(core, pc, word),

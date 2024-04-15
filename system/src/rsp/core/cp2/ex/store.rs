@@ -113,3 +113,22 @@ pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
         value: core.cp2.control_reg(rd),
     }
 }
+
+pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+    let el = ((word >> 7) & 15) as usize;
+
+    trace!(
+        "{:08X}: MFC2 {}, V{:02}[E{}]",
+        pc,
+        Core::REG_NAMES[rt],
+        rd,
+        el
+    );
+
+    DfState::RegWrite {
+        reg: rt,
+        value: core.cp2.reg(rd).read::<u16>(el) as i16 as i32,
+    }
+}
