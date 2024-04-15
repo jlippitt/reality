@@ -40,6 +40,7 @@ pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         0o43 => load::load::<load::Lw>(cpu, pc, word),
         0o44 => load::load::<load::Lbu>(cpu, pc, word),
         0o45 => load::load::<load::Lhu>(cpu, pc, word),
+        0o47 => load::load::<load::Lwu>(cpu, pc, word),
         0o50 => store::store::<store::Sb>(cpu, pc, word),
         0o51 => store::store::<store::Sh>(cpu, pc, word),
         0o53 => store::store::<store::Sw>(cpu, pc, word),

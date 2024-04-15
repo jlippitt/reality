@@ -11,6 +11,7 @@ pub struct Lbu;
 pub struct Lh;
 pub struct Lhu;
 pub struct Lw;
+pub struct Lwu;
 
 impl LoadOperator for Lb {
     const NAME: &'static str = "LB";
@@ -46,6 +47,14 @@ impl LoadOperator for Lhu {
 
 impl LoadOperator for Lw {
     const NAME: &'static str = "LW";
+
+    fn apply(reg: usize, addr: u32) -> DfState {
+        DfState::LoadWord { reg, addr }
+    }
+}
+
+impl LoadOperator for Lwu {
+    const NAME: &'static str = "LWU";
 
     fn apply(reg: usize, addr: u32) -> DfState {
         DfState::LoadWord { reg, addr }
