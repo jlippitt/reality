@@ -23,7 +23,7 @@ pub fn slti(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 pub fn sltiu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
-    let imm = (word & 0xffff) as u64;
+    let imm = (word & 0xffff) as i16 as u64;
 
     trace!(
         "{:08X}: SLTIU {}, {}, {}",

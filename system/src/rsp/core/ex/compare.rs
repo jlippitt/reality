@@ -23,7 +23,7 @@ pub fn slti(cpu: &mut Core, pc: u32, word: u32) -> DfState {
 pub fn sltiu(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
-    let imm = word & 0xffff;
+    let imm = (word & 0xffff) as i16 as u32;
 
     trace!(
         "{:08X}: SLTIU {}, {}, {}",
