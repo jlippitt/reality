@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use bitfield_struct::bitfield;
 
 pub const REG_NAMES: [&str; 32] = [
@@ -148,17 +150,18 @@ pub struct Cause {
 
 #[bitfield(u32)]
 pub struct Config {
-    #[bits(3)]
+    #[bits(3, default = 0b011)]
     pub k0: u32,
     pub cu: bool,
-    #[bits(11)]
+    #[bits(11, default = 0b11001000110)]
     __: u32,
+    #[bits(default = true)]
     pub be: bool,
-    #[bits(8)]
+    #[bits(8, default = 0b00000110)]
     __: u32,
     #[bits(4)]
     pub ep: u32,
-    #[bits(3)]
+    #[bits(3, access = RO, default = 0b111)]
     pub ec: u32,
     __: bool,
 }

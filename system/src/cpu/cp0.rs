@@ -53,6 +53,7 @@ impl Cp0 {
             12 => u32::from(self.regs.status) as i64,
             13 => u32::from(self.regs.cause) as i64,
             14 => self.regs.epc as i64,
+            16 => u32::from(self.regs.config) as i64,
             17 => self.regs.ll_addr as i64,
             29 => self.regs.tag_hi as i64,
             30 => self.regs.error_epc as i64,
