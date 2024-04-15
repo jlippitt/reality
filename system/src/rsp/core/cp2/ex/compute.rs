@@ -121,7 +121,7 @@ impl ComputeOperator for VMacu {
             return 0;
         }
 
-        if ((*acc >> 32) as i16) ^ ((*acc >> 16) as i16) < 0 {
+        if (*acc >> 32) != 0 || ((*acc >> 16) as i16) < 0 {
             return u16::MAX;
         }
 
