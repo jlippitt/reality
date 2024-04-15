@@ -138,11 +138,21 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             cpu.wb.reg = 0;
             trace!("  [{:08X} => {:032X}]", addr, value);
 
-            if el == 0 && (addr & 7) == 0 {
+            if el == 0 && (addr & 15) == 0 {
                 // Aligned load
                 cpu.cp2.set_reg(reg, value.into());
             } else {
-                todo!("Misaligned quadword load");
+                // Misaligned load
+                let end = (addr as usize + 16) & !15;
+                let size = (end - addr as usize).min(16 - el);
+                let bytes = value.to_be_bytes();
+                let mut vector = cpu.cp2.reg(reg);
+
+                for (index, byte) in bytes[0..size].iter().enumerate() {
+                    vector.write(el + index, *byte);
+                }
+
+                cpu.cp2.set_reg(reg, vector);
             }
         }
         DfState::Cp2StoreByte { value, addr } => {
