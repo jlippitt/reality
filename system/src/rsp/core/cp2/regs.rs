@@ -72,4 +72,10 @@ impl FlagVector {
 
         value
     }
+
+    pub fn write(&mut self, flag: Flags, value: u8) {
+        for (index, flags) in self.0.iter_mut().enumerate() {
+            flags.set(flag, (value & (0x80 >> index)) != 0);
+        }
+    }
 }

@@ -97,23 +97,6 @@ pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfState 
     )
 }
 
-pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
-
-    trace!(
-        "{:08X}: CFC2 {}, {}",
-        pc,
-        Core::REG_NAMES[rt],
-        Cp2::CONTROL_REG_NAMES[rd]
-    );
-
-    DfState::RegWrite {
-        reg: rt,
-        value: core.cp2.control_reg(rd),
-    }
-}
-
 pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -130,5 +113,22 @@ pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
     DfState::RegWrite {
         reg: rt,
         value: core.cp2.reg(rd).read::<u16>(el) as i16 as i32,
+    }
+}
+
+pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
+    trace!(
+        "{:08X}: CFC2 {}, {}",
+        pc,
+        Core::REG_NAMES[rt],
+        Cp2::CONTROL_REG_NAMES[rd]
+    );
+
+    DfState::RegWrite {
+        reg: rt,
+        value: core.cp2.control_reg(rd),
     }
 }

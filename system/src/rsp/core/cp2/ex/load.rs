@@ -1,4 +1,4 @@
-use super::{Core, DfState};
+use super::{Core, Cp2, DfState};
 use tracing::trace;
 
 pub trait LoadOperator {
@@ -93,6 +93,22 @@ pub fn mtc2(core: &mut Core, pc: u32, word: u32) -> DfState {
     let mut vector = core.cp2.reg(rd);
     vector.write(el, core.regs[rt] as u16);
     core.cp2.set_reg(rd, vector);
+
+    DfState::Nop
+}
+
+pub fn ctc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rt = ((word >> 16) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
+    trace!(
+        "{:08X}: CFC2 {}, {}",
+        pc,
+        Core::REG_NAMES[rt],
+        Cp2::CONTROL_REG_NAMES[rd]
+    );
+
+    core.cp2.set_control_reg(rd, core.regs[rt]);
 
     DfState::Nop
 }

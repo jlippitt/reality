@@ -4,7 +4,7 @@ pub use regs::Vector;
 use super::{Core, DfState};
 use regs::{Accumulator, FlagVector, Flags};
 use std::array;
-use tracing::trace;
+use tracing::{trace, warn};
 
 mod ex;
 mod regs;
@@ -50,24 +50,48 @@ impl Cp2 {
     }
 
     pub fn control_reg(&self, index: usize) -> i32 {
-        let value = match index {
-            0 => u16::from_le_bytes([
-                self.flags.read(Flags::CARRY),
-                self.flags.read(Flags::NOT_EQUAL),
-            ]),
-            1 => u16::from_le_bytes([
-                self.flags.read(Flags::COMPARE),
-                self.flags.read(Flags::CLIP_COMPARE),
-            ]),
-            2 => u16::from_le_bytes([self.flags.read(Flags::COMPARE_EXTENSION), 0]),
-            reg => todo!(
+        if index > 2 {
+            warn!(
                 "RSP CP2 Control Register Read: {}",
-                Self::CONTROL_REG_NAMES[reg]
-            ),
+                Self::CONTROL_REG_NAMES[index]
+            );
         };
 
-        // TODO: Verify that this is actual behaviour
+        let value = match index & 3 {
+            0 => i16::from_le_bytes([
+                self.flags.read(Flags::CARRY),
+                self.flags.read(Flags::NOT_EQUAL),
+            ]) as i32,
+            1 => i16::from_le_bytes([
+                self.flags.read(Flags::COMPARE),
+                self.flags.read(Flags::CLIP_COMPARE),
+            ]) as i32,
+            _ => i16::from_le_bytes([self.flags.read(Flags::COMPARE_EXTENSION), 0]) as i32,
+        };
+
         value as i16 as i32
+    }
+
+    pub fn set_control_reg(&mut self, index: usize, value: i32) {
+        if index > 2 {
+            warn!(
+                "RSP CP2 Control Register Write: {} <= {:08X}",
+                Self::CONTROL_REG_NAMES[index],
+                value
+            );
+        }
+
+        match index & 3 {
+            0 => {
+                self.flags.write(Flags::CARRY, value as u8);
+                self.flags.write(Flags::NOT_EQUAL, (value >> 8) as u8);
+            }
+            1 => {
+                self.flags.write(Flags::COMPARE, value as u8);
+                self.flags.write(Flags::CLIP_COMPARE, (value >> 8) as u8);
+            }
+            _ => self.flags.write(Flags::COMPARE_EXTENSION, value as u8),
+        }
     }
 }
 
