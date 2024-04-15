@@ -16,6 +16,7 @@ struct Dma {
     sp_addr: DmaSpAddr,
     ram_addr: DmaRamAddr,
     len: DmaLength,
+    reload_len: u32,
     write: bool,
 }
 
@@ -82,32 +83,28 @@ impl Rsp {
     }
 
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
-        let Some(dma_active) = &mut self.shared.dma_active else {
+        let Some(dma) = &mut self.shared.dma_active else {
             return;
         };
 
-        let bank_offset = (dma_active.sp_addr.mem_bank() as usize) << 12;
-        let mem_addr = dma_active.sp_addr.mem_addr() as usize & 0x0ff8;
-        let dram_addr = dma_active.ram_addr.dram_addr() as usize & 0x00ff_fff8;
-        let len = dma_active.len.len() + 1;
-        let block_len = len.min(128) as usize;
-
-        if dma_active.len.skip() != 0 || dma_active.len.count() != 0 {
-            todo!("RSP DMA Skip/Count");
-        }
+        let bank_offset = (dma.sp_addr.mem_bank() as u32) << 12;
+        let mem_addr = dma.sp_addr.mem_addr() & 0x0ff8;
+        let dram_addr = dma.ram_addr.dram_addr() & 0x00ff_fff8;
+        let row_len = dma.len.len() + 1;
+        let block_len = row_len.min(128);
 
         let mut buf = [0u8; 128];
-        let data = &mut buf[0..block_len];
+        let data = &mut buf[0..(block_len as usize)];
 
-        if dma_active.write {
-            let mut byte_addr = mem_addr;
+        if dma.write {
+            let mut byte_addr = mem_addr as usize;
 
             for byte in data.iter_mut() {
-                *byte = self.shared.mem[bank_offset + byte_addr];
+                *byte = self.shared.mem[bank_offset as usize + byte_addr];
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
-            rdram.write_block(dram_addr, data);
+            rdram.write_block(dram_addr as usize, data);
 
             debug!(
                 "RSP DMA: {} bytes written from {:08X} to {:08X}",
@@ -116,12 +113,12 @@ impl Rsp {
                 dram_addr,
             );
         } else {
-            rdram.read_block(dram_addr, data);
+            rdram.read_block(dram_addr as usize, data);
 
-            let mut byte_addr = mem_addr;
+            let mut byte_addr = mem_addr as usize;
 
             for byte in data.iter() {
-                self.shared.mem[bank_offset + byte_addr] = *byte;
+                self.shared.mem[bank_offset as usize + byte_addr] = *byte;
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
@@ -133,26 +130,33 @@ impl Rsp {
             );
         }
 
-        let bytes_remaining = len - block_len as u32;
+        let bytes_remaining = row_len - block_len;
 
         if bytes_remaining == 0 {
-            self.shared.dma_active = self.shared.dma_pending.take();
-            trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
+            let count = dma.len.count();
 
-            if self.shared.dma_active.is_some() {
-                trace!("RSP DMA Pending: {:08X?}", self.shared.dma_active);
+            if count == 0 {
+                self.shared.dma_active = self.shared.dma_pending.take();
+                trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
+
+                if self.shared.dma_active.is_some() {
+                    trace!("RSP DMA Pending: {:08X?}", self.shared.dma_active);
+                }
+
+                return;
             }
+
+            dma.ram_addr
+                .set_dram_addr((dram_addr + block_len + dma.len.skip()) & 0x00ff_ffff);
+            dma.len.set_count(count - 1);
+            dma.len.set_len(dma.reload_len);
         } else {
-            dma_active
-                .ram_addr
-                .set_dram_addr((dram_addr + block_len) as u32 & 0x00ff_ffff);
-
-            dma_active
-                .sp_addr
-                .set_mem_addr((mem_addr + block_len) as u32 & 0x0fff);
-
-            dma_active.len.set_len(bytes_remaining);
+            dma.ram_addr
+                .set_dram_addr((dram_addr + block_len) & 0x00ff_ffff);
+            dma.len.set_len(bytes_remaining);
         }
+
+        dma.sp_addr.set_mem_addr((mem_addr + block_len) & 0x0fff);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
@@ -267,6 +271,7 @@ impl RspShared {
             sp_addr: self.regs.dma_sp_addr,
             ram_addr: self.regs.dma_ram_addr,
             len,
+            reload_len: len.len(),
             write,
         };
 
