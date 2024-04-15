@@ -12,8 +12,11 @@ pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         target
     );
 
-    cpu.pc = target;
-    cpu.delay = true;
+    if cpu.delay == 0 {
+        cpu.delay = 2;
+        cpu.pc = target;
+    }
+
     link::<LINK>(cpu)
 }
 
@@ -22,8 +25,11 @@ pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
     trace!("{:08X}: JR {}", pc, Cpu::REG_NAMES[rs]);
 
-    cpu.pc = cpu.regs[rs] as u32;
-    cpu.delay = true;
+    if cpu.delay == 0 {
+        cpu.delay = 2;
+        cpu.pc = cpu.regs[rs] as u32;
+    }
+
     DcState::Nop
 }
 
@@ -38,12 +44,14 @@ pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cpu::REG_NAMES[rs],
     );
 
-    cpu.pc = cpu.regs[rs] as u32;
-    cpu.delay = true;
+    if cpu.delay == 0 {
+        cpu.delay = 2;
+        cpu.pc = cpu.regs[rs] as u32;
+    }
 
     DcState::RegWrite {
         reg: rd,
-        value: cpu.ex.pc.wrapping_add(8) as i64,
+        value: cpu.rf.pc.wrapping_add(4) as i64,
     }
 }
 
@@ -153,7 +161,7 @@ fn link<const LINK: bool>(cpu: &Cpu) -> DcState {
     if LINK {
         DcState::RegWrite {
             reg: 31,
-            value: cpu.ex.pc.wrapping_add(8) as i64,
+            value: cpu.rf.pc.wrapping_add(4) as i64,
         }
     } else {
         DcState::Nop

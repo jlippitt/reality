@@ -57,7 +57,7 @@ pub struct Cpu {
     hi: i64,
     lo: i64,
     ll_bit: bool,
-    delay: bool,
+    delay: u8,
     regs: [i64; 64],
     cp0: Cp0,
     cp1: Cp1,
@@ -98,7 +98,7 @@ impl Cpu {
             hi: 0,
             lo: 0,
             ll_bit: false,
-            delay: false,
+            delay: 0,
             regs,
             cp0: Cp0::new(),
             cp1: Cp1::new(),
@@ -150,8 +150,6 @@ impl Cpu {
         // TODO: Re-review this decision
         cp0::step(self, bus);
 
-        self.delay = false;
-
         // EX
         if self.ex.word != 0 {
             // Operand forwarding from DC stage
@@ -164,6 +162,8 @@ impl Cpu {
             trace!("{:08X}: NOP", self.ex.pc);
             self.dc = DcState::Nop;
         }
+
+        self.delay >>= 1;
 
         // RF
         self.ex = ExState {
@@ -181,6 +181,12 @@ impl Cpu {
     }
 
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
+        if self.delay > 0 {
+            return;
+        }
+
+        self.delay = 2;
+
         if condition {
             trace!("Branch taken");
             self.pc = (self.ex.pc as i64).wrapping_add(offset + 4) as u32;
@@ -191,8 +197,6 @@ impl Cpu {
                 self.rf.word = 0;
             }
         }
-
-        self.delay = true;
     }
 
     fn read<T: Size>(&mut self, bus: &mut impl Bus, address: u32) -> T {
