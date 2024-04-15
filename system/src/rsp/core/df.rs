@@ -4,28 +4,106 @@ use tracing::trace;
 
 #[derive(Debug)]
 pub enum DfState {
-    RegWrite { reg: usize, value: i32 },
-    LoadByte { reg: usize, addr: u32 },
-    LoadByteUnsigned { reg: usize, addr: u32 },
-    LoadHalfword { reg: usize, addr: u32 },
-    LoadHalfwordUnsigned { reg: usize, addr: u32 },
-    LoadWord { reg: usize, addr: u32 },
-    StoreByte { value: u8, addr: u32 },
-    StoreHalfword { value: u16, addr: u32 },
-    StoreWord { value: u32, addr: u32 },
-    Cp0LoadReg { cp0_reg: usize, core_reg: usize },
-    Cp0StoreReg { cp0_reg: usize, value: i32 },
-    Cp2LoadByte { reg: usize, el: usize, addr: u32 },
-    Cp2LoadHalfword { reg: usize, el: usize, addr: u32 },
-    Cp2LoadWord { reg: usize, el: usize, addr: u32 },
-    Cp2LoadDoubleword { reg: usize, el: usize, addr: u32 },
-    Cp2LoadQuadword { reg: usize, el: usize, start: u32 },
-    Cp2LoadQuadwordRight { reg: usize, el: usize, end: u32 },
-    Cp2StoreByte { value: u8, addr: u32 },
-    Cp2StoreHalfword { value: u16, addr: u32 },
-    Cp2StoreWord { value: u32, addr: u32 },
-    Cp2StoreDoubleword { value: u64, addr: u32 },
-    Cp2StoreQuadword { vec: Vector, el: usize, addr: u32 },
+    RegWrite {
+        reg: usize,
+        value: i32,
+    },
+    LoadByte {
+        reg: usize,
+        addr: u32,
+    },
+    LoadByteUnsigned {
+        reg: usize,
+        addr: u32,
+    },
+    LoadHalfword {
+        reg: usize,
+        addr: u32,
+    },
+    LoadHalfwordUnsigned {
+        reg: usize,
+        addr: u32,
+    },
+    LoadWord {
+        reg: usize,
+        addr: u32,
+    },
+    StoreByte {
+        value: u8,
+        addr: u32,
+    },
+    StoreHalfword {
+        value: u16,
+        addr: u32,
+    },
+    StoreWord {
+        value: u32,
+        addr: u32,
+    },
+    Cp0LoadReg {
+        cp0_reg: usize,
+        core_reg: usize,
+    },
+    Cp0StoreReg {
+        cp0_reg: usize,
+        value: i32,
+    },
+    Cp2LoadByte {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadHalfword {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadWord {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadDoubleword {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadQuadword {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadQuadwordRight {
+        reg: usize,
+        el: usize,
+        end: u32,
+    },
+    Cp2StoreByte {
+        value: u8,
+        addr: u32,
+    },
+    Cp2StoreHalfword {
+        value: u16,
+        addr: u32,
+    },
+    Cp2StoreWord {
+        value: u32,
+        addr: u32,
+    },
+    Cp2StoreDoubleword {
+        value: u64,
+        addr: u32,
+    },
+    Cp2StoreQuadword {
+        vector: Vector,
+        el: usize,
+        addr: u32,
+    },
+    Cp2StoreQuadwordRight {
+        vector: Vector,
+        el: usize,
+        end: u32,
+    },
     Break,
     Nop,
 }
@@ -133,24 +211,24 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadQuadword { reg, el, start } => {
+        DfState::Cp2LoadQuadword { reg, el, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
-            if el == 0 && (start & 15) == 0 {
-                let value = bus.read_data::<u128>(start);
-                trace!("  [{:08X} => {:032X}]", start, value);
+            if el == 0 && (addr & 15) == 0 {
                 // Aligned load
+                let value = bus.read_data::<u128>(addr);
+                trace!("  [{:08X} => {:032X}]", addr, value);
                 cpu.cp2.set_reg(reg, value.into());
             } else {
                 // Misaligned load
-                let addr = start & !15;
-                let value = bus.read_data::<u128>(addr);
-                trace!("  [{:08X} => {:032X}]", addr, value);
+                let start = addr & !15;
+                let value = bus.read_data::<u128>(start);
+                trace!("  [{:08X} => {:032X}]", start, value);
                 let bytes = value.to_be_bytes();
                 let mut vector = cpu.cp2.reg(reg);
 
-                for (index, byte) in bytes[(start as usize & 15)..].iter().enumerate() {
+                for (index, byte) in bytes[(addr as usize & 15)..].iter().enumerate() {
                     vector.write(el + index, *byte);
                 }
 
@@ -198,17 +276,37 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             trace!("  [{:08X} <= {:016X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp2StoreQuadword { vec, el, addr } => {
+        DfState::Cp2StoreQuadword { vector, el, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
-            if el == 0 && (addr & 7) == 0 {
+            if el == 0 && (addr & 15) == 0 {
                 // Aligned store
-                let value: u128 = vec.into();
+                let value: u128 = vector.into();
                 trace!("  [{:08X} <= {:032X}]", addr, value);
                 bus.write_data(addr, value);
             } else {
-                todo!("Misaligned quadword load");
+                // Misaligned store
+                let offset = addr as usize & 15;
+
+                for index in 0..(16 - offset) {
+                    let byte: u8 = vector.read(el + index);
+                    bus.write_data(addr + index as u32, byte);
+                    trace!("  [{:08X} <= {:02X}]", addr + index as u32, byte);
+                }
+            }
+        }
+        DfState::Cp2StoreQuadwordRight { vector, el, end } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+
+            let addr = end & !15;
+            let offset = end as usize & 15;
+
+            for index in 0..offset {
+                let byte: u8 = vector.read(el + (16 - offset) + index);
+                bus.write_data(addr + index as u32, byte);
+                trace!("  [{:08X} <= {:02X}]", addr + index as u32, byte);
             }
         }
         DfState::Break => {

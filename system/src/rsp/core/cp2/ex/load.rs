@@ -55,11 +55,7 @@ impl LoadOperator for Lqv {
     const SHIFT: usize = 4;
 
     fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadQuadword {
-            reg,
-            el,
-            start: addr,
-        }
+        DfState::Cp2LoadQuadword { reg, el, addr }
     }
 }
 

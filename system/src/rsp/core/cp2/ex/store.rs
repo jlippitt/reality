@@ -12,6 +12,7 @@ pub struct Ssv;
 pub struct Slv;
 pub struct Sdv;
 pub struct Sqv;
+pub struct Srv;
 
 impl StoreOperator for Sbv {
     const NAME: &'static str = "SBV";
@@ -67,9 +68,22 @@ impl StoreOperator for Sqv {
 
     fn apply(value: Vector, el: usize, addr: u32) -> DfState {
         DfState::Cp2StoreQuadword {
-            vec: value,
+            vector: value,
             el,
             addr,
+        }
+    }
+}
+
+impl StoreOperator for Srv {
+    const NAME: &'static str = "SRV";
+    const SHIFT: usize = 4;
+
+    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
+        DfState::Cp2StoreQuadwordRight {
+            vector: value,
+            el,
+            end: addr,
         }
     }
 }
