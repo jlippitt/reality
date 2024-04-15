@@ -73,6 +73,16 @@ pub enum DfState {
         el: usize,
         addr: u32,
     },
+    Cp2LoadPacked {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
+    Cp2LoadPackedUnsigned {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
     Cp2LoadQuadwordRight {
         reg: usize,
         el: usize,
@@ -248,6 +258,38 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
 
             for (index, byte) in bytes[0..offset.min(16 - el)].iter().enumerate() {
                 vector.write(el + (16 - offset) + index, *byte);
+            }
+
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadPacked { reg, el, addr } => {
+            cpu.wb.reg = 0;
+
+            let start = addr & !7;
+            let offset = (addr & 7).wrapping_sub(el as u32);
+            let mut vector = Vector::default();
+
+            for index in 0..8u32 {
+                let byte_addr = start + (offset.wrapping_add(index) & 15);
+                let value = bus.read_data::<u8>(byte_addr);
+                trace!("  [{:08X} => {:02X}]", byte_addr, value);
+                vector.set_lane(index as usize, (value as u16) << 8);
+            }
+
+            cpu.cp2.set_reg(reg, vector);
+        }
+        DfState::Cp2LoadPackedUnsigned { reg, el, addr } => {
+            cpu.wb.reg = 0;
+
+            let start = addr & !7;
+            let offset = (addr & 7).wrapping_sub(el as u32);
+            let mut vector = Vector::default();
+
+            for index in 0..8 {
+                let byte_addr = start + (offset.wrapping_add(index) & 15);
+                let value = bus.read_data::<u8>(byte_addr);
+                trace!("  [{:08X} => {:02X}]", byte_addr, value);
+                vector.set_lane(index as usize, (value as u16) << 7);
             }
 
             cpu.cp2.set_reg(reg, vector);

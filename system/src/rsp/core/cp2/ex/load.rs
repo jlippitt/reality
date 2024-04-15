@@ -13,6 +13,8 @@ pub struct Llv;
 pub struct Ldv;
 pub struct Lqv;
 pub struct Lrv;
+pub struct Lpv;
+pub struct Luv;
 
 impl LoadOperator for Lbv {
     const NAME: &'static str = "LBV";
@@ -65,6 +67,24 @@ impl LoadOperator for Lrv {
 
     fn apply(reg: usize, el: usize, addr: u32) -> DfState {
         DfState::Cp2LoadQuadwordRight { reg, el, end: addr }
+    }
+}
+
+impl LoadOperator for Lpv {
+    const NAME: &'static str = "LPV";
+    const SHIFT: usize = 3;
+
+    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
+        DfState::Cp2LoadPacked { reg, el, addr }
+    }
+}
+
+impl LoadOperator for Luv {
+    const NAME: &'static str = "LUV";
+    const SHIFT: usize = 3;
+
+    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
+        DfState::Cp2LoadPackedUnsigned { reg, el, addr }
     }
 }
 
