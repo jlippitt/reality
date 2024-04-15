@@ -26,7 +26,7 @@ impl StoreOperator for Sbv {
 }
 
 impl StoreOperator for Ssv {
-    const NAME: &'static str = "LSV";
+    const NAME: &'static str = "SSV";
     const SHIFT: usize = 1;
 
     fn apply(value: Vector, el: usize, addr: u32) -> DfState {

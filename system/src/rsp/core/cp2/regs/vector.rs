@@ -31,9 +31,9 @@ impl Vector {
         let shift = 128 - (((size + el) as i32) << 3);
 
         T::truncate_u128(if shift >= 0 {
-            self.0 >> shift
+            self.0.rotate_right(shift as u32)
         } else {
-            self.0 << -shift
+            self.0.rotate_left(-shift as u32)
         })
     }
 
@@ -147,7 +147,7 @@ mod tests {
     fn read_write_end() {
         let mut vec = Vector::from(0x0011_2233_4455_6677_8899_aabb_ccdd_eeff);
 
-        assert_eq!(vec.read::<u64>(12), 0xccdd_eeff_0000_0000);
+        assert_eq!(vec.read::<u64>(12), 0xccdd_eeff_0011_2233);
 
         vec.write::<u64>(12, 0x0011_2233_4455_6677);
 
