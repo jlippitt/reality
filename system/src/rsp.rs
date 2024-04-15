@@ -11,7 +11,7 @@ mod regs;
 
 const MEM_SIZE: usize = 8192;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Dma {
     sp_addr: DmaSpAddr,
     ram_addr: DmaRamAddr,
@@ -23,7 +23,8 @@ struct Dma {
 struct RspShared {
     mem: Memory<u128>,
     regs: Regs,
-    dma_active: Option<Dma>,
+    dma_in_progress: bool,
+    dma_active: Dma,
     dma_pending: Option<Dma>,
     rcp_int: RcpInterrupt,
 }
@@ -52,7 +53,8 @@ impl Rsp {
             core: Core::new(),
             shared: RspShared {
                 mem,
-                dma_active: None,
+                dma_in_progress: false,
+                dma_active: Dma::default(),
                 dma_pending: None,
                 regs: Regs::default(),
                 rcp_int,
@@ -83,14 +85,16 @@ impl Rsp {
     }
 
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
-        let Some(dma) = &mut self.shared.dma_active else {
+        if !self.shared.dma_in_progress {
             return;
-        };
+        }
+
+        let dma = &mut self.shared.dma_active;
 
         let bank_offset = (dma.sp_addr.mem_bank() as u32) << 12;
         let mem_addr = dma.sp_addr.mem_addr() & 0x0ff8;
         let dram_addr = dma.ram_addr.dram_addr() & 0x00ff_fff8;
-        let row_len = dma.len.len() + 1;
+        let row_len = (dma.len.len() + 8) & !7;
         let block_len = row_len.min(128);
 
         let mut buf = [0u8; 128];
@@ -130,33 +134,34 @@ impl Rsp {
             );
         }
 
-        let bytes_remaining = row_len - block_len;
+        dma.sp_addr.set_mem_addr((mem_addr + block_len) & 0x0fff);
 
-        if bytes_remaining == 0 {
+        if row_len == block_len {
+            dma.ram_addr
+                .set_dram_addr((dram_addr + block_len + dma.len.skip()) & 0x00ff_ffff);
+
             let count = dma.len.count();
 
             if count == 0 {
-                self.shared.dma_active = self.shared.dma_pending.take();
-                trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
-
-                if self.shared.dma_active.is_some() {
+                if let Some(dma_pending) = self.shared.dma_pending.take() {
+                    self.shared.dma_active = dma_pending;
+                    trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
                     trace!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
+                } else {
+                    self.shared.dma_in_progress = false;
+                    dma.len.set_len(0x0ff8);
                 }
 
                 return;
             }
 
-            dma.ram_addr
-                .set_dram_addr((dram_addr + block_len + dma.len.skip()) & 0x00ff_ffff);
-            dma.len.set_count(count - 1);
             dma.len.set_len(dma.reload_len);
+            dma.len.set_count(count - 1);
         } else {
             dma.ram_addr
                 .set_dram_addr((dram_addr + block_len) & 0x00ff_ffff);
-            dma.len.set_len(bytes_remaining);
+            dma.len.set_len(dma.len.len() - block_len);
         }
-
-        dma.sp_addr.set_mem_addr((mem_addr + block_len) & 0x0fff);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
@@ -197,14 +202,17 @@ impl Rsp {
 impl RspShared {
     fn read_register(&self, index: usize) -> u32 {
         match index {
+            0 => self.dma_active.sp_addr.into(),
+            1 => self.dma_active.ram_addr.into(),
+            2 | 3 => self.dma_active.len.into(),
             4 => self
                 .regs
                 .status
-                .with_dma_busy(self.dma_active.is_some())
+                .with_dma_busy(self.dma_in_progress)
                 .with_dma_full(self.dma_pending.is_some())
                 .into(),
             5 => self.dma_pending.is_some() as u32,
-            6 => self.dma_active.is_some() as u32,
+            6 => self.dma_in_progress as u32,
             7 => {
                 let value = self.regs.semaphore.get();
                 self.regs.semaphore.set(true);
@@ -275,8 +283,9 @@ impl RspShared {
             write,
         };
 
-        if self.dma_active.is_none() {
-            self.dma_active = Some(dma);
+        if !self.dma_in_progress {
+            self.dma_in_progress = true;
+            self.dma_active = dma;
             trace!("RSP DMA Active: {:08X?}", self.dma_active);
         } else if self.dma_pending.is_none() {
             self.dma_pending = Some(dma);
