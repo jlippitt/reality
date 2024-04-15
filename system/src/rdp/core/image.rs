@@ -1,6 +1,6 @@
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
-use tracing::trace;
+use tracing::{trace, warn};
 
 pub fn set_scissor(_core: &mut Core, _bus: Bus, word: u64) {
     let cmd = SetScissor::from(word);
@@ -8,7 +8,7 @@ pub fn set_scissor(_core: &mut Core, _bus: Bus, word: u64) {
     trace!("{:?}", cmd);
 
     if cmd.field() {
-        todo!("Set_Scissor interlace suppport");
+        warn!("TODO: Set_Scissor interlace suppport");
     }
 
     // TODO
@@ -19,7 +19,9 @@ pub fn set_color_image(_core: &mut Core, _bus: Bus, word: u64) {
 
     trace!("{:?}", cmd);
 
-    assert!(cmd.format() == Format::Rgba);
+    if cmd.format() == Format::Rgba {
+        warn!("Color Image not in RGBA format");
+    }
 
     // TODO
 }
