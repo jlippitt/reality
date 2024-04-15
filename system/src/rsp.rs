@@ -160,8 +160,8 @@ impl Rsp {
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
-        if (address as usize) < MEM_SIZE {
-            return self.shared.mem.read(address as usize);
+        if (address as usize) < 0x0004_0000 {
+            return self.shared.mem.read(address as usize & 0x0000_1fff);
         }
 
         T::truncate_u32(if (address & 0x0004_0000) == 0x0004_0000 {
@@ -174,8 +174,8 @@ impl Rsp {
     }
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
-        if (address as usize) < MEM_SIZE {
-            return self.shared.mem.write(address as usize, value);
+        if address < 0x0004_0000 {
+            return self.shared.mem.write(address as usize & 0x0000_1fff, value);
         }
 
         let mask = WriteMask::new(address, value);
