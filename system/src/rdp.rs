@@ -69,7 +69,7 @@ impl Rdp {
         }
     }
 
-    pub fn step_dma(&mut self, rdram: &Rdram, _xbus: &Memory<u128>) {
+    pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
         let dma = &mut self.shared.dma_active;
 
         if dma.start >= dma.end {
@@ -79,22 +79,34 @@ impl Rdp {
         assert!((dma.start & 7) == 0);
         assert!((dma.end & 7) == 0);
 
-        assert!(!self.shared.regs.status.xbus());
-
         let block_len = ((dma.end >> 3) - (dma.start >> 3)).min(16);
         let mut current = dma.start;
 
-        for _ in 0..block_len {
-            let command: u64 = rdram.read_single(current as usize);
-            self.core.write_command(command);
-            current = current.wrapping_add(8) & 0x00ff_fff8;
-        }
+        if self.shared.regs.status.xbus() {
+            for _ in 0..block_len {
+                let command: u64 = rsp_mem.read(current as usize & 0xfff);
+                self.core.write_command(command);
+                current = current.wrapping_add(8) & 0x00ff_fff8;
+            }
 
-        debug!(
-            "RDP DMA: {} bytes read from {:08X}",
-            block_len * 8,
-            dma.start
-        );
+            debug!(
+                "RDP DMA: {} bytes read from DMEM {:04X}",
+                block_len * 8,
+                dma.start
+            );
+        } else {
+            for _ in 0..block_len {
+                let command: u64 = rdram.read_single(current as usize);
+                self.core.write_command(command);
+                current = current.wrapping_add(8) & 0x00ff_fff8;
+            }
+
+            debug!(
+                "RDP DMA: {} bytes read from RDRAM {:08X}",
+                block_len * 8,
+                dma.start
+            );
+        }
 
         self.core.restart();
 
