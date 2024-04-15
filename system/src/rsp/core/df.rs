@@ -19,7 +19,8 @@ pub enum DfState {
     Cp2LoadHalfword { reg: usize, el: usize, addr: u32 },
     Cp2LoadWord { reg: usize, el: usize, addr: u32 },
     Cp2LoadDoubleword { reg: usize, el: usize, addr: u32 },
-    Cp2LoadQuadword { reg: usize, el: usize, addr: u32 },
+    Cp2LoadQuadword { reg: usize, el: usize, start: u32 },
+    Cp2LoadQuadwordRight { reg: usize, el: usize, end: u32 },
     Cp2StoreByte { value: u8, addr: u32 },
     Cp2StoreHalfword { value: u16, addr: u32 },
     Cp2StoreWord { value: u32, addr: u32 },
@@ -132,28 +133,46 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadQuadword { reg, el, addr } => {
+        DfState::Cp2LoadQuadword { reg, el, start } => {
             // TODO: Stall cycles
-            let value = bus.read_data::<u128>(addr);
             cpu.wb.reg = 0;
-            trace!("  [{:08X} => {:032X}]", addr, value);
 
-            if el == 0 && (addr & 15) == 0 {
+            if el == 0 && (start & 15) == 0 {
+                let value = bus.read_data::<u128>(start);
+                trace!("  [{:08X} => {:032X}]", start, value);
                 // Aligned load
                 cpu.cp2.set_reg(reg, value.into());
             } else {
                 // Misaligned load
-                let end = (addr as usize + 16) & !15;
-                let size = (end - addr as usize).min(16 - el);
+                let addr = start & !15;
+                let value = bus.read_data::<u128>(addr);
+                trace!("  [{:08X} => {:032X}]", addr, value);
                 let bytes = value.to_be_bytes();
                 let mut vector = cpu.cp2.reg(reg);
 
-                for (index, byte) in bytes[0..size].iter().enumerate() {
+                for (index, byte) in bytes[(start as usize & 15)..].iter().enumerate() {
                     vector.write(el + index, *byte);
                 }
 
                 cpu.cp2.set_reg(reg, vector);
             }
+        }
+        DfState::Cp2LoadQuadwordRight { reg, el, end } => {
+            // TODO: Stall cycles
+            cpu.wb.reg = 0;
+
+            let addr = end & !15;
+            let value = bus.read_data::<u128>(addr);
+            trace!("  [{:08X} => {:032X}]", addr, value);
+            let offset = end as usize & 15;
+            let bytes = value.to_be_bytes();
+            let mut vector = cpu.cp2.reg(reg);
+
+            for (index, byte) in bytes[0..offset.min(16 - el)].iter().enumerate() {
+                vector.write(el + (16 - offset) + index, *byte);
+            }
+
+            cpu.cp2.set_reg(reg, vector);
         }
         DfState::Cp2StoreByte { value, addr } => {
             // TODO: Stall cycles
