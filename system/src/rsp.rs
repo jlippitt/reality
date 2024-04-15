@@ -225,7 +225,7 @@ impl RspShared {
                 let status = &mut self.regs.status;
                 let raw = mask.raw();
 
-                if (raw & 0x0000_0002) != 0 {
+                if (raw & 0x0000_0004) != 0 {
                     status.set_broke(false);
                 }
 
