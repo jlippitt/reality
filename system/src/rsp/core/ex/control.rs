@@ -12,7 +12,7 @@ pub fn j<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         target
     );
 
-    cpu.pc = target;
+    cpu.pc = target & 0xfffc;
     link::<LINK>(cpu)
 }
 
@@ -26,7 +26,7 @@ pub fn jr<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         Core::REG_NAMES[rs]
     );
 
-    cpu.pc = (cpu.regs[rs] as u32) & 0x0fff;
+    cpu.pc = (cpu.regs[rs] as u32) & 0x0ffc;
     link::<LINK>(cpu)
 }
 

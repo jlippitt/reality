@@ -116,7 +116,7 @@ impl Core {
     fn branch(&mut self, condition: bool, offset: i32) {
         if condition {
             trace!("Branch taken");
-            self.pc = (self.ex.pc as i32).wrapping_add(offset + 4) as u32 & 0x0fff;
+            self.pc = (self.ex.pc as i32).wrapping_add(offset + 4) as u32 & 0x0ffc;
         } else {
             trace!("Branch not taken");
         }
