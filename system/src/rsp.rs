@@ -140,7 +140,7 @@ impl Rsp {
                 trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
 
                 if self.shared.dma_active.is_some() {
-                    trace!("RSP DMA Pending: {:08X?}", self.shared.dma_active);
+                    trace!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
                 }
 
                 return;
