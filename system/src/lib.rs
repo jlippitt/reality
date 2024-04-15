@@ -6,7 +6,7 @@ use audio::AudioInterface;
 use cpu::Cpu;
 use gfx::GfxContext;
 use interrupt::{CpuInterrupt, RcpInterrupt};
-use memory::{Mapping, Size};
+use memory::{Mapping, Memory, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use rdp::Rdp;
@@ -45,6 +45,7 @@ struct Bus {
     ai: AudioInterface,
     pi: PeripheralInterface,
     si: SerialInterface,
+    systest_buffer: Memory<u64>,
 }
 
 pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
@@ -101,6 +102,7 @@ impl Device {
                 ai: AudioInterface::new(rcp_int.clone()),
                 pi: PeripheralInterface::new(rcp_int.clone(), options.rom_data, skip_pif_rom),
                 si: SerialInterface::new(rcp_int, options.pif_data),
+                systest_buffer: Memory::with_byte_len(512),
             },
             gfx,
             cycles: 0,
@@ -192,7 +194,17 @@ impl cpu::Bus for Bus {
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
             Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
-            Mapping::CartridgeRom => warn!("Write to Cartridge ROM: {:08X}", address),
+            Mapping::CartridgeRom => match address {
+                0x13ff_0020..=0x13ff_0220 => {
+                    self.systest_buffer
+                        .write(address as usize - 0x13ff_0020, value);
+                }
+                0x13ff_0014 => println!(
+                    "{}",
+                    String::from_utf8_lossy(&self.systest_buffer[0..value.to_usize().unwrap()])
+                ),
+                _ => warn!("Write to Cartridge ROM: {:08X}", address),
+            },
             Mapping::Pif => self.si.write_pif(address & 0x000f_ffff, value),
             Mapping::None => warn!("Unmapped write: {:08X}", address),
         }
