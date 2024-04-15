@@ -138,6 +138,16 @@ impl Cp0 {
                 self.regs.ll_addr = value as u32;
                 trace!("  LLAddr: {:08X}", self.regs.ll_addr);
             }
+            18 => {
+                self.regs.watch_lo = (value as u32).into();
+                trace!("  WatchLo: {:?}", self.regs.watch_lo);
+                assert!(!self.regs.watch_lo.read());
+                assert!(!self.regs.watch_lo.write());
+            }
+            19 => {
+                self.regs.watch_hi = (value as u32).into();
+                trace!("  WatchHi: {:?}", self.regs.watch_hi);
+            }
             // TOOD: This register has special behaviour when read back
             28 => {
                 self.regs.tag_lo = (value as u32).into();

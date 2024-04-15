@@ -49,6 +49,8 @@ pub struct Regs {
     pub epc: u32,
     pub config: Config,
     pub ll_addr: u32,
+    pub watch_lo: WatchLo,
+    pub watch_hi: WatchHi,
     pub tag_lo: TagLo,
     pub tag_hi: u32,
     pub error_epc: u32,
@@ -150,6 +152,23 @@ pub struct Config {
     #[bits(3)]
     pub ec: u32,
     __: bool,
+}
+
+#[bitfield(u32)]
+pub struct WatchLo {
+    pub write: bool,
+    pub read: bool,
+    __: bool,
+    #[bits(29)]
+    pub paddr0: u32,
+}
+
+#[bitfield(u32)]
+pub struct WatchHi {
+    #[bits(4)]
+    pub paddr1: u32,
+    #[bits(28)]
+    __: u32,
 }
 
 #[bitfield(u32)]
