@@ -20,7 +20,6 @@ pub fn set_color_image(_core: &mut Core, _bus: Bus, word: u64) {
     trace!("{:?}", cmd);
 
     assert!(cmd.format() == Format::Rgba);
-    assert!(cmd.size() == 3); // 32bpp
 
     // TODO
 }

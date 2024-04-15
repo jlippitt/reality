@@ -16,6 +16,7 @@ pub struct Status {
     pub tmem_busy: bool,
     pub pipe_busy: bool,
     pub buf_busy: bool,
+    #[bits(default = true)]
     pub cbuf_ready: bool,
     pub dma_busy: bool,
     pub end_pending: bool,

@@ -2,6 +2,7 @@ use super::renderer::Renderer;
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::VecDeque;
+use tracing::warn;
 
 mod image;
 mod mode;
@@ -55,7 +56,7 @@ impl Core {
             0x36 => rect::fill_rectangle(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
             0x3f => image::set_color_image(self, bus, word),
-            _ => todo!("RDP Command: {:#02X}", opcode),
+            _ => warn!("TODO: RDP Command: {:#02X}", opcode),
         }
 
         // If SYNC_FULL was run, let the caller know

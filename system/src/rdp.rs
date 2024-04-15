@@ -61,7 +61,11 @@ impl Rdp {
 
         if sync_full {
             self.rcp_int.raise(RcpIntType::DP);
-            self.shared.regs.status.set_buf_busy(false);
+
+            let status = &mut self.shared.regs.status;
+            status.set_pipe_busy(false);
+            status.set_start_gclk(false);
+            debug!("DPC_STATUS: {:?}", status);
         }
     }
 
@@ -93,7 +97,6 @@ impl Rdp {
         );
 
         self.core.restart();
-        self.shared.regs.status.set_buf_busy(true);
 
         dma.start = current;
 
@@ -174,7 +177,6 @@ impl RdpShared {
                     // New transfer
                     if self.dma_active.start >= self.dma_active.end {
                         status.set_start_pending(false);
-                        debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_active = Dma {
                             start: self.regs.start,
@@ -186,7 +188,6 @@ impl RdpShared {
                     } else {
                         assert!(!status.end_pending());
                         status.set_end_pending(true);
-                        debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_pending = Some(Dma {
                             start: self.regs.start,
@@ -201,6 +202,10 @@ impl RdpShared {
 
                 debug!("RSP DMA Active: {:08X?}", self.dma_active);
                 debug!("RSP DMA Pending: {:08X?}", self.dma_pending);
+
+                status.set_pipe_busy(true);
+                status.set_start_gclk(true);
+                debug!("DPC_STATUS: {:?}", status);
             }
             3 => {
                 let status = &mut self.regs.status;
