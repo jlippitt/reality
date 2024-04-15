@@ -129,7 +129,7 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
     let mut dst = core.cp2.reg(vd);
     let acc = core.cp2.acc.as_le_array_mut();
 
-    for (acc, value) in acc.iter_mut().zip(src.broadcast_le(vt_el).iter()) {
+    for (acc, value) in acc.iter_mut().zip(src.broadcast_le(vt_el_raw).iter()) {
         *acc = (*acc & !0xffff) | (*value as u64)
     }
 
