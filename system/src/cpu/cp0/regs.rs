@@ -124,9 +124,12 @@ pub struct Status {
     #[bits(9)]
     pub ds: u32,
     pub re: bool,
+    #[bits(default = true)]
     pub fr: bool,
     pub rp: bool,
+    #[bits(default = true)]
     pub cu0: bool,
+    #[bits(default = true)]
     pub cu1: bool,
     pub cu2: bool,
     pub cu3: bool,
