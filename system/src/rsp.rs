@@ -258,7 +258,7 @@ impl RspShared {
                 debug!("SP_STATUS: {:?}", status);
             }
             7 => {
-                self.regs.semaphore.set((mask.raw() & 1) != 0);
+                self.regs.semaphore.set(false);
                 trace!("SP_SEMAPHORE: {}", self.regs.semaphore.get());
             }
             _ => todo!("RSP Register Write: {} <= {:08X}", index, mask.raw()),
