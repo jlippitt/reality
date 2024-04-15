@@ -68,7 +68,7 @@ impl Core {
     }
 
     pub fn set_pc(&mut self, value: u32) {
-        self.pc = value & 0x0fff;
+        self.pc = value & 0x0ffc;
     }
 
     pub fn step(&mut self, bus: &mut impl Bus) {
