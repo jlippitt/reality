@@ -17,19 +17,34 @@ pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     link::<LINK>(cpu)
 }
 
-pub fn jr<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     let rs = ((word >> 21) & 31) as usize;
 
+    trace!("{:08X}: JR {}", pc, Cpu::REG_NAMES[rs]);
+
+    cpu.pc = cpu.regs[rs] as u32;
+    cpu.delay = true;
+    DcState::Nop
+}
+
+pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+    let rs = ((word >> 21) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
     trace!(
-        "{:08X}: J{}R {}",
+        "{:08X}: JALR {}, {}",
         pc,
-        if LINK { "AL" } else { "" },
-        Cpu::REG_NAMES[rs]
+        Cpu::REG_NAMES[rd],
+        Cpu::REG_NAMES[rs],
     );
 
     cpu.pc = cpu.regs[rs] as u32;
     cpu.delay = true;
-    link::<LINK>(cpu)
+
+    DcState::RegWrite {
+        reg: rd,
+        value: cpu.ex.pc.wrapping_add(8) as i64,
+    }
 }
 
 pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
