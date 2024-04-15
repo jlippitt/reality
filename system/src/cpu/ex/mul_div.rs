@@ -61,7 +61,10 @@ impl MulDivOperator for Div {
                 (lhs as i32).wrapping_div(rhs as i32) as i64,
             )
         } else {
-            (lhs as i32 as i64, if lhs < 0 { 1 } else { u32::MAX as i64 })
+            (
+                lhs as i32 as i64,
+                if lhs < 0 { 1 } else { u32::MAX as i32 as i64 },
+            )
         }
     }
 }
@@ -73,7 +76,7 @@ impl MulDivOperator for Ddiv {
         if rhs != 0 {
             (lhs.wrapping_rem(rhs), lhs.wrapping_div(rhs))
         } else {
-            (lhs, if lhs < 0 { 1 } else { u64::MAX as i64 })
+            (lhs, if lhs < 0 { 1 } else { u64::MAX as i32 as i64 })
         }
     }
 }
@@ -88,7 +91,7 @@ impl MulDivOperator for Divu {
                 (lhs as u32 / rhs as u32) as i64,
             )
         } else {
-            (lhs as u32 as i64, u32::MAX as i64)
+            (lhs as i32 as i64, u32::MAX as i32 as i64)
         }
     }
 }
