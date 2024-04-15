@@ -192,7 +192,7 @@ impl cpu::Bus for Bus {
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
             Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
-            Mapping::CartridgeRom => panic!("Write to Cartridge ROM: {:08X}", address),
+            Mapping::CartridgeRom => warn!("Write to Cartridge ROM: {:08X}", address),
             Mapping::Pif => self.si.write_pif(address & 0x000f_ffff, value),
             Mapping::None => warn!("Unmapped write: {:08X}", address),
         }
