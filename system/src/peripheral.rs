@@ -19,7 +19,11 @@ pub struct PeripheralInterface {
 }
 
 impl PeripheralInterface {
-    pub fn new(rcp_int: RcpInterrupt, rom_data: Vec<u8>, skip_pif_rom: bool) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, mut rom_data: Vec<u8>, skip_pif_rom: bool) -> Self {
+        // Ensure ROM length is a multiple of 8
+        // TODO: Make it a multiple of memory map entry size and adjust memory map accordingly
+        rom_data.resize((rom_data.len() + 7) & !7, 0);
+
         let mut regs = Regs::default();
 
         if skip_pif_rom {
