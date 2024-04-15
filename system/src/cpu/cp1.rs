@@ -51,6 +51,7 @@ impl Cp1 {
 
     pub fn read_control_reg(&self, reg: usize) -> u32 {
         match reg {
+            0 => 0x0a00,
             31 => self.status.into(),
             _ => unimplemented!("CP1 Control Reg Read: {:?}", Self::CONTROL_REG_NAMES[reg]),
         }
@@ -58,8 +59,9 @@ impl Cp1 {
 
     pub fn write_control_reg(&mut self, reg: usize, value: u32) {
         match reg {
+            0 => (), // FCR0 is read-only
             31 => {
-                self.status = value.into();
+                self.status = (value & 0x0183_ffff).into();
                 trace!("  CP1 Status: {:?}", self.status);
             }
             _ => unimplemented!(
