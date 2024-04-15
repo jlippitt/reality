@@ -237,12 +237,10 @@ impl RspShared {
                     status.set_broke(false);
                 }
 
-                if (raw & 0x0000_0008) != 0 {
-                    self.rcp_int.clear(RcpIntType::SP);
-                }
-
-                if (raw & 0x0000_0010) != 0 {
-                    self.rcp_int.raise(RcpIntType::SP);
+                match (raw >> 3) & 3 {
+                    1 => self.rcp_int.clear(RcpIntType::SP),
+                    2 => self.rcp_int.raise(RcpIntType::SP),
+                    _ => (),
                 }
 
                 mask.set_or_clear(status, Status::set_halted, 1, 0);

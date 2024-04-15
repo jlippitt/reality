@@ -310,13 +310,9 @@ impl WriteMask {
         let clr = (self.value & (1 << clr_bit)) != 0;
 
         match (set, clr) {
-            (false, false) => (),
             (false, true) => setter(dst, false),
             (true, false) => setter(dst, true),
-            (true, true) => panic!(
-                "Conflict between SET_* and CLR_* bits {} and {}",
-                set_bit, clr_bit
-            ),
+            _ => (),
         }
     }
 
@@ -325,13 +321,9 @@ impl WriteMask {
         let clr = (self.value & (1 << clr_bit)) != 0;
 
         match (set, clr) {
-            (false, false) => (),
             (false, true) => dst.remove(flag),
             (true, false) => dst.insert(flag),
-            (true, true) => panic!(
-                "Conflict between SET_* and CLR_* bits {} and {}",
-                set_bit, clr_bit
-            ),
+            _ => (),
         }
     }
 }
