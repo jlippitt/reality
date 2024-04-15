@@ -41,6 +41,7 @@ pub struct Regs {
     pub entry_lo0: EntryLo,
     pub entry_lo1: EntryLo,
     pub page_mask: PageMask,
+    pub wired: Wired,
     pub count: u32,
     pub entry_hi: EntryHi,
     pub compare: u32,
@@ -85,6 +86,14 @@ pub struct PageMask {
     #[bits(12)]
     pub mask: u32,
     #[bits(7)]
+    __: u32,
+}
+
+#[bitfield(u32)]
+pub struct Wired {
+    #[bits(6)]
+    pub index: u32,
+    #[bits(26)]
     __: u32,
 }
 

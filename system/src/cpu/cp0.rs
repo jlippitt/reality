@@ -46,6 +46,7 @@ impl Cp0 {
             2 => u32::from(self.regs.entry_lo0) as i64,
             3 => u32::from(self.regs.entry_lo1) as i64,
             5 => u32::from(self.regs.page_mask) as i64,
+            6 => u32::from(self.regs.wired) as i64,
             9 => self.regs.count as i64,
             10 => u32::from(self.regs.entry_hi) as i64,
             11 => self.regs.compare as i64,
@@ -76,6 +77,10 @@ impl Cp0 {
             5 => {
                 self.regs.page_mask = (value as u32).into();
                 trace!("  PageMask: {:?}", self.regs.page_mask);
+            }
+            6 => {
+                self.regs.wired = (value as u32).into();
+                trace!("  Wired: {:?}", self.regs.wired);
             }
             9 => {
                 self.regs.count = value as u32;
