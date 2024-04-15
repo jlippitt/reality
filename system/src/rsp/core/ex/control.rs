@@ -1,7 +1,7 @@
 use super::{Core, DfState};
 use tracing::trace;
 
-pub fn j<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn j<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     let offset = (word & 0x03ff_ffff) << 2;
     let target = offset & 0x0fff;
 
@@ -12,25 +12,50 @@ pub fn j<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         target
     );
 
-    cpu.pc = target & 0xfffc;
-    link::<LINK>(cpu)
+    if core.delay == 0 {
+        core.delay = 2;
+        core.pc = target & 0xfffc;
+    }
+
+    link::<LINK>(core)
 }
 
-pub fn jr<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn jr(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
 
-    trace!(
-        "{:08X}: J{}R {}",
-        pc,
-        if LINK { "AL" } else { "" },
-        Core::REG_NAMES[rs]
-    );
+    trace!("{:08X}: JR {}", pc, Core::REG_NAMES[rs]);
 
-    cpu.pc = (cpu.regs[rs] as u32) & 0x0ffc;
-    link::<LINK>(cpu)
+    if core.delay == 0 {
+        core.delay = 2;
+        core.pc = (core.regs[rs] as u32) & 0x0ffc;
+    }
+
+    DfState::Nop
 }
 
-pub fn beq(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn jalr(core: &mut Core, pc: u32, word: u32) -> DfState {
+    let rs = ((word >> 21) & 31) as usize;
+    let rd = ((word >> 11) & 31) as usize;
+
+    trace!(
+        "{:08X}: JALR {}, {}",
+        pc,
+        Core::REG_NAMES[rd],
+        Core::REG_NAMES[rs],
+    );
+
+    if core.delay == 0 {
+        core.delay = 2;
+        core.pc = (core.regs[rs] as u32) & 0x0ffc;
+    }
+
+    DfState::RegWrite {
+        reg: rd,
+        value: ((core.rf.pc + 4) & 0x0ffc) as i32,
+    }
+}
+
+pub fn beq(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
@@ -43,11 +68,11 @@ pub fn beq(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         offset
     );
 
-    cpu.branch(cpu.regs[rs] == cpu.regs[rt], offset);
+    core.branch(core.regs[rs] == core.regs[rt], offset);
     DfState::Nop
 }
 
-pub fn bne(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bne(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
@@ -60,31 +85,31 @@ pub fn bne(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         offset
     );
 
-    cpu.branch(cpu.regs[rs] != cpu.regs[rt], offset);
+    core.branch(core.regs[rs] != core.regs[rt], offset);
     DfState::Nop
 }
 
-pub fn blez(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn blez(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
     trace!("{:08X}: BLEZ {}, {}", pc, Core::REG_NAMES[rs], offset);
 
-    cpu.branch(cpu.regs[rs] <= 0, offset);
+    core.branch(core.regs[rs] <= 0, offset);
     DfState::Nop
 }
 
-pub fn bgtz(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bgtz(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
     trace!("{:08X}: BGTZ {}, {}", pc, Core::REG_NAMES[rs], offset);
 
-    cpu.branch(cpu.regs[rs] > 0, offset);
+    core.branch(core.regs[rs] > 0, offset);
     DfState::Nop
 }
 
-pub fn bltz<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bltz<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
@@ -96,11 +121,11 @@ pub fn bltz<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         offset
     );
 
-    cpu.branch(cpu.regs[rs] < 0, offset);
-    link::<LINK>(cpu)
+    core.branch(core.regs[rs] < 0, offset);
+    link::<LINK>(core)
 }
 
-pub fn bgez<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bgez<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
@@ -112,15 +137,15 @@ pub fn bgez<const LINK: bool>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         offset
     );
 
-    cpu.branch(cpu.regs[rs] >= 0, offset);
-    link::<LINK>(cpu)
+    core.branch(core.regs[rs] >= 0, offset);
+    link::<LINK>(core)
 }
 
-fn link<const LINK: bool>(cpu: &Core) -> DfState {
+fn link<const LINK: bool>(core: &Core) -> DfState {
     if LINK {
         DfState::RegWrite {
             reg: 31,
-            value: cpu.ex.pc.wrapping_add(8) as i32,
+            value: ((core.rf.pc + 4) & 0x0fff) as i32,
         }
     } else {
         DfState::Nop

@@ -40,6 +40,7 @@ pub struct Core {
     ex: ExState,
     rf: RfState,
     pc: u32,
+    delay: u8,
     regs: [i32; 32],
     cp2: Cp2,
 }
@@ -58,6 +59,7 @@ impl Core {
             df: DfState::Nop,
             wb: WbState { reg: 0, value: 0 },
             pc: 0,
+            delay: 0,
             regs: [0; 32],
             cp2: Cp2::new(),
         }
@@ -98,6 +100,8 @@ impl Core {
             self.df = DfState::Nop;
         }
 
+        self.delay >>= 1;
+
         // RF
         self.ex = ExState {
             pc: self.rf.pc,
@@ -114,6 +118,12 @@ impl Core {
     }
 
     fn branch(&mut self, condition: bool, offset: i32) {
+        if self.delay > 0 {
+            return;
+        }
+
+        self.delay = 2;
+
         if condition {
             trace!("Branch taken");
             self.pc = (self.ex.pc as i32).wrapping_add(offset + 4) as u32 & 0x0ffc;
