@@ -114,6 +114,16 @@ pub enum DfState {
         el: usize,
         end: u32,
     },
+    Cp2StorePacked {
+        vector: Vector,
+        el: usize,
+        addr: u32,
+    },
+    Cp2StorePackedUnsigned {
+        vector: Vector,
+        el: usize,
+        addr: u32,
+    },
     Break,
     Nop,
 }
@@ -349,6 +359,40 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 let byte: u8 = vector.read(el + (16 - offset) + index);
                 bus.write_data(addr + index as u32, byte);
                 trace!("  [{:08X} <= {:02X}]", addr + index as u32, byte);
+            }
+        }
+        DfState::Cp2StorePacked { vector, el, addr } => {
+            cpu.wb.reg = 0;
+
+            for index in 0..8u32 {
+                let offset = (index + el as u32) & 0x0f;
+
+                let value = if offset < 8 {
+                    (vector.lane(offset as usize) >> 8) as u8
+                } else {
+                    (vector.lane(offset as usize & 7) >> 7) as u8
+                };
+
+                let byte_addr = addr.wrapping_add(index);
+                bus.write_data::<u8>(byte_addr, value);
+                trace!("  [{:08X} <= {:02X}]", byte_addr, value);
+            }
+        }
+        DfState::Cp2StorePackedUnsigned { vector, el, addr } => {
+            cpu.wb.reg = 0;
+
+            for index in 0..8u32 {
+                let offset = (index + el as u32) & 0x0f;
+
+                let value = if offset < 8 {
+                    (vector.lane(offset as usize) >> 7) as u8
+                } else {
+                    (vector.lane(offset as usize & 7) >> 8) as u8
+                };
+
+                let byte_addr = addr.wrapping_add(index);
+                bus.write_data::<u8>(byte_addr, value);
+                trace!("  [{:08X} <= {:02X}]", byte_addr, value);
             }
         }
         DfState::Break => {

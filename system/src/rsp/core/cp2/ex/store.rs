@@ -13,6 +13,8 @@ pub struct Slv;
 pub struct Sdv;
 pub struct Sqv;
 pub struct Srv;
+pub struct Spv;
+pub struct Suv;
 
 impl StoreOperator for Sbv {
     const NAME: &'static str = "SBV";
@@ -84,6 +86,32 @@ impl StoreOperator for Srv {
             vector: value,
             el,
             end: addr,
+        }
+    }
+}
+
+impl StoreOperator for Spv {
+    const NAME: &'static str = "SPV";
+    const SHIFT: usize = 3;
+
+    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
+        DfState::Cp2StorePacked {
+            vector: value,
+            el,
+            addr,
+        }
+    }
+}
+
+impl StoreOperator for Suv {
+    const NAME: &'static str = "SUV";
+    const SHIFT: usize = 3;
+
+    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
+        DfState::Cp2StorePackedUnsigned {
+            vector: value,
+            el,
+            addr,
         }
     }
 }
