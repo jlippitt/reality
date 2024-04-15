@@ -18,11 +18,6 @@ struct Module {
 }
 
 #[derive(Default)]
-struct Bank {
-    offset: usize,
-}
-
-#[derive(Default)]
 struct Interface {
     mode: RiMode,
     config: RiConfig,
@@ -31,7 +26,7 @@ struct Interface {
 }
 
 pub struct Rdram {
-    banks: [Bank; 8],
+    banks: [usize; 8],
     mem: Memory<u64>,
     modules: Vec<Module>,
     ri: Interface,
@@ -48,9 +43,7 @@ impl Rdram {
         Self {
             // Default bank configuration (to support ROMs that use simplified
             // booting sequences)
-            banks: array::from_fn(|index| Bank {
-                offset: (index * BANK_SIZE),
-            }),
+            banks: array::from_fn(|index| (index * BANK_SIZE)),
             mem,
             modules: (0..4)
                 .map(|_| Module {
@@ -69,26 +62,43 @@ impl Rdram {
     }
 
     pub fn read_single<T: Size>(&self, address: usize) -> T {
-        let bank_offset = self.banks[address >> 20].offset;
+        let Some(bank_offset) = self.banks.get(address >> 20) else {
+            warn!("Read outside RDRAM range: {:08X}", address);
+            return T::zeroed();
+        };
+
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         self.mem.read(mapped_address)
     }
 
     pub fn write_single<T: Size>(&mut self, address: usize, value: T) {
-        let bank_offset = self.banks[address >> 20].offset;
+        let Some(bank_offset) = self.banks.get(address >> 20) else {
+            warn!("Write outside RDRAM range: {:08X}", address);
+            return;
+        };
+
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         self.mem.write(mapped_address, value);
     }
 
     pub fn read_block<T: Size>(&self, address: usize, data: &mut [T]) {
-        let bank_offset = self.banks[address >> 20].offset;
+        let Some(bank_offset) = self.banks.get(address >> 20) else {
+            warn!("Read outside RDRAM range: {:08X}", address);
+            data.fill(T::zeroed());
+            return;
+        };
+
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         // TODO: What happens if we cross a non-contiguous bank boundary?
         self.mem.read_block(mapped_address, data);
     }
 
     pub fn write_block<T: Size>(&mut self, address: usize, data: &[T]) {
-        let bank_offset = self.banks[address >> 20].offset;
+        let Some(bank_offset) = self.banks.get(address >> 20) else {
+            warn!("Write outside RDRAM range: {:08X}", address);
+            return;
+        };
+
         let mapped_address = bank_offset + (address & 0x000f_ffff);
         // TODO: What happens if we cross a non-contiguous bank boundary?
         self.mem.write_block(mapped_address, data);
