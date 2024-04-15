@@ -5,7 +5,7 @@ use crate::rdram::Rdram;
 use core::{Bus, Core};
 use regs::{Regs, Status};
 use renderer::Renderer;
-use tracing::{debug, error_span};
+use tracing::{debug, error_span, warn};
 
 mod core;
 mod regs;
@@ -87,7 +87,7 @@ impl Rdp {
         }
 
         debug!(
-            "RSP DMA: {} bytes read from {:08X}",
+            "RDP DMA: {} bytes read from {:08X}",
             block_len * 8,
             dma.start
         );
@@ -220,7 +220,7 @@ impl RdpShared {
                 }
 
                 if (raw & 0x0200) != 0 {
-                    todo!("RDP clock");
+                    warn!("TODO: RDP clock");
                 }
 
                 debug!("DPC_STATUS: {:?}", status);
