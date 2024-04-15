@@ -185,6 +185,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
         DfState::Break => {
             bus.break_();
             cpu.wb.reg = 0;
+            cpu.pc = cpu.ex.pc;
             cpu.rf.word = 0;
             cpu.ex.word = 0;
             cpu.df = DfState::Nop;
