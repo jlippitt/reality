@@ -45,7 +45,7 @@ impl Rdp {
     }
 
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
-        if !self.core.running() {
+        if !self.core.running() || self.shared.regs.status.freeze() {
             return;
         }
 
@@ -155,16 +155,19 @@ impl RdpShared {
     pub fn write_register(&mut self, index: usize, mask: WriteMask) {
         match index {
             0 => {
-                mask.write_reg_hex("DPC_START", &mut self.regs.start);
-
                 let status = &mut self.regs.status;
-                status.set_start_pending(true);
-                debug!("DPC_STATUS: {:?}", status);
+
+                if !status.start_pending() {
+                    mask.write_partial(&mut self.regs.start, 0x00ff_fff8);
+                    debug!("DPC_START: {:?}", self.regs.start);
+                    status.set_start_pending(true);
+                    debug!("DPC_STATUS: {:?}", status);
+                }
             }
             1 => {
-                mask.write_reg_hex("DPC_END", &mut self.regs.end);
+                mask.write_partial(&mut self.regs.end, 0x00ff_fff8);
+                debug!("DPC_END: {:?}", self.regs.end);
 
-                let end = self.regs.end & 0x00ff_fff8;
                 let status = &mut self.regs.status;
 
                 if status.start_pending() {
@@ -174,26 +177,26 @@ impl RdpShared {
                         debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_active = Dma {
-                            start: self.regs.start & 0x00ff_fff8,
-                            end,
+                            start: self.regs.start,
+                            end: self.regs.end,
                         };
                     } else if let Some(dma) = &mut self.dma_pending {
                         assert!(status.end_pending());
-                        dma.end = end;
+                        dma.end = self.regs.end;
                     } else {
                         assert!(!status.end_pending());
                         status.set_end_pending(true);
                         debug!("DPC_STATUS: {:?}", status);
 
                         self.dma_pending = Some(Dma {
-                            start: self.regs.start & 0x00ff_fff8,
-                            end,
+                            start: self.regs.start,
+                            end: self.regs.end,
                         });
                     }
                 } else {
                     // Incremental transfer
                     assert!(self.dma_pending.is_none());
-                    self.dma_active.end = end;
+                    self.dma_active.end = self.regs.end;
                 }
 
                 debug!("RSP DMA Active: {:08X?}", self.dma_active);
@@ -224,10 +227,6 @@ impl RdpShared {
                 }
 
                 debug!("DPC_STATUS: {:?}", status);
-
-                if status.freeze() {
-                    todo!("RDP DMA freeze");
-                }
 
                 if status.flush() {
                     todo!("RDP DMA flush");
