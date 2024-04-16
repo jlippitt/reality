@@ -1,5 +1,23 @@
-use super::{Cpu, DcOperation};
+use super::cp0;
+use super::{Cpu, DcOperation, Exception};
 use tracing::trace;
+
+pub fn cop2_unusable(cpu: &mut Cpu) -> DcOperation {
+    cp0::except(cpu, Exception::CoprocessorUnusable(2));
+    DcOperation::Nop
+}
+
+pub fn syscall(cpu: &mut Cpu, pc: u32) -> DcOperation {
+    trace!("{:08X}: SYSCALL", pc,);
+    cp0::except(cpu, Exception::Syscall);
+    DcOperation::Nop
+}
+
+pub fn break_(cpu: &mut Cpu, pc: u32) -> DcOperation {
+    trace!("{:08X}: BREAK", pc,);
+    cp0::except(cpu, Exception::Breakpoint);
+    DcOperation::Nop
+}
 
 pub fn teq(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;

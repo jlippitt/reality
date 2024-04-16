@@ -42,8 +42,10 @@ pub struct Regs {
     pub index: Index,
     pub entry_lo0: EntryLo,
     pub entry_lo1: EntryLo,
+    pub context: Context,
     pub page_mask: PageMask,
     pub wired: Wired,
+    pub bad_vaddr: u32,
     pub count: u32,
     pub entry_hi: EntryHi,
     pub compare: u32,
@@ -54,6 +56,7 @@ pub struct Regs {
     pub ll_addr: u32,
     pub watch_lo: WatchLo,
     pub watch_hi: WatchHi,
+    pub x_context: XContext,
     pub tag_lo: TagLo,
     pub tag_hi: u32,
     pub error_epc: u32,
@@ -79,6 +82,16 @@ pub struct EntryLo {
     pub pfn: u32,
     #[bits(6)]
     __: u32,
+}
+
+#[bitfield(u32)]
+pub struct Context {
+    #[bits(4)]
+    __: u32,
+    #[bits(19)]
+    bad_vpn2: u32,
+    #[bits(9)]
+    pte_base: u32,
 }
 
 #[bitfield(u32)]
@@ -184,6 +197,18 @@ pub struct WatchHi {
     pub paddr1: u32,
     #[bits(28)]
     __: u32,
+}
+
+#[bitfield(u64)]
+pub struct XContext {
+    #[bits(4)]
+    __: u64,
+    #[bits(27)]
+    bad_vpn2: u64,
+    #[bits(2)]
+    region: u64,
+    #[bits(31)]
+    pte_base: u64,
 }
 
 #[bitfield(u32)]

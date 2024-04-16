@@ -45,7 +45,7 @@ fn eret(cpu: &mut Cpu, pc: u32) -> DcOperation {
 
     // The delay slot instruction is not executed
     cpu.rf.pc = cpu.pc;
-    cpu.rf.word = 0;
+    cpu.rf.active = false;
 
     DcOperation::Nop
 }

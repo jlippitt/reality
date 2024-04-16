@@ -1,6 +1,6 @@
 use super::cp0;
 use super::cp1;
-use super::{Cpu, DcOperation};
+use super::{Cpu, DcOperation, Exception};
 
 mod arithmetic;
 mod bitwise;
@@ -33,6 +33,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         0o17 => load::lui(cpu, pc, word),
         0o20 => cp0::cop0(cpu, pc, word),
         0o21 => cp1::cop1(cpu, pc, word),
+        0o22 => exception::cop2_unusable(cpu),
         0o24 => control::beq::<true>(cpu, pc, word),
         0o25 => control::bne::<true>(cpu, pc, word),
         0o26 => control::blez::<true>(cpu, pc, word),
@@ -59,13 +60,17 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         0o57 => misc::cache(cpu, pc, word),
         0o60 => load::load::<load::Ll>(cpu, pc, word),
         0o61 => cp1::lwc1(cpu, pc, word),
+        0o62 => exception::cop2_unusable(cpu),
         0o64 => load::load::<load::Lld>(cpu, pc, word),
         0o65 => cp1::ldc1(cpu, pc, word),
+        0o66 => exception::cop2_unusable(cpu),
         0o67 => load::load::<load::Ld>(cpu, pc, word),
         0o70 => store::store::<store::Sc>(cpu, pc, word),
         0o71 => cp1::swc1(cpu, pc, word),
+        0o72 => exception::cop2_unusable(cpu),
         0o74 => store::store::<store::Scd>(cpu, pc, word),
         0o75 => cp1::sdc1(cpu, pc, word),
+        0o76 => exception::cop2_unusable(cpu),
         0o77 => store::store::<store::Sd>(cpu, pc, word),
         opcode => todo!("CPU Opcode: '{:02o}' at {:08X}", opcode, pc),
     }
@@ -81,6 +86,8 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         0o07 => shift::variable::<shift::Sra>(cpu, pc, word),
         0o10 => control::jr(cpu, pc, word),
         0o11 => control::jalr(cpu, pc, word),
+        0o14 => exception::syscall(cpu, pc),
+        0o15 => exception::break_(cpu, pc),
         0o17 => misc::sync(cpu, pc),
         0o20 => mul_div::mfhi(cpu, pc, word),
         0o21 => mul_div::mthi(cpu, pc, word),

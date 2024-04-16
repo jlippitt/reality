@@ -1,6 +1,6 @@
 use crate::memory::Size;
 use cache::ICache;
-use cp0::Cp0;
+use cp0::{Cp0, Exception};
 use cp1::Cp1;
 use dc::DcOperation;
 use tracing::trace;
@@ -26,7 +26,7 @@ enum WbOperation {
 struct RfState {
     pc: u32,
     delay: bool,
-    word: u32,
+    active: bool,
 }
 
 #[derive(Default)]
@@ -166,14 +166,18 @@ impl Cpu {
         self.ex = ExState {
             pc: self.rf.pc,
             delay: self.rf.delay,
-            word: self.rf.word,
+            word: if self.rf.active {
+                self.read_opcode(bus, self.rf.pc)
+            } else {
+                0
+            },
         };
 
         // IC
         self.rf = RfState {
             pc: self.pc,
             delay: false,
-            word: self.read_opcode(bus, self.pc),
+            active: true,
         };
 
         self.pc = self.pc.wrapping_add(4);
@@ -193,7 +197,7 @@ impl Cpu {
             trace!("Branch not taken");
 
             if LIKELY {
-                self.rf.word = 0;
+                self.rf.active = false;
             }
         }
     }

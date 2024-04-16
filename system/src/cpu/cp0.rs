@@ -1,7 +1,9 @@
+pub use error::Exception;
 pub use ex::cop0;
 pub use regs::TagLo;
 
 use super::{Bus, Cpu, DcOperation};
+use error::ExceptionStage;
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{debug, trace, warn};
@@ -9,8 +11,7 @@ use tracing::{debug, trace, warn};
 const TIMER_INT: u8 = 0x80;
 const SOFTWARE_INT: u8 = 0x03;
 
-const EXCEPTION_VECTOR: u32 = 0x8000_0180;
-
+mod error;
 mod ex;
 mod regs;
 mod tlb;
@@ -42,21 +43,24 @@ impl Cp0 {
 
     pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
-            0 => u32::from(self.regs.index) as i64,
-            2 => u32::from(self.regs.entry_lo0) as i64,
-            3 => u32::from(self.regs.entry_lo1) as i64,
-            5 => u32::from(self.regs.page_mask) as i64,
-            6 => u32::from(self.regs.wired) as i64,
-            9 => self.regs.count as i64,
-            10 => u32::from(self.regs.entry_hi) as i64,
-            11 => self.regs.compare as i64,
-            12 => u32::from(self.regs.status) as i64,
-            13 => u32::from(self.regs.cause) as i64,
-            14 => self.regs.epc as i64,
-            16 => u32::from(self.regs.config) as i64,
-            17 => self.regs.ll_addr as i64,
-            29 => self.regs.tag_hi as i64,
-            30 => self.regs.error_epc as i64,
+            0 => u32::from(self.regs.index) as i32 as i64,
+            2 => u32::from(self.regs.entry_lo0) as i32 as i64,
+            3 => u32::from(self.regs.entry_lo1) as i32 as i64,
+            4 => u32::from(self.regs.context) as i32 as i64,
+            5 => u32::from(self.regs.page_mask) as i32 as i64,
+            6 => u32::from(self.regs.wired) as i32 as i64,
+            8 => self.regs.bad_vaddr as i32 as i64,
+            9 => self.regs.count as i32 as i64,
+            10 => u32::from(self.regs.entry_hi) as i32 as i64,
+            11 => self.regs.compare as i32 as i64,
+            12 => u32::from(self.regs.status) as i32 as i64,
+            13 => u32::from(self.regs.cause) as i32 as i64,
+            14 => self.regs.epc as i32 as i64,
+            16 => u32::from(self.regs.config) as i32 as i64,
+            17 => self.regs.ll_addr as i32 as i64,
+            20 => u64::from(self.regs.x_context) as i64,
+            29 => self.regs.tag_hi as i32 as i64,
+            30 => self.regs.error_epc as i32 as i64,
             _ => todo!("CP0 Register Read: {:?}", reg),
         }
     }
@@ -205,25 +209,79 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         return;
     }
 
-    debug!("-- Exception: {:08b} --", active);
+    except(cpu, Exception::Interrupt);
+}
 
-    regs.status.set_exl(true);
-    regs.cause.set_exc_code(0); // 0 = Interrupt
-    regs.cause.set_bd(cpu.dc.delay);
-    regs.epc = if cpu.dc.delay {
-        cpu.dc.pc.wrapping_sub(4)
-    } else {
-        cpu.dc.pc
+pub fn except(cpu: &mut Cpu, ex: Exception) {
+    let regs = &mut cpu.cp0.regs;
+
+    debug!("-- Exception: {:?} --", ex);
+    let details = ex.process(regs);
+    regs.cause.set_exc_code(details.code);
+    regs.cause.set_ce(details.ce);
+    cpu.pc = 0x8000_0000 | details.vector;
+
+    let epc = match details.stage {
+        ExceptionStage::DC => {
+            let epc = if cpu.dc.delay {
+                cpu.dc.pc.wrapping_sub(4)
+            } else {
+                cpu.dc.pc
+            };
+            regs.cause.set_bd(cpu.dc.delay);
+            cpu.dc.pc = cpu.pc;
+            cpu.dc.op = DcOperation::Nop;
+            cpu.ex.pc = cpu.pc;
+            cpu.ex.word = 0;
+            cpu.rf.pc = cpu.pc;
+            cpu.rf.active = false;
+            epc
+        }
+        ExceptionStage::EX => {
+            let epc = if cpu.ex.delay {
+                cpu.ex.pc.wrapping_sub(4)
+            } else {
+                cpu.ex.pc
+            };
+            regs.cause.set_bd(cpu.ex.delay);
+            cpu.ex.pc = cpu.pc;
+            cpu.ex.word = 0;
+            cpu.rf.pc = cpu.pc;
+            cpu.rf.active = false;
+            epc
+        }
+        ExceptionStage::RF => {
+            let epc = if cpu.rf.delay {
+                cpu.rf.pc.wrapping_sub(4)
+            } else {
+                cpu.rf.pc
+            };
+            regs.cause.set_bd(cpu.rf.delay);
+            cpu.rf.pc = cpu.pc;
+            cpu.rf.active = false;
+            epc
+        }
     };
-    cpu.pc = EXCEPTION_VECTOR;
-    cpu.dc.pc = cpu.pc;
-    cpu.dc.op = DcOperation::Nop;
-    cpu.ex.pc = cpu.pc;
-    cpu.ex.word = 0;
-    cpu.rf.pc = cpu.pc;
-    cpu.rf.word = 0;
 
-    trace!("  Status: {:?}", regs.status);
-    trace!("  Cause: {:?}", regs.cause);
-    trace!("  EPC: {:08X}", regs.epc);
+    if details.error {
+        let nested = regs.status.erl();
+        regs.status.set_erl(true);
+        trace!("  Status: {:?}", regs.status);
+        trace!("  Cause: {:?}", regs.cause);
+
+        if !nested {
+            regs.error_epc = epc;
+            trace!("  ErrorEPC: {:08X}", regs.error_epc);
+        }
+    } else {
+        let nested = regs.status.exl();
+        regs.status.set_exl(true);
+        trace!("  Status: {:?}", regs.status);
+        trace!("  Cause: {:?}", regs.cause);
+
+        if !nested {
+            regs.epc = epc;
+            trace!("  EPC: {:08X}", regs.epc);
+        }
+    };
 }
