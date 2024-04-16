@@ -18,7 +18,7 @@ pub struct ExceptionDetails {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Exception {
     Interrupt,
-    TlbModification,
+    TlbModification(u32),
     TlbMissLoad(u32),
     TlbMissStore(u32),
     Syscall,
@@ -36,12 +36,19 @@ impl Exception {
                 error: false,
                 ce: 0,
             },
-            Exception::TlbModification => ExceptionDetails {
-                code: 1,
-                vector: 0x0180,
-                error: false,
-                ce: 0,
-            },
+            Exception::TlbModification(vaddr) => {
+                regs.context.set_bad_vpn2(vaddr >> 13);
+                regs.bad_vaddr = vaddr;
+                regs.entry_hi.set_vpn2(vaddr as u64 >> 13);
+                regs.x_context.set_bad_vpn2(vaddr as u64 >> 13);
+
+                ExceptionDetails {
+                    code: 1,
+                    vector: 0x0180,
+                    error: false,
+                    ce: 0,
+                }
+            }
             Exception::TlbMissLoad(vaddr) => {
                 regs.context.set_bad_vpn2(vaddr >> 13);
                 regs.bad_vaddr = vaddr;

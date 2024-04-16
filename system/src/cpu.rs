@@ -229,7 +229,11 @@ impl Cpu {
         };
 
         if !result.writable {
-            cp0::except(self, Exception::TlbModification, cp0::ExceptionStage::DC);
+            cp0::except(
+                self,
+                Exception::TlbModification(vaddr),
+                cp0::ExceptionStage::DC,
+            );
             return;
         }
 
