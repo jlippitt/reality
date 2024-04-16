@@ -64,23 +64,23 @@ impl Cp0 {
     pub fn write_reg(&mut self, reg: usize, value: i64) {
         match reg {
             0 => {
-                self.regs.index = (value as u32).into();
+                self.regs.index = (value as u32 & 0x8000_003f).into();
                 trace!("  Index: {:?}", self.regs.index);
             }
             2 => {
-                self.regs.entry_lo0 = (value as u32).into();
+                self.regs.entry_lo0 = (value as u32 & 0x3fff_ffff).into();
                 trace!("  EntryLo0: {:?}", self.regs.entry_lo0);
             }
             3 => {
-                self.regs.entry_lo1 = (value as u32).into();
+                self.regs.entry_lo1 = (value as u32 & 0x3fff_ffff).into();
                 trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
             }
             5 => {
-                self.regs.page_mask = (value as u32).into();
+                self.regs.page_mask = (value as u32 & 0x01ff_e000).into();
                 trace!("  PageMask: {:?}", self.regs.page_mask);
             }
             6 => {
-                self.regs.wired = (value as u32).into();
+                self.regs.wired = (value as u32 & 0x0000_003f).into();
                 trace!("  Wired: {:?}", self.regs.wired);
             }
             9 => {
@@ -88,7 +88,7 @@ impl Cp0 {
                 trace!("  Count: {:?}", self.regs.count);
             }
             10 => {
-                self.regs.entry_hi = (value as u32).into();
+                self.regs.entry_hi = (value as u32 & 0xffff_e0ff).into();
                 trace!("  EntryHi: {:?}", self.regs.entry_hi);
             }
             11 => {
