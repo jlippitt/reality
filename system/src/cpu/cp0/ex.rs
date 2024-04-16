@@ -1,3 +1,4 @@
+use super::regs;
 use super::Cp0;
 use super::{Cpu, DcOperation};
 use tracing::trace;

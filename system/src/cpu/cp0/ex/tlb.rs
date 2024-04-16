@@ -1,3 +1,4 @@
+use super::regs::EntryHi;
 use super::{Cpu, DcOperation};
 use tracing::trace;
 
@@ -20,8 +21,9 @@ pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
     let regs = &mut cpu.cp0.regs;
 
     let index = cpu.cp0.tlb.entries().position(|entry| {
-        entry.entry_hi.vpn2() == regs.entry_hi.vpn2()
-            && (entry.entry_hi.global() || (entry.entry_hi.asid() == regs.entry_hi.asid()))
+        let entry_hi = EntryHi::from(u32::from(regs.entry_hi) & !u32::from(entry.page_mask));
+        entry.entry_hi.vpn2() == entry_hi.vpn2()
+            && (entry.entry_hi.global() || (entry.entry_hi.asid() == entry_hi.asid()))
     });
 
     if let Some(index) = index {
