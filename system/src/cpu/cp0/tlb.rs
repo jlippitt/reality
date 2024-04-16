@@ -35,7 +35,7 @@ impl Tlb {
 
         regs.entry_lo0 = entry.entry_lo0.with_global(global);
         regs.entry_lo1 = entry.entry_lo1.with_global(global);
-        regs.entry_hi = entry_hi;
+        regs.entry_hi = entry_hi.with_global(false);
         regs.page_mask = entry.page_mask;
 
         trace!("  EntryLo0: {:?}", regs.entry_lo0);
@@ -52,8 +52,8 @@ impl Tlb {
         let global = regs.entry_lo0.global() & regs.entry_lo1.global();
 
         self.entries[index] = TlbEntry {
-            entry_lo0: regs.entry_lo0,
-            entry_lo1: regs.entry_lo1,
+            entry_lo0: (u32::from(regs.entry_lo0) & 0x03ff_ffff).into(),
+            entry_lo1: (u32::from(regs.entry_lo1) & 0x03ff_ffff).into(),
             entry_hi: entry_hi.with_global(global),
             page_mask: regs.page_mask,
         };
