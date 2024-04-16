@@ -30,7 +30,8 @@ impl Tlb {
     pub fn read_entry(&self, regs: &mut Regs, index: usize) {
         let entry = &self.entries[index];
 
-        let entry_hi = EntryHi::from(u32::from(entry.entry_hi) & !u32::from(entry.page_mask));
+        let entry_hi =
+            EntryHi::from(u64::from(entry.entry_hi) & !(u32::from(entry.page_mask) as u64));
         let global = entry.entry_hi.global();
 
         regs.entry_lo0 = entry.entry_lo0.with_global(global);
@@ -48,7 +49,8 @@ impl Tlb {
         let index = regs.index.index() as usize;
         assert!(index < self.entries.len());
 
-        let entry_hi = EntryHi::from(u32::from(regs.entry_hi) & !u32::from(regs.page_mask));
+        let entry_hi =
+            EntryHi::from(u64::from(regs.entry_hi) & !(u32::from(regs.page_mask) as u64));
         let global = regs.entry_lo0.global() & regs.entry_lo1.global();
 
         self.entries[index] = TlbEntry {

@@ -112,15 +112,19 @@ pub struct Wired {
     __: u32,
 }
 
-#[bitfield(u32)]
+#[bitfield(u64)]
 pub struct EntryHi {
     #[bits(8)]
-    pub asid: u32,
+    pub asid: u64,
     #[bits(4)]
     __: u32,
     pub global: bool,
-    #[bits(19)]
-    pub vpn2: u32,
+    #[bits(27)]
+    pub vpn2: u64,
+    #[bits(22)]
+    __: u64,
+    #[bits(2)]
+    pub region: u64,
 }
 
 #[bitfield(u32)]

@@ -59,7 +59,7 @@ impl Cp0 {
             6 => u32::from(self.regs.wired) as i32 as i64,
             8 => self.regs.bad_vaddr as i32 as i64,
             9 => self.regs.count as i32 as i64,
-            10 => u32::from(self.regs.entry_hi) as i32 as i64,
+            10 => u64::from(self.regs.entry_hi) as i64,
             11 => self.regs.compare as i32 as i64,
             12 => u32::from(self.regs.status) as i32 as i64,
             13 => u32::from(self.regs.cause) as i32 as i64,
@@ -104,7 +104,7 @@ impl Cp0 {
                 trace!("  Count: {:?}", self.regs.count);
             }
             10 => {
-                self.regs.entry_hi = (value as u32 & 0xffff_e0ff).into();
+                self.regs.entry_hi = (value as u64 & 0xc000_00ff_ffff_e0ff).into();
                 trace!("  EntryHi: {:?}", self.regs.entry_hi);
             }
             11 => {

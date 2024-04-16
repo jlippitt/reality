@@ -21,8 +21,11 @@ pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
     let regs = &mut cpu.cp0.regs;
 
     let index = cpu.cp0.tlb.entries().position(|entry| {
-        let entry_hi = EntryHi::from(u32::from(regs.entry_hi) & !u32::from(entry.page_mask));
+        let entry_hi =
+            EntryHi::from(u64::from(regs.entry_hi) & !(u32::from(entry.page_mask) as u64));
+
         entry.entry_hi.vpn2() == entry_hi.vpn2()
+            && entry.entry_hi.region() == entry_hi.region()
             && (entry.entry_hi.global() || (entry.entry_hi.asid() == entry_hi.asid()))
     });
 
@@ -30,6 +33,7 @@ pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
         regs.index.set_index(index as u32);
         regs.index.set_probe_failure(false);
     } else {
+        regs.index.set_index(0);
         regs.index.set_probe_failure(true);
     }
 
