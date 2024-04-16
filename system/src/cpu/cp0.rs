@@ -37,6 +37,10 @@ impl Cp0 {
         self.regs.status.cu1()
     }
 
+    pub fn cp2_usable(&self) -> bool {
+        self.regs.status.cu2()
+    }
+
     pub fn is_fr(&self) -> bool {
         self.regs.status.fr()
     }
@@ -82,6 +86,10 @@ impl Cp0 {
             3 => {
                 self.regs.entry_lo1 = (value as u32 & 0x3fff_ffff).into();
                 trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
+            }
+            4 => {
+                self.regs.context = (value as u32).into();
+                trace!("  Context: {:?}", self.regs.context);
             }
             5 => {
                 self.regs.page_mask = (value as u32 & 0x01ff_e000).into();
@@ -136,7 +144,6 @@ impl Cp0 {
                 self.regs.epc = value as u32;
                 trace!("  EPC: {:08X}", self.regs.epc);
             }
-            // TOOD: This register has special behaviour when read back
             16 => {
                 self.regs.config = (0x7006_6460 | (value as u32 & 0x0f00_800f)).into();
                 trace!("  Config: {:?}", self.regs.config);
@@ -161,6 +168,10 @@ impl Cp0 {
             19 => {
                 self.regs.watch_hi = (value as u32).into();
                 trace!("  WatchHi: {:?}", self.regs.watch_hi);
+            }
+            20 => {
+                self.regs.x_context = (value as u64).into();
+                trace!("  XContext: {:?}", self.regs.x_context);
             }
             // TOOD: This register has special behaviour when read back
             28 => {

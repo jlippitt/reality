@@ -21,6 +21,7 @@ pub enum Exception {
     Interrupt,
     Syscall,
     Breakpoint,
+    ReservedInstruction(u32),
     CoprocessorUnusable(u32),
 }
 
@@ -47,6 +48,13 @@ impl Exception {
                 stage: ExceptionStage::EX,
                 error: false,
                 ce: 0,
+            },
+            Exception::ReservedInstruction(ce) => ExceptionDetails {
+                code: 10,
+                vector: 0x0180,
+                stage: ExceptionStage::EX,
+                error: false,
+                ce,
             },
             Exception::CoprocessorUnusable(ce) => ExceptionDetails {
                 code: 11,

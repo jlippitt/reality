@@ -2,8 +2,16 @@ use super::cp0;
 use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn cop2_unusable(cpu: &mut Cpu) -> DcOperation {
-    cp0::except(cpu, cp0::Exception::CoprocessorUnusable(2));
+pub fn cop2(cpu: &mut Cpu, _pc: u32, word: u32) -> DcOperation {
+    if cpu.cp0.cp2_usable() {
+        match (word >> 21) & 31 {
+            0o00 | 0x01 | 0x02 | 0x04 | 0x05 | 0x06 => (),
+            _ => cp0::except(cpu, cp0::Exception::ReservedInstruction(2)),
+        }
+    } else {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(2));
+    }
+
     DcOperation::Nop
 }
 
