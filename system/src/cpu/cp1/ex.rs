@@ -11,7 +11,11 @@ mod transfer;
 
 pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     if !cpu.cp0.cp1_usable() {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(1),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     match (word >> 21) & 31 {

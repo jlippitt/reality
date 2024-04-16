@@ -1,6 +1,6 @@
 use crate::memory::Size;
 use cache::ICache;
-use cp0::Cp0;
+use cp0::{Cp0, Exception};
 use cp1::Cp1;
 use dc::DcOperation;
 use tracing::trace;
@@ -202,54 +202,59 @@ impl Cpu {
         }
     }
 
-    fn read<T: Size>(&mut self, bus: &mut impl Bus, address: u32) -> T {
-        let segment = address >> 29;
+    fn read<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
+        let Some(result) = self.cp0.translate(vaddr) else {
+            cp0::except(self, Exception::TlbMissLoad, cp0::ExceptionStage::DC);
+            return None;
+        };
 
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
+        #[cfg(feature = "dcache")]
+        if result.cached {
+            return self.dcache.read(result.paddr & 0x1fff_ffff, |line| {
+                Self::dcache_reload(bus, line, result.paddr)
+            });
+        }
+
+        Some(bus.read_single(result.paddr))
+    }
+
+    fn write<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
+        let Some(result) = self.cp0.translate(vaddr) else {
+            cp0::except(self, Exception::TlbMissStore, cp0::ExceptionStage::DC);
+            return;
+        };
+
+        if !result.writable {
+            cp0::except(self, Exception::TlbModification, cp0::ExceptionStage::DC);
+            return;
         }
 
         #[cfg(feature = "dcache")]
-        if segment == 4 {
-            return self.dcache.read(address & 0x1fff_ffff, |line| {
-                Self::dcache_reload(bus, line, address)
-            });
+        if result.cached {
+            return self
+                .dcache
+                .write(result.paddr & 0x1fff_ffff, value, |line| {
+                    Self::dcache_reload(bus, line, result.paddr)
+                });
         }
 
-        bus.read_single(address & 0x1fff_ffff)
+        bus.write_single(result.paddr, value);
     }
 
-    fn write<T: Size>(&mut self, bus: &mut impl Bus, address: u32, value: T) {
-        let segment = address >> 29;
+    fn read_opcode(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
+        let Some(result) = self.cp0.translate(vaddr) else {
+            cp0::except(self, Exception::TlbMissLoad, cp0::ExceptionStage::RF);
+            return 0;
+        };
 
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
-        }
+        // TODO
+        // if result.cached {
+        //     return self.icache.read(address & 0x1fff_ffff, |line| {
+        //         bus.read_block(address & 0x1fff_ffe0, line.bytes_mut());
+        //     });
+        // }
 
-        #[cfg(feature = "dcache")]
-        if segment == 4 {
-            return self.dcache.write(address & 0x1fff_ffff, value, |line| {
-                Self::dcache_reload(bus, line, address)
-            });
-        }
-
-        bus.write_single(address & 0x1fff_ffff, value);
-    }
-
-    fn read_opcode(&mut self, bus: &mut impl Bus, address: u32) -> u32 {
-        let segment = address >> 29;
-
-        if (segment & 6) != 4 {
-            todo!("TLB lookups");
-        }
-
-        if segment == 4 {
-            return self.icache.read(address & 0x1fff_ffff, |line| {
-                bus.read_block(address & 0x1fff_ffe0, line.bytes_mut());
-            });
-        }
-
-        bus.read_single(address & 0x1fff_ffff)
+        bus.read_single(result.paddr)
     }
 
     #[cfg(feature = "dcache")]

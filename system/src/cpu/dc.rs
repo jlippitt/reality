@@ -126,120 +126,108 @@ pub enum DcOperation {
     },
 }
 
-pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
+pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
+    cpu.wb.reg = 0;
+    cpu.wb.op = None;
+
     match cpu.dc.op {
-        DcOperation::Nop => {
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
-        }
+        DcOperation::Nop => (),
         DcOperation::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
-            cpu.wb.op = None;
         }
         DcOperation::LoadByte { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u8>(bus, addr);
+            let value = cpu.read::<u8>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i8 as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
         DcOperation::LoadByteUnsigned { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u8>(bus, addr);
+            let value = cpu.read::<u8>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
         DcOperation::LoadHalfword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
-            let value = cpu.read::<u16>(bus, addr) as i16 as i64;
+            let value = cpu.read::<u16>(bus, addr)? as i16 as i64;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i16 as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
         DcOperation::LoadHalfwordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
-            let value = cpu.read::<u16>(bus, addr);
+            let value = cpu.read::<u16>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
         DcOperation::LoadWord { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr);
+            let value = cpu.read::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32 as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::LoadWordLeft { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u32>(bus, addr & !3);
+            let value = cpu.read::<u32>(bus, addr & !3)?;
             let shift = (addr & 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
                 (cpu.regs[reg] as u32 & !(u32::MAX << shift) | (value << shift)) as i32 as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::LoadWordRight { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u32>(bus, addr & !3);
+            let value = cpu.read::<u32>(bus, addr & !3)?;
             let shift = (addr & 3 ^ 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
                 (cpu.regs[reg] as u32 & !(u32::MAX >> shift) | (value >> shift)) as i32 as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::LoadWordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr);
+            let value = cpu.read::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::LoadDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr);
+            let value = cpu.read::<u64>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::LoadDoublewordLeft { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u64>(bus, addr & !7);
+            let value = cpu.read::<u64>(bus, addr & !7)?;
             let shift = (addr & 7) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX << shift) | (value << shift)) as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::LoadDoublewordRight { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u64>(bus, addr & !7);
+            let value = cpu.read::<u64>(bus, addr & !7)?;
             let shift = (addr & 7 ^ 7) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX >> shift) | (value >> shift)) as i64;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::LoadLinked { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr);
+            let value = cpu.read::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32 as i64;
             trace!("  [{:08X} => {:08X}]", addr, value);
@@ -255,7 +243,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         DcOperation::LoadLinkedDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr);
+            let value = cpu.read::<u64>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:016X}]", addr, value);
@@ -270,31 +258,23 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         }
         DcOperation::StoreByte { value, addr } => {
             // TODO: Stall cycles
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:02X}]", addr, value);
             cpu.write(bus, addr, value);
         }
         DcOperation::StoreHalfword { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:04X}]", addr, value);
             cpu.write(bus, addr, value);
         }
         DcOperation::StoreWord { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             cpu.write(bus, addr, value);
         }
         DcOperation::StoreWordLeft { value, addr } => {
             // TODO: Stall cycles
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 3 {
@@ -309,8 +289,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         }
         DcOperation::StoreWordRight { value, addr } => {
             // TODO: Stall cycles
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 3 {
@@ -326,15 +304,11 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         DcOperation::StoreDoubleword { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:016X}]", addr, value);
             cpu.write(bus, addr, value);
         }
         DcOperation::StoreDoublewordLeft { value, addr } => {
             // TODO: Stall cycles
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 7 {
@@ -363,8 +337,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
         }
         DcOperation::StoreDoublewordRight { value, addr } => {
             // TODO: Stall cycles
-            cpu.wb.reg = 0;
-            cpu.wb.op = None;
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 7 {
@@ -397,7 +369,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             let ll_bit = cpu.ll_bit;
             cpu.wb.reg = reg;
             cpu.wb.value = ll_bit as i64;
-            cpu.wb.op = None;
 
             if ll_bit {
                 trace!("  [{:08X} <= {:08X}]", addr, value);
@@ -410,7 +381,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             let ll_bit = cpu.ll_bit;
             cpu.wb.reg = reg;
             cpu.wb.value = ll_bit as i64;
-            cpu.wb.op = None;
 
             if ll_bit {
                 trace!("  [{:08X} <= {:016X}]", addr, value);
@@ -418,31 +388,27 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             }
         }
         DcOperation::Cp0RegWrite { reg, value } => {
-            cpu.wb.reg = 0;
             cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
         }
         DcOperation::Cp1ControlRegWrite { reg, value } => {
-            cpu.wb.reg = 0;
             cpu.wb.op = Some(WbOperation::Cp1ControlRegWrite { reg, value });
         }
         DcOperation::Cp1LoadWord { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr);
+            let value = cpu.read::<u32>(bus, addr)?;
             let reg_write = i32::set_cp1_reg(cpu, reg, value as i32);
             cpu.wb.reg = reg_write.reg;
             cpu.wb.value = reg_write.value;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::Cp1LoadDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr);
+            let value = cpu.read::<u64>(bus, addr)?;
             let reg_write = i64::set_cp1_reg(cpu, reg, value as i64);
             cpu.wb.reg = reg_write.reg;
             cpu.wb.value = reg_write.value;
-            cpu.wb.op = None;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::CacheOperation { op, vaddr } => {
@@ -461,7 +427,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                     {
                         cpu.dcache.index_write_back_invalidate(paddr, |line| {
                             bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                            trace!("dcache line at {:08x} written back to memory", paddr);
+                            trace!("dcache line at {:08x} written back to memory", paddr)?;
                         });
                     }
                 }
@@ -486,7 +452,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                     {
                         cpu.dcache.create_dirty_exclusive(paddr, |line| {
                             bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                            trace!("DCache Line at {:08X} written back to memory", paddr)?;
                         });
                     }
                 }
@@ -499,9 +465,9 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                 0b10001 =>
                 {
                     #[cfg(feature = "dcache")]
-                    if let Some(line) = cpu.dcache.find_mut(paddr) {
+                    if let Some(line) = cpu.dcache.find_mut(paddr)? {
                         line.clear_valid_flag();
-                        trace!("DCache Line at {:08X} invalidated", paddr);
+                        trace!("DCache Line at {:08X} invalidated", paddr)?;
                     }
                 }
                 0b10101 => {
@@ -509,18 +475,18 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
                     {
                         cpu.dcache.hit_write_back_invalidate(paddr, |line| {
                             bus.write_block(paddr & 0x1fff_fff0, line.bytes());
-                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                            trace!("DCache Line at {:08X} written back to memory", paddr)?;
                         });
                     }
                 }
                 0b11001 =>
                 {
                     #[cfg(feature = "dcache")]
-                    if let Some(line) = cpu.dcache.find_mut(paddr) {
+                    if let Some(line) = cpu.dcache.find_mut(paddr)? {
                         if line.is_dirty() {
                             bus.write_block(paddr & 0x1fff_fff0, line.bytes());
                             line.clear_dirty_flag();
-                            trace!("DCache Line at {:08X} written back to memory", paddr);
+                            trace!("DCache Line at {:08X} written back to memory", paddr)?;
                         }
                     }
                 }
@@ -528,4 +494,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) {
             }
         }
     }
+
+    Some(())
 }

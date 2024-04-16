@@ -80,7 +80,11 @@ pub fn ctc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 
 pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     if !cpu.cp0.cp1_usable() {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(1),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     let base = ((word >> 21) & 31) as usize;
@@ -103,7 +107,11 @@ pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 
 pub fn ldc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     if !cpu.cp0.cp1_usable() {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(1),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     let base = ((word >> 21) & 31) as usize;
@@ -126,7 +134,11 @@ pub fn ldc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 
 pub fn swc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     if !cpu.cp0.cp1_usable() {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(1),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     let base = ((word >> 21) & 31) as usize;
@@ -149,7 +161,11 @@ pub fn swc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 
 pub fn sdc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     if !cpu.cp0.cp1_usable() {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(1),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     let base = ((word >> 21) & 31) as usize;

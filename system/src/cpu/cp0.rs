@@ -1,9 +1,9 @@
-pub use error::Exception;
+pub use error::{Exception, ExceptionStage};
 pub use ex::cop0;
 pub use regs::TagLo;
+pub use tlb::TlbResult;
 
 use super::{Bus, Cpu, DcOperation};
-use error::ExceptionStage;
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{debug, trace, warn};
@@ -47,6 +47,10 @@ impl Cp0 {
 
     pub fn tag_lo(&self) -> TagLo {
         self.regs.tag_lo
+    }
+
+    pub fn translate(&self, vaddr: u32) -> Option<TlbResult> {
+        self.tlb.translate(self.regs.entry_hi.asid(), vaddr)
     }
 
     pub fn read_reg(&mut self, reg: usize) -> i64 {
@@ -224,10 +228,10 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         return;
     }
 
-    except(cpu, Exception::Interrupt);
+    except(cpu, Exception::Interrupt, ExceptionStage::DC);
 }
 
-pub fn except(cpu: &mut Cpu, ex: Exception) {
+pub fn except(cpu: &mut Cpu, ex: Exception, stage: ExceptionStage) {
     let regs = &mut cpu.cp0.regs;
 
     debug!("-- Exception: {:?} --", ex);
@@ -236,7 +240,7 @@ pub fn except(cpu: &mut Cpu, ex: Exception) {
     regs.cause.set_ce(details.ce);
     cpu.pc = 0x8000_0000 | details.vector;
 
-    let epc = match details.stage {
+    let epc = match stage {
         ExceptionStage::DC => {
             let epc = if cpu.dc.delay {
                 cpu.dc.pc.wrapping_sub(4)

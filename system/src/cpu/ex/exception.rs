@@ -6,10 +6,18 @@ pub fn cop2(cpu: &mut Cpu, _pc: u32, word: u32) -> DcOperation {
     if cpu.cp0.cp2_usable() {
         match (word >> 21) & 31 {
             0o00 | 0x01 | 0x02 | 0x04 | 0x05 | 0x06 => (),
-            _ => cp0::except(cpu, cp0::Exception::ReservedInstruction(2)),
+            _ => cp0::except(
+                cpu,
+                cp0::Exception::ReservedInstruction(2),
+                cp0::ExceptionStage::EX,
+            ),
         }
     } else {
-        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(2));
+        cp0::except(
+            cpu,
+            cp0::Exception::CoprocessorUnusable(2),
+            cp0::ExceptionStage::EX,
+        );
     }
 
     DcOperation::Nop
@@ -17,13 +25,13 @@ pub fn cop2(cpu: &mut Cpu, _pc: u32, word: u32) -> DcOperation {
 
 pub fn syscall(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: SYSCALL", pc,);
-    cp0::except(cpu, cp0::Exception::Syscall);
+    cp0::except(cpu, cp0::Exception::Syscall, cp0::ExceptionStage::EX);
     DcOperation::Nop
 }
 
 pub fn break_(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: BREAK", pc,);
-    cp0::except(cpu, cp0::Exception::Breakpoint);
+    cp0::except(cpu, cp0::Exception::Breakpoint, cp0::ExceptionStage::EX);
     DcOperation::Nop
 }
 

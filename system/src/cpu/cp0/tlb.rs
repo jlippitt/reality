@@ -12,6 +12,13 @@ pub struct TlbEntry {
 }
 
 #[derive(Debug)]
+pub struct TlbResult {
+    pub paddr: u32,
+    pub cached: bool,
+    pub writable: bool,
+}
+
+#[derive(Debug)]
 pub struct Tlb {
     entries: [TlbEntry; 32],
 }
@@ -61,5 +68,57 @@ impl Tlb {
         };
 
         trace!("  TLB{}: {:?}", index, self.entries[index]);
+    }
+
+    pub fn translate(&self, asid: u64, vaddr: u32) -> Option<TlbResult> {
+        let region = vaddr >> 29;
+
+        if (region & 6) == 4 {
+            return Some(TlbResult {
+                paddr: vaddr & 0x1fff_ffff,
+                cached: region == 4,
+                writable: true,
+            });
+        }
+
+        // Mapped area
+        for entry in &self.entries {
+            let page_mask = u32::from(entry.page_mask);
+
+            // TODO: Region check when in 64-bit mode
+            if entry.entry_hi.vpn2() as u32 != ((vaddr & !page_mask) >> 13) {
+                continue;
+            }
+
+            println!("VPN2 match: {:08X} => {:?}", vaddr, entry);
+
+            if !entry.entry_hi.global() && entry.entry_hi.asid() != asid {
+                continue;
+            }
+
+            println!("ASID match: {:08X} => {:?}", vaddr, entry);
+
+            let entry_select = 2 << (page_mask | 0xfe00_0000).trailing_zeros();
+
+            let entry_lo = if (vaddr & entry_select) != 0 {
+                &entry.entry_lo1
+            } else {
+                &entry.entry_lo0
+            };
+
+            if !entry_lo.valid() {
+                continue;
+            }
+
+            println!("Valid: {:08X} => {:?}", vaddr, entry);
+
+            return Some(TlbResult {
+                paddr: (entry_lo.pfn() << 12) | (vaddr & (page_mask | 0x1fff)),
+                cached: entry_lo.cache() != 2,
+                writable: entry_lo.dirty(),
+            });
+        }
+
+        None
     }
 }
