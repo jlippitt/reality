@@ -1,4 +1,4 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 pub trait MulDivOperator {
@@ -111,7 +111,7 @@ impl MulDivOperator for Ddivu {
     }
 }
 
-pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
 
@@ -128,39 +128,39 @@ pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
     trace!("  HI: {:016X}", cpu.hi);
     trace!("  LO: {:016X}", cpu.lo);
 
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn mfhi(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mfhi(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rd = ((word >> 11) & 31) as usize;
     trace!("{:08X}: MFHI {}", pc, Cpu::REG_NAMES[rd],);
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: cpu.hi,
     }
 }
 
-pub fn mflo(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mflo(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rd = ((word >> 11) & 31) as usize;
     trace!("{:08X}: MFLO {}", pc, Cpu::REG_NAMES[rd],);
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: cpu.lo,
     }
 }
 
-pub fn mthi(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mthi(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     trace!("{:08X}: MTHI {}", pc, Cpu::REG_NAMES[rs],);
     cpu.hi = cpu.regs[rs];
     trace!("  HI: {:016X}", cpu.hi);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn mtlo(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mtlo(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     trace!("{:08X}: MTLO {}", pc, Cpu::REG_NAMES[rs],);
     cpu.lo = cpu.regs[rs];
     trace!("  LO: {:016X}", cpu.lo);
-    DcState::Nop
+    DcOperation::Nop
 }

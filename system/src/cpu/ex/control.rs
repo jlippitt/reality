@@ -1,7 +1,7 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let offset = (word & 0x03ff_ffff) << 2;
     let target = (cpu.ex.pc.wrapping_add(4) & 0xf000_0000) | offset;
 
@@ -12,28 +12,28 @@ pub fn j<const LINK: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         target
     );
 
-    if cpu.delay == 0 {
-        cpu.delay = 2;
+    if !cpu.ex.delay {
+        cpu.rf.delay = true;
         cpu.pc = target;
     }
 
     link::<LINK>(cpu)
 }
 
-pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn jr(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
 
     trace!("{:08X}: JR {}", pc, Cpu::REG_NAMES[rs]);
 
-    if cpu.delay == 0 {
-        cpu.delay = 2;
+    if !cpu.ex.delay {
+        cpu.rf.delay = true;
         cpu.pc = cpu.regs[rs] as u32;
     }
 
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -44,18 +44,18 @@ pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cpu::REG_NAMES[rs],
     );
 
-    if cpu.delay == 0 {
-        cpu.delay = 2;
+    if !cpu.ex.delay {
+        cpu.rf.delay = true;
         cpu.pc = cpu.regs[rs] as u32;
     }
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: cpu.rf.pc.wrapping_add(4) as i64,
     }
 }
 
-pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
@@ -70,10 +70,10 @@ pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] == cpu.regs[rt], offset);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
@@ -88,10 +88,10 @@ pub fn bne<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] != cpu.regs[rt], offset);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn blez<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn blez<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
@@ -104,10 +104,10 @@ pub fn blez<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] <= 0, offset);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn bgtz<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bgtz<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
@@ -120,10 +120,14 @@ pub fn bgtz<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] > 0, offset);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn bltz<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bltz<const LINK: bool, const LIKELY: bool>(
+    cpu: &mut Cpu,
+    pc: u32,
+    word: u32,
+) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
@@ -140,7 +144,11 @@ pub fn bltz<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: 
     link::<LINK>(cpu)
 }
 
-pub fn bgez<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bgez<const LINK: bool, const LIKELY: bool>(
+    cpu: &mut Cpu,
+    pc: u32,
+    word: u32,
+) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
@@ -157,13 +165,13 @@ pub fn bgez<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: 
     link::<LINK>(cpu)
 }
 
-fn link<const LINK: bool>(cpu: &Cpu) -> DcState {
+fn link<const LINK: bool>(cpu: &Cpu) -> DcOperation {
     if LINK {
-        DcState::RegWrite {
+        DcOperation::RegWrite {
             reg: 31,
             value: cpu.rf.pc.wrapping_add(4) as i64,
         }
     } else {
-        DcState::Nop
+        DcOperation::Nop
     }
 }

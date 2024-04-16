@@ -1,6 +1,6 @@
 use super::cp0;
 use super::cp1;
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 
 mod arithmetic;
 mod bitwise;
@@ -13,7 +13,7 @@ mod mul_div;
 mod shift;
 mod store;
 
-pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     match word >> 26 {
         0o00 => special(cpu, pc, word),
         0o01 => regimm(cpu, pc, word),
@@ -71,7 +71,7 @@ pub fn execute(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     }
 }
 
-pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     match word & 63 {
         0o00 => shift::fixed::<shift::Sll>(cpu, pc, word),
         0o02 => shift::fixed::<shift::Srl>(cpu, pc, word),
@@ -123,7 +123,7 @@ pub fn special(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     }
 }
 
-pub fn regimm(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn regimm(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     match (word >> 16) & 31 {
         0o00 => control::bltz::<false, false>(cpu, pc, word),
         0o01 => control::bgez::<false, false>(cpu, pc, word),

@@ -1,7 +1,7 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn slti(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn slti(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i64;
@@ -14,13 +14,13 @@ pub fn slti(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         imm
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: (cpu.regs[rs] < imm) as i64,
     }
 }
 
-pub fn sltiu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn sltiu(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as u64;
@@ -33,13 +33,13 @@ pub fn sltiu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         imm
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: ((cpu.regs[rs] as u64) < imm) as i64,
     }
 }
 
-pub fn slt(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn slt(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -52,13 +52,13 @@ pub fn slt(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cpu::REG_NAMES[rt],
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: (cpu.regs[rs] < cpu.regs[rt]) as i64,
     }
 }
 
-pub fn sltu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn sltu(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -71,7 +71,7 @@ pub fn sltu(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cpu::REG_NAMES[rt],
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: ((cpu.regs[rs] as u64) < (cpu.regs[rt] as u64)) as i64,
     }

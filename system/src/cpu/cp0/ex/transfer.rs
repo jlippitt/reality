@@ -1,8 +1,8 @@
 use super::Cp0;
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn mfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -13,13 +13,13 @@ pub fn mfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cp0::REG_NAMES[rd]
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: cpu.cp0.read_reg(rd),
     }
 }
 
-pub fn dmfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn dmfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -30,13 +30,13 @@ pub fn dmfc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cp0::REG_NAMES[rd]
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: cpu.cp0.read_reg(rd),
     }
 }
 
-pub fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -47,13 +47,13 @@ pub fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cp0::REG_NAMES[rd]
     );
 
-    DcState::Cp0RegWrite {
+    DcOperation::Cp0RegWrite {
         reg: rd,
         value: cpu.regs[rt],
     }
 }
 
-pub fn dmtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn dmtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -64,7 +64,7 @@ pub fn dmtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         Cp0::REG_NAMES[rd]
     );
 
-    DcState::Cp0RegWrite {
+    DcOperation::Cp0RegWrite {
         reg: rd,
         value: cpu.regs[rt],
     }

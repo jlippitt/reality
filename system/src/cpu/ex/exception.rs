@@ -1,7 +1,7 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn teq(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn teq(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
 
@@ -16,10 +16,10 @@ pub fn teq(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         todo!("TrapException");
     }
 
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn tne(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn tne(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
 
@@ -34,5 +34,5 @@ pub fn tne(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         todo!("TrapException");
     }
 
-    DcState::Nop
+    DcOperation::Nop
 }

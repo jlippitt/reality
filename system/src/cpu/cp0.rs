@@ -1,7 +1,7 @@
 pub use ex::cop0;
 pub use regs::TagLo;
 
-use super::{Bus, Cpu, DcState};
+use super::{Bus, Cpu, DcOperation};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{debug, trace, warn};
@@ -209,13 +209,15 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
 
     regs.status.set_exl(true);
     regs.cause.set_exc_code(0); // 0 = Interrupt
-    regs.cause.set_bd(cpu.delay > 0);
-    regs.epc = if cpu.delay > 0 {
-        cpu.ex.pc.wrapping_sub(4)
+    regs.cause.set_bd(cpu.dc.delay);
+    regs.epc = if cpu.dc.delay {
+        cpu.dc.pc.wrapping_sub(4)
     } else {
-        cpu.ex.pc
+        cpu.dc.pc
     };
     cpu.pc = EXCEPTION_VECTOR;
+    cpu.dc.pc = cpu.pc;
+    cpu.dc.op = DcOperation::Nop;
     cpu.ex.pc = cpu.pc;
     cpu.ex.word = 0;
     cpu.rf.pc = cpu.pc;

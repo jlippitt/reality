@@ -1,6 +1,6 @@
 pub use ex::{cop1, ldc1, lwc1, sdc1, swc1};
 
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use bytemuck::Pod;
 use regs::Status;
 use tracing::trace;
@@ -242,7 +242,7 @@ impl Float for f64 {
     }
 }
 
-impl From<RegWrite> for DcState {
+impl From<RegWrite> for DcOperation {
     fn from(RegWrite { reg, value }: RegWrite) -> Self {
         Self::RegWrite { reg, value }
     }

@@ -1,20 +1,20 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn tlbr(cpu: &mut Cpu, pc: u32) -> DcState {
+pub fn tlbr(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: TLBR", pc);
     let index = cpu.cp0.regs.index.index() as usize;
     cpu.cp0.tlb.read_entry(&mut cpu.cp0.regs, index);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn tlbwi(cpu: &mut Cpu, pc: u32) -> DcState {
+pub fn tlbwi(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: TLBWI", pc);
     cpu.cp0.tlb.write_entry(&cpu.cp0.regs);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcState {
+pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: TLBP", pc);
 
     let regs = &mut cpu.cp0.regs;
@@ -33,5 +33,5 @@ pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcState {
 
     trace!("  Index: {:?}", regs.index);
 
-    DcState::Nop
+    DcOperation::Nop
 }

@@ -1,13 +1,13 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn sync(_cpu: &mut Cpu, pc: u32) -> DcState {
+pub fn sync(_cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: SYNC", pc);
     // This is a NOP on the VR4300
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let base = ((word >> 21) & 31) as usize;
     let op = (word >> 16) & 31;
     let offset = (word & 0xffff) as i16;
@@ -22,5 +22,5 @@ pub fn cache(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
 
     let address = cpu.regs[base].wrapping_add(offset as i64) as u32;
 
-    DcState::CacheOperation { op, vaddr: address }
+    DcOperation::CacheOperation { op, vaddr: address }
 }

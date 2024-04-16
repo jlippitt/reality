@@ -1,4 +1,4 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 pub trait ArithmeticOperator {
@@ -64,7 +64,7 @@ impl ArithmeticOperator for Dsub {
     }
 }
 
-pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i64;
@@ -82,13 +82,13 @@ pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32)
         todo!("Overflow exception");
     };
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: result,
     }
 }
 
-pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i64;
@@ -102,13 +102,13 @@ pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u3
         imm
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: Op::apply_unchecked(cpu.regs[rs], imm),
     }
 }
 
-pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -126,13 +126,13 @@ pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32)
         todo!("Overflow exception");
     };
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: result,
     }
 }
 
-pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -146,7 +146,7 @@ pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u3
         Cpu::REG_NAMES[rt],
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]),
     }

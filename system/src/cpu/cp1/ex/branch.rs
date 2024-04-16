@@ -1,7 +1,7 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
-pub fn bc1f<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bc1f<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
     trace!(
@@ -12,10 +12,10 @@ pub fn bc1f<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(!cpu.cp1.status.c(), offset);
-    DcState::Nop
+    DcOperation::Nop
 }
 
-pub fn bc1t<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn bc1t<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let offset = ((word & 0xffff) as i16 as i64) << 2;
 
     trace!(
@@ -26,5 +26,5 @@ pub fn bc1t<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     );
 
     cpu.branch::<LIKELY>(cpu.cp1.status.c(), offset);
-    DcState::Nop
+    DcOperation::Nop
 }

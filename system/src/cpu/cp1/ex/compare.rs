@@ -1,7 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)]
 #![allow(clippy::upper_case_acronyms)]
 
-use super::{Cpu, DcState, Float};
+use super::{Cpu, DcOperation, Float};
 use std::cmp::Ordering;
 use tracing::trace;
 
@@ -26,7 +26,7 @@ pub trait Condition {
     fn test(ord: Option<Ordering>) -> bool;
 }
 
-pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let ft = ((word >> 16) & 31) as usize;
     let fs = ((word >> 11) & 31) as usize;
 
@@ -41,7 +41,7 @@ pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     cpu.cp1.status.set_c(C::test(result));
     trace!("  C: {}", cpu.cp1.status.c());
 
-    DcState::Nop
+    DcOperation::Nop
 }
 
 condition!(F, "F", false, _ if false);

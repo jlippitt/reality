@@ -1,4 +1,4 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 pub trait ShiftOperator {
@@ -61,7 +61,7 @@ impl ShiftOperator for Dsra {
     }
 }
 
-pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
     let sa = (word >> 6) & 31;
@@ -75,13 +75,13 @@ pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
         sa
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rt], sa),
     }
 }
 
-pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
     let sa = (word >> 6) & 31;
@@ -95,13 +95,13 @@ pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState 
         sa
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rt], sa + 32),
     }
 }
 
-pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -115,7 +115,7 @@ pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
         Cpu::REG_NAMES[rs],
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rt], cpu.regs[rs] as u32),
     }

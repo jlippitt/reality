@@ -2,7 +2,7 @@ use crate::memory::Size;
 use cache::ICache;
 use cp0::Cp0;
 use cp1::Cp1;
-use dc::DcState;
+use dc::DcOperation;
 use tracing::trace;
 
 #[cfg(feature = "dcache")]
@@ -17,23 +17,33 @@ mod ex;
 const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 const IPL3_START: u32 = 0xA4000040;
 
+enum WbOperation {
+    Cp0RegWrite { reg: usize, value: i64 },
+    Cp1ControlRegWrite { reg: usize, value: u32 },
+}
+
 #[derive(Default)]
 struct RfState {
     pc: u32,
+    delay: bool,
     word: u32,
 }
 
 #[derive(Default)]
 struct ExState {
     pc: u32,
+    delay: bool,
     word: u32,
 }
 
-enum WbOperation {
-    Cp0RegWrite { reg: usize, value: i64 },
-    Cp1ControlRegWrite { reg: usize, value: u32 },
+#[derive(Default)]
+struct DcState {
+    pc: u32,
+    delay: bool,
+    op: DcOperation,
 }
 
+#[derive(Default)]
 struct WbState {
     reg: usize,
     value: i64,
@@ -54,11 +64,10 @@ pub struct Cpu {
     ex: ExState,
     rf: RfState,
     pc: u32,
+    regs: [i64; 64],
     hi: i64,
     lo: i64,
     ll_bit: bool,
-    delay: u8,
-    regs: [i64; 64],
     cp0: Cp0,
     cp1: Cp1,
     icache: ICache,
@@ -86,20 +95,15 @@ impl Cpu {
         };
 
         Self {
-            rf: Default::default(),
-            ex: Default::default(),
-            dc: DcState::Nop,
-            wb: WbState {
-                reg: 0,
-                value: 0,
-                op: None,
-            },
+            wb: WbState::default(),
+            dc: DcState::default(),
+            ex: ExState::default(),
+            rf: RfState::default(),
             pc,
+            regs,
             hi: 0,
             lo: 0,
             ll_bit: false,
-            delay: 0,
-            regs,
             cp0: Cp0::new(),
             cp1: Cp1::new(),
             icache: ICache::new(),
@@ -137,43 +141,38 @@ impl Cpu {
         }
 
         // DC
-        dc::execute(self, bus);
-
-        // The official documentation says that:
-        // > When an NMI or interrupt exception occurs, all pipeline stages
-        // > except the WB are aborted
-        // This implies restarting from the DC stage. However, the instruction
-        // in the DC stage will have already passed through the EX stage, and
-        // this could lead to weird bugs if care isn't taken. So, for now we
-        // check for interrupts just before the EX stage, pending further view
-        // at a later date.
-        // TODO: Re-review this decision
         cp0::step(self, bus);
 
+        dc::execute(self, bus);
+
         // EX
-        if self.ex.word != 0 {
+        self.dc.op = if self.ex.word != 0 {
             // Operand forwarding from DC stage
             let tmp = self.regs[self.wb.reg];
             self.regs[self.wb.reg] = self.wb.value;
             self.regs[0] = 0;
-            self.dc = ex::execute(self, self.ex.pc, self.ex.word);
+            let op = ex::execute(self, self.ex.pc, self.ex.word);
             self.regs[self.wb.reg] = tmp;
+            op
         } else {
             trace!("{:08X}: NOP", self.ex.pc);
-            self.dc = DcState::Nop;
-        }
+            DcOperation::Nop
+        };
 
-        self.delay >>= 1;
+        self.dc.pc = self.ex.pc;
+        self.dc.delay = self.ex.delay;
 
         // RF
         self.ex = ExState {
             pc: self.rf.pc,
+            delay: self.rf.delay,
             word: self.rf.word,
         };
 
         // IC
         self.rf = RfState {
             pc: self.pc,
+            delay: false,
             word: self.read_opcode(bus, self.pc),
         };
 
@@ -181,11 +180,11 @@ impl Cpu {
     }
 
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
-        if self.delay > 0 {
+        if self.ex.delay {
             return;
         }
 
-        self.delay = 2;
+        self.rf.delay = true;
 
         if condition {
             trace!("Branch taken");

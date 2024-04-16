@@ -1,4 +1,4 @@
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 pub trait BitwiseOperator {
@@ -43,7 +43,7 @@ impl BitwiseOperator for Nor {
     }
 }
 
-pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as u64 as i64;
@@ -57,13 +57,13 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
         imm
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rt,
         value: Op::apply(cpu.regs[rs], imm),
     }
 }
 
-pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -77,7 +77,7 @@ pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcState
         Cpu::REG_NAMES[rt],
     );
 
-    DcState::RegWrite {
+    DcOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rs], cpu.regs[rt]),
     }

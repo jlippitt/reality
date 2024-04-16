@@ -1,11 +1,11 @@
 use super::Cp0;
-use super::{Cpu, DcState};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 mod tlb;
 mod transfer;
 
-pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
+pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     match (word >> 21) & 31 {
         0o00 => transfer::mfc0(cpu, pc, word),
         0o01 => transfer::dmfc0(cpu, pc, word),
@@ -22,7 +22,7 @@ pub fn cop0(cpu: &mut Cpu, pc: u32, word: u32) -> DcState {
     }
 }
 
-fn eret(cpu: &mut Cpu, pc: u32) -> DcState {
+fn eret(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: ERET", pc);
 
     let regs = &mut cpu.cp0.regs;
@@ -36,8 +36,15 @@ fn eret(cpu: &mut Cpu, pc: u32) -> DcState {
     }
 
     cpu.ll_bit = false;
+
+    // Prevent re-running ERET after exception
+    // (Should this be written in a later pipeline stage?)
+    cpu.ex.pc = cpu.pc;
+    cpu.ex.word = 0;
+
+    // The delay slot instruction is not executed
     cpu.rf.pc = cpu.pc;
     cpu.rf.word = 0;
 
-    DcState::Nop
+    DcOperation::Nop
 }
