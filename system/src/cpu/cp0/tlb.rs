@@ -83,22 +83,18 @@ impl Tlb {
 
         // Mapped area
         for entry in &self.entries {
-            let page_mask = u32::from(entry.page_mask);
+            let page_mask = u32::from(entry.page_mask) | 0x1fff;
 
             // TODO: Region check when in 64-bit mode
             if entry.entry_hi.vpn2() as u32 != ((vaddr & !page_mask) >> 13) {
                 continue;
             }
 
-            println!("VPN2 match: {:08X} => {:?}", vaddr, entry);
-
             if !entry.entry_hi.global() && entry.entry_hi.asid() != asid {
                 continue;
             }
 
-            println!("ASID match: {:08X} => {:?}", vaddr, entry);
-
-            let entry_select = 2 << (page_mask | 0xfe00_0000).trailing_zeros();
+            let entry_select = (page_mask + 1) >> 1;
 
             let entry_lo = if (vaddr & entry_select) != 0 {
                 &entry.entry_lo1
@@ -110,10 +106,8 @@ impl Tlb {
                 continue;
             }
 
-            println!("Valid: {:08X} => {:?}", vaddr, entry);
-
             return Some(TlbResult {
-                paddr: (entry_lo.pfn() << 12) | (vaddr & (page_mask | 0x1fff)),
+                paddr: (entry_lo.pfn() << 12) | (vaddr & page_mask & !entry_select),
                 cached: entry_lo.cache() != 2,
                 writable: entry_lo.dirty(),
             });
