@@ -129,6 +129,11 @@ pub enum DfOperation {
         el: usize,
         addr: u32,
     },
+    Cp2StoreTranspose {
+        reg: usize,
+        el: usize,
+        addr: u32,
+    },
     Break,
     Nop,
 }
@@ -428,6 +433,32 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 let byte_addr = addr.wrapping_add(index);
                 bus.write_data::<u8>(byte_addr, value);
                 trace!("  [{:08X} <= {:02X}]", byte_addr, value);
+            }
+        }
+        DfOperation::Cp2StoreTranspose { reg, el, addr } => {
+            cpu.wb.reg = 0;
+
+            let start_addr = addr & !7;
+            let start_el = 16 - (el & !1);
+            let byte_offset = (addr & 7).wrapping_sub(el as u32 & !1);
+            let mut index = 0;
+
+            while index < 16 {
+                let vector = cpu.cp2.reg((reg & !7) + (index >> 1));
+
+                let low_byte: u8 = vector.read((start_el + index) & 15);
+                bus.write_data(
+                    start_addr.wrapping_add(byte_offset.wrapping_add(index as u32) & 15),
+                    low_byte,
+                );
+                index += 1;
+
+                let high_byte: u8 = vector.read((start_el + index) & 15);
+                bus.write_data(
+                    start_addr.wrapping_add(byte_offset.wrapping_add(index as u32) & 15),
+                    high_byte,
+                );
+                index += 1;
             }
         }
         DfOperation::Break => {

@@ -1,10 +1,10 @@
-use super::{Core, Cp2, DfOperation, Vector};
+use super::{Core, Cp2, DfOperation};
 use tracing::trace;
 
 pub trait StoreOperator {
     const NAME: &'static str;
     const SHIFT: usize;
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation;
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation;
 }
 
 pub struct Sbv;
@@ -15,14 +15,15 @@ pub struct Sqv;
 pub struct Srv;
 pub struct Spv;
 pub struct Suv;
+pub struct Stv;
 
 impl StoreOperator for Sbv {
     const NAME: &'static str = "SBV";
     const SHIFT: usize = 0;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreByte {
-            value: value.read(el),
+            value: cp2.reg(reg).read(el),
             addr,
         }
     }
@@ -32,9 +33,9 @@ impl StoreOperator for Ssv {
     const NAME: &'static str = "SSV";
     const SHIFT: usize = 1;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreHalfword {
-            value: value.read(el),
+            value: cp2.reg(reg).read(el),
             addr,
         }
     }
@@ -44,9 +45,9 @@ impl StoreOperator for Slv {
     const NAME: &'static str = "SLV";
     const SHIFT: usize = 2;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreWord {
-            value: value.read(el),
+            value: cp2.reg(reg).read(el),
             addr,
         }
     }
@@ -56,9 +57,9 @@ impl StoreOperator for Sdv {
     const NAME: &'static str = "SDV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreDoubleword {
-            value: value.read(el),
+            value: cp2.reg(reg).read(el),
             addr,
         }
     }
@@ -68,9 +69,9 @@ impl StoreOperator for Sqv {
     const NAME: &'static str = "SQV";
     const SHIFT: usize = 4;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreQuadword {
-            vector: value,
+            vector: cp2.reg(reg),
             el,
             addr,
         }
@@ -81,9 +82,9 @@ impl StoreOperator for Srv {
     const NAME: &'static str = "SRV";
     const SHIFT: usize = 4;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StoreQuadwordRight {
-            vector: value,
+            vector: cp2.reg(reg),
             el,
             end: addr,
         }
@@ -94,9 +95,9 @@ impl StoreOperator for Spv {
     const NAME: &'static str = "SPV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StorePacked {
-            vector: value,
+            vector: cp2.reg(reg),
             el,
             addr,
         }
@@ -107,12 +108,21 @@ impl StoreOperator for Suv {
     const NAME: &'static str = "SUV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+    fn apply(cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
         DfOperation::Cp2StorePackedUnsigned {
-            vector: value,
+            vector: cp2.reg(reg),
             el,
             addr,
         }
+    }
+}
+
+impl StoreOperator for Stv {
+    const NAME: &'static str = "STV";
+    const SHIFT: usize = 4;
+
+    fn apply(_cp2: &Cp2, reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreTranspose { reg, el, addr }
     }
 }
 
@@ -133,7 +143,8 @@ pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperat
     );
 
     Op::apply(
-        core.cp2.reg(vt),
+        &core.cp2,
+        vt,
         el,
         core.regs[base].wrapping_add(offset) as u32,
     )

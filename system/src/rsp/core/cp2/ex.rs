@@ -86,7 +86,7 @@ pub fn swc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
         0x05 => store::store::<store::Srv>(core, pc, word),
         0x06 => store::store::<store::Spv>(core, pc, word),
         0x07 => store::store::<store::Suv>(core, pc, word),
-        // 0x0b => store::store::<store::Stv>(core, pc, word),
+        0x0b => store::store::<store::Stv>(core, pc, word),
         opcode => unimplemented!("RSP SWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
     }
 }
