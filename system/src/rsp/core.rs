@@ -1,6 +1,6 @@
 use crate::memory::Size;
 use cp2::Cp2;
-use df::DfState;
+use df::DfOperation;
 use tracing::trace;
 
 mod cp0;
@@ -36,7 +36,7 @@ pub trait Bus {
 
 pub struct Core {
     wb: WbState,
-    df: DfState,
+    df: DfOperation,
     ex: ExState,
     rf: RfState,
     pc: u32,
@@ -56,7 +56,7 @@ impl Core {
         Self {
             rf: Default::default(),
             ex: Default::default(),
-            df: DfState::Nop,
+            df: DfOperation::Nop,
             wb: WbState { reg: 0, value: 0 },
             pc: 0,
             delay: 0,
@@ -97,7 +97,7 @@ impl Core {
             self.regs[self.wb.reg] = tmp;
         } else {
             trace!("{:08X}: NOP", self.ex.pc);
-            self.df = DfState::Nop;
+            self.df = DfOperation::Nop;
         }
 
         self.delay >>= 1;

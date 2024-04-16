@@ -1,4 +1,4 @@
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 use tracing::trace;
 
 pub trait ArithmeticOperator {
@@ -34,7 +34,7 @@ impl ArithmeticOperator for Sub {
     }
 }
 
-pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i32;
@@ -52,13 +52,13 @@ pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32
         todo!("Overflow exception");
     };
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rt,
         value: result,
     }
 }
 
-pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let imm = (word & 0xffff) as i16 as i32;
@@ -72,13 +72,13 @@ pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u
         imm
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rt,
         value: Op::apply_unchecked(cpu.regs[rs], imm),
     }
 }
 
-pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -96,13 +96,13 @@ pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32
         todo!("Overflow exception");
     };
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rd,
         value: result,
     }
 }
 
-pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -116,7 +116,7 @@ pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Core, pc: u32, word: u
         Core::REG_NAMES[rt],
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rd,
         value: Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]),
     }

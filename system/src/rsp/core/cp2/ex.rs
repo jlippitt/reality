@@ -1,4 +1,4 @@
-use super::{Core, Cp2, DfState, Flags, Vector};
+use super::{Core, Cp2, DfOperation, Flags, Vector};
 
 mod compute;
 mod load;
@@ -6,7 +6,7 @@ mod select;
 mod single_lane;
 mod store;
 
-pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     match (word >> 21) & 31 {
         0o00 => store::mfc2(core, pc, word),
         0o02 => store::cfc2(core, pc, word),
@@ -61,7 +61,7 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfState {
     }
 }
 
-pub fn lwc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn lwc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     match (word >> 11) & 0x1f {
         0x00 => load::load::<load::Lbv>(core, pc, word),
         0x01 => load::load::<load::Lsv>(core, pc, word),
@@ -71,12 +71,12 @@ pub fn lwc2(core: &mut Core, pc: u32, word: u32) -> DfState {
         0x05 => load::load::<load::Lrv>(core, pc, word),
         0x06 => load::load::<load::Lpv>(core, pc, word),
         0x07 => load::load::<load::Luv>(core, pc, word),
-        // 0x0b => load::load::<load::Ltv>(core, pc, word),
+        0x0b => load::load::<load::Ltv>(core, pc, word),
         opcode => unimplemented!("RSP LWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
     }
 }
 
-pub fn swc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn swc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     match (word >> 11) & 0x1f {
         0x00 => store::store::<store::Sbv>(core, pc, word),
         0x01 => store::store::<store::Ssv>(core, pc, word),

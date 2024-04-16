@@ -3,7 +3,7 @@ use super::{Bus, Core};
 use tracing::trace;
 
 #[derive(Debug)]
-pub enum DfState {
+pub enum DfOperation {
     RegWrite {
         reg: usize,
         value: i32,
@@ -73,6 +73,11 @@ pub enum DfState {
         el: usize,
         addr: u32,
     },
+    Cp2LoadQuadwordRight {
+        reg: usize,
+        el: usize,
+        end: u32,
+    },
     Cp2LoadPacked {
         reg: usize,
         el: usize,
@@ -83,10 +88,10 @@ pub enum DfState {
         el: usize,
         addr: u32,
     },
-    Cp2LoadQuadwordRight {
+    Cp2LoadTranspose {
         reg: usize,
         el: usize,
-        end: u32,
+        addr: u32,
     },
     Cp2StoreByte {
         value: u8,
@@ -130,72 +135,72 @@ pub enum DfState {
 
 pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
     match cpu.df {
-        DfState::RegWrite { reg, value } => {
+        DfOperation::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
         }
-        DfState::LoadByte { reg, addr } => {
+        DfOperation::LoadByte { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u8>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i8 as i32;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
-        DfState::LoadByteUnsigned { reg, addr } => {
+        DfOperation::LoadByteUnsigned { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u8>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
-        DfState::LoadHalfword { reg, addr } => {
+        DfOperation::LoadHalfword { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u16>(addr) as i16 as i64;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i16 as i32;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
-        DfState::LoadHalfwordUnsigned { reg, addr } => {
+        DfOperation::LoadHalfwordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u16>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32;
             trace!("  [{:08X} => {:04X}]", addr, value);
         }
-        DfState::LoadWord { reg, addr } => {
+        DfOperation::LoadWord { reg, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u32>(addr);
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
-        DfState::StoreByte { value, addr } => {
+        DfOperation::StoreByte { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:02X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::StoreHalfword { value, addr } => {
+        DfOperation::StoreHalfword { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:04X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::StoreWord { value, addr } => {
+        DfOperation::StoreWord { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp0LoadReg { cp0_reg, core_reg } => {
+        DfOperation::Cp0LoadReg { cp0_reg, core_reg } => {
             cpu.wb.reg = core_reg;
             cpu.wb.value = bus.read_register(cp0_reg) as i32;
         }
-        DfState::Cp0StoreReg { cp0_reg, value } => {
+        DfOperation::Cp0StoreReg { cp0_reg, value } => {
             cpu.wb.reg = 0;
             bus.write_register(cp0_reg, value as u32);
         }
-        DfState::Cp2LoadByte { reg, el, addr } => {
+        DfOperation::Cp2LoadByte { reg, el, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u8>(addr);
             cpu.wb.reg = 0;
@@ -204,7 +209,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadHalfword { reg, el, addr } => {
+        DfOperation::Cp2LoadHalfword { reg, el, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u16>(addr);
             cpu.wb.reg = 0;
@@ -213,7 +218,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadWord { reg, el, addr } => {
+        DfOperation::Cp2LoadWord { reg, el, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u32>(addr);
             cpu.wb.reg = 0;
@@ -222,7 +227,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadDoubleword { reg, el, addr } => {
+        DfOperation::Cp2LoadDoubleword { reg, el, addr } => {
             // TODO: Stall cycles
             let value = bus.read_data::<u64>(addr);
             cpu.wb.reg = 0;
@@ -231,7 +236,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             vector.write(el, value);
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadQuadword { reg, el, addr } => {
+        DfOperation::Cp2LoadQuadword { reg, el, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
@@ -255,7 +260,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 cpu.cp2.set_reg(reg, vector);
             }
         }
-        DfState::Cp2LoadQuadwordRight { reg, el, end } => {
+        DfOperation::Cp2LoadQuadwordRight { reg, el, end } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
@@ -272,7 +277,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
 
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadPacked { reg, el, addr } => {
+        DfOperation::Cp2LoadPacked { reg, el, addr } => {
             cpu.wb.reg = 0;
 
             let start = addr & !7;
@@ -288,7 +293,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
 
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2LoadPackedUnsigned { reg, el, addr } => {
+        DfOperation::Cp2LoadPackedUnsigned { reg, el, addr } => {
             cpu.wb.reg = 0;
 
             let start = addr & !7;
@@ -304,31 +309,61 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
 
             cpu.cp2.set_reg(reg, vector);
         }
-        DfState::Cp2StoreByte { value, addr } => {
+        DfOperation::Cp2LoadTranspose { reg, el, addr } => {
+            cpu.wb.reg = 0;
+
+            let start = addr & !7;
+            let end = start + 16;
+            let mut byte_addr = start.wrapping_add((el as u32 + (addr & 8)) & 15);
+
+            for index in 0..8 {
+                let reg_index = (((el >> 1) + index) & 7) + (reg & !7);
+                let mut vector = cpu.cp2.reg(reg_index);
+
+                let low_byte: u8 = bus.read_data(byte_addr);
+                vector.write(index << 1, low_byte);
+                byte_addr = byte_addr.wrapping_add(1);
+
+                if byte_addr == end {
+                    byte_addr = start;
+                }
+
+                let high_byte: u8 = bus.read_data(byte_addr);
+                vector.write((index << 1) + 1, high_byte);
+                byte_addr = byte_addr.wrapping_add(1);
+
+                if byte_addr == end {
+                    byte_addr = start;
+                }
+
+                cpu.cp2.set_reg(reg_index, vector);
+            }
+        }
+        DfOperation::Cp2StoreByte { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:02X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp2StoreHalfword { value, addr } => {
+        DfOperation::Cp2StoreHalfword { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:04X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp2StoreWord { value, addr } => {
+        DfOperation::Cp2StoreWord { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp2StoreDoubleword { value, addr } => {
+        DfOperation::Cp2StoreDoubleword { value, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
             trace!("  [{:08X} <= {:016X}]", addr, value);
             bus.write_data(addr, value);
         }
-        DfState::Cp2StoreQuadword { vector, el, addr } => {
+        DfOperation::Cp2StoreQuadword { vector, el, addr } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
@@ -348,7 +383,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 }
             }
         }
-        DfState::Cp2StoreQuadwordRight { vector, el, end } => {
+        DfOperation::Cp2StoreQuadwordRight { vector, el, end } => {
             // TODO: Stall cycles
             cpu.wb.reg = 0;
 
@@ -361,7 +396,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 trace!("  [{:08X} <= {:02X}]", addr + index as u32, byte);
             }
         }
-        DfState::Cp2StorePacked { vector, el, addr } => {
+        DfOperation::Cp2StorePacked { vector, el, addr } => {
             cpu.wb.reg = 0;
 
             for index in 0..8u32 {
@@ -378,7 +413,7 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 trace!("  [{:08X} <= {:02X}]", byte_addr, value);
             }
         }
-        DfState::Cp2StorePackedUnsigned { vector, el, addr } => {
+        DfOperation::Cp2StorePackedUnsigned { vector, el, addr } => {
             cpu.wb.reg = 0;
 
             for index in 0..8u32 {
@@ -395,16 +430,16 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
                 trace!("  [{:08X} <= {:02X}]", byte_addr, value);
             }
         }
-        DfState::Break => {
+        DfOperation::Break => {
             bus.break_();
             cpu.wb.reg = 0;
             cpu.pc = cpu.ex.pc;
             cpu.rf.word = 0;
             cpu.ex.word = 0;
-            cpu.df = DfState::Nop;
+            cpu.df = DfOperation::Nop;
             return true;
         }
-        DfState::Nop => {
+        DfOperation::Nop => {
             cpu.wb.reg = 0;
         }
     }

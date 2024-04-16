@@ -1,7 +1,7 @@
 pub use ex::{cop2, lwc2, swc2};
 pub use regs::Vector;
 
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 use regs::{Accumulator, FlagVector, Flags};
 use std::array;
 use tracing::{trace, warn};

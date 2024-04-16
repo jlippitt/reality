@@ -1,4 +1,4 @@
-use super::{Core, DfState, Flags, Vector};
+use super::{Core, DfOperation, Flags, Vector};
 use std::cmp::Ordering;
 use tracing::trace;
 
@@ -298,7 +298,7 @@ impl ComputeOperator for VNxor {
     }
 }
 
-pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let el = ((word >> 21) & 15) as usize;
     let vt = ((word >> 16) & 31) as usize;
     let vs = ((word >> 11) & 31) as usize;
@@ -325,10 +325,10 @@ pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfSt
 
     core.cp2.set_reg(vd, Vector::from_le_array(result));
 
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let el = ((word >> 21) & 15) as usize;
     let vd = ((word >> 6) & 31) as usize;
 
@@ -343,7 +343,7 @@ pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfState {
         core.cp2.set_reg(vd, Vector::default());
     }
 
-    DfState::Nop
+    DfOperation::Nop
 }
 
 fn clamp_signed(value: i32) -> i16 {

@@ -1,6 +1,6 @@
 use super::cp0;
 use super::cp2;
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 
 mod arithmetic;
 mod bitwise;
@@ -11,7 +11,7 @@ mod load;
 mod shift;
 mod store;
 
-pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     match word >> 26 {
         0o00 => special(cpu, pc, word),
         0o01 => regimm(cpu, pc, word),
@@ -50,7 +50,7 @@ pub fn execute(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     }
 }
 
-pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     match word & 63 {
         0o00 => shift::fixed::<shift::Sll>(cpu, pc, word),
         0o02 => shift::fixed::<shift::Srl>(cpu, pc, word),
@@ -75,7 +75,7 @@ pub fn special(cpu: &mut Core, pc: u32, word: u32) -> DfState {
     }
 }
 
-pub fn regimm(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn regimm(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     match (word >> 16) & 31 {
         0o00 => control::bltz::<false>(cpu, pc, word),
         0o01 => control::bgez::<false>(cpu, pc, word),

@@ -1,10 +1,10 @@
-use super::{Core, Cp2, DfState};
+use super::{Core, Cp2, DfOperation};
 use tracing::trace;
 
 pub trait LoadOperator {
     const NAME: &'static str;
     const SHIFT: usize;
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState;
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation;
 }
 
 pub struct Lbv;
@@ -15,13 +15,14 @@ pub struct Lqv;
 pub struct Lrv;
 pub struct Lpv;
 pub struct Luv;
+pub struct Ltv;
 
 impl LoadOperator for Lbv {
     const NAME: &'static str = "LBV";
     const SHIFT: usize = 0;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadByte { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadByte { reg, el, addr }
     }
 }
 
@@ -29,8 +30,8 @@ impl LoadOperator for Lsv {
     const NAME: &'static str = "LSV";
     const SHIFT: usize = 1;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadHalfword { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadHalfword { reg, el, addr }
     }
 }
 
@@ -38,8 +39,8 @@ impl LoadOperator for Llv {
     const NAME: &'static str = "LLV";
     const SHIFT: usize = 2;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadWord { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadWord { reg, el, addr }
     }
 }
 
@@ -47,8 +48,8 @@ impl LoadOperator for Ldv {
     const NAME: &'static str = "LDV";
     const SHIFT: usize = 3;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadDoubleword { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadDoubleword { reg, el, addr }
     }
 }
 
@@ -56,8 +57,8 @@ impl LoadOperator for Lqv {
     const NAME: &'static str = "LQV";
     const SHIFT: usize = 4;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadQuadword { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadQuadword { reg, el, addr }
     }
 }
 
@@ -65,8 +66,8 @@ impl LoadOperator for Lrv {
     const NAME: &'static str = "LRV";
     const SHIFT: usize = 4;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadQuadwordRight { reg, el, end: addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadQuadwordRight { reg, el, end: addr }
     }
 }
 
@@ -74,8 +75,8 @@ impl LoadOperator for Lpv {
     const NAME: &'static str = "LPV";
     const SHIFT: usize = 3;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadPacked { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadPacked { reg, el, addr }
     }
 }
 
@@ -83,12 +84,21 @@ impl LoadOperator for Luv {
     const NAME: &'static str = "LUV";
     const SHIFT: usize = 3;
 
-    fn apply(reg: usize, el: usize, addr: u32) -> DfState {
-        DfState::Cp2LoadPackedUnsigned { reg, el, addr }
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadPackedUnsigned { reg, el, addr }
     }
 }
 
-pub fn load<Op: LoadOperator>(core: &mut Core, pc: u32, word: u32) -> DfState {
+impl LoadOperator for Ltv {
+    const NAME: &'static str = "LTV";
+    const SHIFT: usize = 4;
+
+    fn apply(reg: usize, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2LoadTranspose { reg, el, addr }
+    }
+}
+
+pub fn load<Op: LoadOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let base = ((word >> 21) & 31) as usize;
     let vt = ((word >> 16) & 31) as usize;
     let el = ((word >> 7) & 15) as usize;
@@ -107,7 +117,7 @@ pub fn load<Op: LoadOperator>(core: &mut Core, pc: u32, word: u32) -> DfState {
     Op::apply(vt, el, core.regs[base].wrapping_add(offset) as u32)
 }
 
-pub fn mtc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn mtc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
     let el = ((word >> 7) & 15) as usize;
@@ -124,10 +134,10 @@ pub fn mtc2(core: &mut Core, pc: u32, word: u32) -> DfState {
     vector.write(el, core.regs[rt] as u16);
     core.cp2.set_reg(rd, vector);
 
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn ctc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn ctc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -140,5 +150,5 @@ pub fn ctc2(core: &mut Core, pc: u32, word: u32) -> DfState {
 
     core.cp2.set_control_reg(rd, core.regs[rt]);
 
-    DfState::Nop
+    DfOperation::Nop
 }

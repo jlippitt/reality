@@ -1,6 +1,6 @@
 pub use ex::cop0;
 
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 
 mod ex;
 

@@ -1,4 +1,4 @@
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 use tracing::trace;
 
 pub trait ShiftOperator {
@@ -34,7 +34,7 @@ impl ShiftOperator for Sra {
     }
 }
 
-pub fn fixed<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn fixed<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
     let sa = (word >> 6) & 31;
@@ -48,13 +48,13 @@ pub fn fixed<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
         sa
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rt], sa),
     }
 }
 
-pub fn variable<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn variable<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
@@ -68,7 +68,7 @@ pub fn variable<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfStat
         Core::REG_NAMES[rs],
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rd,
         value: Op::apply(cpu.regs[rt], cpu.regs[rs] as u32),
     }

@@ -1,7 +1,7 @@
-use super::{Core, DfState};
+use super::{Core, DfOperation};
 use tracing::trace;
 
-pub fn j<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn j<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let offset = (word & 0x03ff_ffff) << 2;
     let target = offset & 0x0fff;
 
@@ -20,7 +20,7 @@ pub fn j<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     link::<LINK>(core)
 }
 
-pub fn jr(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn jr(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
 
     trace!("{:08X}: JR {}", pc, Core::REG_NAMES[rs]);
@@ -30,10 +30,10 @@ pub fn jr(core: &mut Core, pc: u32, word: u32) -> DfState {
         core.pc = (core.regs[rs] as u32) & 0x0ffc;
     }
 
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn jalr(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn jalr(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -49,13 +49,13 @@ pub fn jalr(core: &mut Core, pc: u32, word: u32) -> DfState {
         core.pc = (core.regs[rs] as u32) & 0x0ffc;
     }
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rd,
         value: ((core.rf.pc + 4) & 0x0ffc) as i32,
     }
 }
 
-pub fn beq(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn beq(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
@@ -69,10 +69,10 @@ pub fn beq(core: &mut Core, pc: u32, word: u32) -> DfState {
     );
 
     core.branch(core.regs[rs] == core.regs[rt], offset);
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn bne(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bne(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
@@ -86,30 +86,30 @@ pub fn bne(core: &mut Core, pc: u32, word: u32) -> DfState {
     );
 
     core.branch(core.regs[rs] != core.regs[rt], offset);
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn blez(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn blez(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
     trace!("{:08X}: BLEZ {}, {}", pc, Core::REG_NAMES[rs], offset);
 
     core.branch(core.regs[rs] <= 0, offset);
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn bgtz(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bgtz(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
     trace!("{:08X}: BGTZ {}, {}", pc, Core::REG_NAMES[rs], offset);
 
     core.branch(core.regs[rs] > 0, offset);
-    DfState::Nop
+    DfOperation::Nop
 }
 
-pub fn bltz<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bltz<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
@@ -125,7 +125,7 @@ pub fn bltz<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     link::<LINK>(core)
 }
 
-pub fn bgez<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn bgez<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rs = ((word >> 21) & 31) as usize;
     let offset = ((word & 0xffff) as i16 as i32) << 2;
 
@@ -141,13 +141,13 @@ pub fn bgez<const LINK: bool>(core: &mut Core, pc: u32, word: u32) -> DfState {
     link::<LINK>(core)
 }
 
-fn link<const LINK: bool>(core: &Core) -> DfState {
+fn link<const LINK: bool>(core: &Core) -> DfOperation {
     if LINK {
-        DfState::RegWrite {
+        DfOperation::RegWrite {
             reg: 31,
             value: ((core.rf.pc + 4) & 0x0fff) as i32,
         }
     } else {
-        DfState::Nop
+        DfOperation::Nop
     }
 }

@@ -1,10 +1,10 @@
-use super::{Core, Cp2, DfState, Vector};
+use super::{Core, Cp2, DfOperation, Vector};
 use tracing::trace;
 
 pub trait StoreOperator {
     const NAME: &'static str;
     const SHIFT: usize;
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState;
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation;
 }
 
 pub struct Sbv;
@@ -20,8 +20,8 @@ impl StoreOperator for Sbv {
     const NAME: &'static str = "SBV";
     const SHIFT: usize = 0;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreByte {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreByte {
             value: value.read(el),
             addr,
         }
@@ -32,8 +32,8 @@ impl StoreOperator for Ssv {
     const NAME: &'static str = "SSV";
     const SHIFT: usize = 1;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreHalfword {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreHalfword {
             value: value.read(el),
             addr,
         }
@@ -44,8 +44,8 @@ impl StoreOperator for Slv {
     const NAME: &'static str = "SLV";
     const SHIFT: usize = 2;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreWord {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreWord {
             value: value.read(el),
             addr,
         }
@@ -56,8 +56,8 @@ impl StoreOperator for Sdv {
     const NAME: &'static str = "SDV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreDoubleword {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreDoubleword {
             value: value.read(el),
             addr,
         }
@@ -68,8 +68,8 @@ impl StoreOperator for Sqv {
     const NAME: &'static str = "SQV";
     const SHIFT: usize = 4;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreQuadword {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreQuadword {
             vector: value,
             el,
             addr,
@@ -81,8 +81,8 @@ impl StoreOperator for Srv {
     const NAME: &'static str = "SRV";
     const SHIFT: usize = 4;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StoreQuadwordRight {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StoreQuadwordRight {
             vector: value,
             el,
             end: addr,
@@ -94,8 +94,8 @@ impl StoreOperator for Spv {
     const NAME: &'static str = "SPV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StorePacked {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StorePacked {
             vector: value,
             el,
             addr,
@@ -107,8 +107,8 @@ impl StoreOperator for Suv {
     const NAME: &'static str = "SUV";
     const SHIFT: usize = 3;
 
-    fn apply(value: Vector, el: usize, addr: u32) -> DfState {
-        DfState::Cp2StorePackedUnsigned {
+    fn apply(value: Vector, el: usize, addr: u32) -> DfOperation {
+        DfOperation::Cp2StorePackedUnsigned {
             vector: value,
             el,
             addr,
@@ -116,7 +116,7 @@ impl StoreOperator for Suv {
     }
 }
 
-pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let base = ((word >> 21) & 31) as usize;
     let vt = ((word >> 16) & 31) as usize;
     let el = ((word >> 7) & 15) as usize;
@@ -139,7 +139,7 @@ pub fn store<Op: StoreOperator>(core: &mut Core, pc: u32, word: u32) -> DfState 
     )
 }
 
-pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
     let el = ((word >> 7) & 15) as usize;
@@ -152,13 +152,13 @@ pub fn mfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
         el
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rt,
         value: core.cp2.reg(rd).read::<u16>(el) as i16 as i32,
     }
 }
 
-pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
+pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     let rt = ((word >> 16) & 31) as usize;
     let rd = ((word >> 11) & 31) as usize;
 
@@ -169,7 +169,7 @@ pub fn cfc2(core: &mut Core, pc: u32, word: u32) -> DfState {
         Cp2::CONTROL_REG_NAMES[rd]
     );
 
-    DfState::RegWrite {
+    DfOperation::RegWrite {
         reg: rt,
         value: core.cp2.control_reg(rd),
     }
