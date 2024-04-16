@@ -33,6 +33,10 @@ impl Cp0 {
         }
     }
 
+    pub fn cp1_usable(&self) -> bool {
+        self.regs.status.cu1()
+    }
+
     pub fn is_fr(&self) -> bool {
         self.regs.status.fr()
     }

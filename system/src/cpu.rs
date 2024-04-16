@@ -1,6 +1,6 @@
 use crate::memory::Size;
 use cache::ICache;
-use cp0::{Cp0, Exception};
+use cp0::Cp0;
 use cp1::Cp1;
 use dc::DcOperation;
 use tracing::trace;

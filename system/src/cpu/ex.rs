@@ -1,6 +1,6 @@
 use super::cp0;
 use super::cp1;
-use super::{Cpu, DcOperation, Exception};
+use super::{Cpu, DcOperation};
 
 mod arithmetic;
 mod bitwise;

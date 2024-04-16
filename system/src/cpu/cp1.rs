@@ -1,5 +1,6 @@
 pub use ex::{cop1, ldc1, lwc1, sdc1, swc1};
 
+use super::cp0;
 use super::{Cpu, DcOperation};
 use bytemuck::Pod;
 use regs::Status;

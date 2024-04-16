@@ -1,3 +1,4 @@
+use super::cp0;
 use super::{Cp1, Cpu, DcOperation, Format};
 use tracing::trace;
 
@@ -78,6 +79,10 @@ pub fn ctc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 }
 
 pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
+    if !cpu.cp0.cp1_usable() {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+    }
+
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i64;
@@ -97,6 +102,10 @@ pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 }
 
 pub fn ldc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
+    if !cpu.cp0.cp1_usable() {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+    }
+
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i64;
@@ -116,6 +125,10 @@ pub fn ldc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 }
 
 pub fn swc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
+    if !cpu.cp0.cp1_usable() {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+    }
+
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i64;
@@ -135,6 +148,10 @@ pub fn swc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 }
 
 pub fn sdc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
+    if !cpu.cp0.cp1_usable() {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+    }
+
     let base = ((word >> 21) & 31) as usize;
     let rt = ((word >> 16) & 31) as usize;
     let offset = (word & 0xffff) as i16 as i64;

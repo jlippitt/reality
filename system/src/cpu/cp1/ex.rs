@@ -1,5 +1,6 @@
 pub use transfer::{ldc1, lwc1, sdc1, swc1};
 
+use super::cp0;
 use super::{Cp1, Cpu, DcOperation, Float, Format, Int};
 
 mod arithmetic;
@@ -9,6 +10,10 @@ mod convert;
 mod transfer;
 
 pub fn cop1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
+    if !cpu.cp0.cp1_usable() {
+        cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+    }
+
     match (word >> 21) & 31 {
         0o00 => transfer::mfc1(cpu, pc, word),
         0o01 => transfer::dmfc1(cpu, pc, word),

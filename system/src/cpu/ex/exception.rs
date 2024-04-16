@@ -1,21 +1,21 @@
 use super::cp0;
-use super::{Cpu, DcOperation, Exception};
+use super::{Cpu, DcOperation};
 use tracing::trace;
 
 pub fn cop2_unusable(cpu: &mut Cpu) -> DcOperation {
-    cp0::except(cpu, Exception::CoprocessorUnusable(2));
+    cp0::except(cpu, cp0::Exception::CoprocessorUnusable(2));
     DcOperation::Nop
 }
 
 pub fn syscall(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: SYSCALL", pc,);
-    cp0::except(cpu, Exception::Syscall);
+    cp0::except(cpu, cp0::Exception::Syscall);
     DcOperation::Nop
 }
 
 pub fn break_(cpu: &mut Cpu, pc: u32) -> DcOperation {
     trace!("{:08X}: BREAK", pc,);
-    cp0::except(cpu, Exception::Breakpoint);
+    cp0::except(cpu, cp0::Exception::Breakpoint);
     DcOperation::Nop
 }
 
