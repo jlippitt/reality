@@ -412,7 +412,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::CacheOperation { op, vaddr } => {
-            let _result = cpu.cp0.translate(vaddr)?;
+            let result = cpu.cp0.translate(vaddr)?;
 
             match op {
                 0b00000 => {
@@ -455,7 +455,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
                     }
                 }
                 0b10000 => {
-                    if let Some(line) = cpu.icache.find_mut(vaddr) {
+                    if let Some(line) = cpu.icache.find_mut(vaddr, result.paddr) {
                         line.clear_valid_flag();
                         trace!("ICache Line at {:08X} invalidated", vaddr);
                     }

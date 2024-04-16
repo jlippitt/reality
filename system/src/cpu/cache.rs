@@ -28,10 +28,10 @@ impl ICache {
         &mut self.lines[index]
     }
 
-    pub fn find_mut(&mut self, address: u32) -> Option<&mut ICacheLine> {
-        let index = ((address >> 5) & 0x01ff) as usize;
+    pub fn find_mut(&mut self, vaddr: u32, paddr: u32) -> Option<&mut ICacheLine> {
+        let index = ((vaddr >> 5) & 0x01ff) as usize;
         let line = &mut self.lines[index];
-        line.matches(address).then_some(line)
+        line.matches(paddr).then_some(line)
     }
 
     pub fn read(&mut self, vaddr: u32, paddr: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
