@@ -14,6 +14,7 @@ pub struct TlbEntry {
 #[derive(Debug)]
 pub struct TlbResult {
     pub paddr: u32,
+    pub valid: bool,
     pub cached: bool,
     pub writable: bool,
 }
@@ -76,6 +77,7 @@ impl Tlb {
         if (region & 6) == 4 {
             return Some(TlbResult {
                 paddr: vaddr & 0x1fff_ffff,
+                valid: true,
                 cached: region == 4,
                 writable: true,
             });
@@ -102,14 +104,11 @@ impl Tlb {
                 &entry.entry_lo0
             };
 
-            if !entry_lo.valid() {
-                continue;
-            }
-
             return Some(TlbResult {
                 paddr: (entry_lo.pfn() << 12) | (vaddr & page_mask & !entry_select),
-                cached: entry_lo.cache() != 2,
+                valid: entry_lo.valid(),
                 writable: entry_lo.dirty(),
+                cached: entry_lo.cache() != 2,
             });
         }
 

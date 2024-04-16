@@ -19,8 +19,8 @@ pub struct ExceptionDetails {
 pub enum Exception {
     Interrupt,
     TlbModification(u32),
-    TlbMissLoad(u32),
-    TlbMissStore(u32),
+    TlbMissLoad(u32, bool),
+    TlbMissStore(u32, bool),
     Syscall,
     Breakpoint,
     ReservedInstruction(u32),
@@ -49,7 +49,7 @@ impl Exception {
                     ce: 0,
                 }
             }
-            Exception::TlbMissLoad(vaddr) => {
+            Exception::TlbMissLoad(vaddr, invalid) => {
                 regs.context.set_bad_vpn2(vaddr >> 13);
                 regs.bad_vaddr = vaddr;
                 regs.entry_hi.set_vpn2(vaddr as u64 >> 13);
@@ -57,12 +57,16 @@ impl Exception {
 
                 ExceptionDetails {
                     code: 2,
-                    vector: 0x0180,
+                    vector: if invalid || regs.status.exl() {
+                        0x0180
+                    } else {
+                        0x0000
+                    },
                     error: false,
                     ce: 0,
                 }
             }
-            Exception::TlbMissStore(vaddr) => {
+            Exception::TlbMissStore(vaddr, invalid) => {
                 regs.context.set_bad_vpn2(vaddr >> 13);
                 regs.bad_vaddr = vaddr;
                 regs.entry_hi.set_vpn2(vaddr as u64 >> 13);
@@ -70,7 +74,11 @@ impl Exception {
 
                 ExceptionDetails {
                     code: 3,
-                    vector: 0x0180,
+                    vector: if invalid || regs.status.exl() {
+                        0x0180
+                    } else {
+                        0x0000
+                    },
                     error: false,
                     ce: 0,
                 }

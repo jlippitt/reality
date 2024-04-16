@@ -204,9 +204,22 @@ impl Cpu {
 
     fn read<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissLoad(vaddr), cp0::ExceptionStage::DC);
+            cp0::except(
+                self,
+                Exception::TlbMissLoad(vaddr, false),
+                cp0::ExceptionStage::DC,
+            );
             return None;
         };
+
+        if !result.valid {
+            cp0::except(
+                self,
+                Exception::TlbMissLoad(vaddr, true),
+                cp0::ExceptionStage::DC,
+            );
+            return None;
+        }
 
         #[cfg(feature = "dcache")]
         if result.cached {
@@ -222,11 +235,20 @@ impl Cpu {
         let Some(result) = self.cp0.translate(vaddr) else {
             cp0::except(
                 self,
-                Exception::TlbMissStore(vaddr),
+                Exception::TlbMissStore(vaddr, false),
                 cp0::ExceptionStage::DC,
             );
             return;
         };
+
+        if !result.valid {
+            cp0::except(
+                self,
+                Exception::TlbMissStore(vaddr, true),
+                cp0::ExceptionStage::DC,
+            );
+            return;
+        }
 
         if !result.writable {
             cp0::except(
@@ -251,9 +273,22 @@ impl Cpu {
 
     fn read_opcode(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissLoad(vaddr), cp0::ExceptionStage::RF);
+            cp0::except(
+                self,
+                Exception::TlbMissLoad(vaddr, false),
+                cp0::ExceptionStage::RF,
+            );
             return 0;
         };
+
+        if !result.valid {
+            cp0::except(
+                self,
+                Exception::TlbMissLoad(vaddr, true),
+                cp0::ExceptionStage::RF,
+            );
+            return 0;
+        }
 
         if result.cached {
             return self.icache.read(vaddr, result.paddr, |line| {
