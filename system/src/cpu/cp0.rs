@@ -130,7 +130,7 @@ impl Cp0 {
             }
             // TOOD: This register has special behaviour when read back
             16 => {
-                self.regs.config = (value as u32).into();
+                self.regs.config = (0x7006_6460 | (value as u32 & 0x0f00_800f)).into();
                 trace!("  Config: {:?}", self.regs.config);
                 assert_ne!(2, self.regs.config.k0(), "Uncached KSEG0 is not supported");
                 assert!(self.regs.config.be(), "Little-endian mode is not supported");
