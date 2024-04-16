@@ -204,7 +204,7 @@ impl Cpu {
 
     fn read<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissLoad, cp0::ExceptionStage::DC);
+            cp0::except(self, Exception::TlbMissLoad(vaddr), cp0::ExceptionStage::DC);
             return None;
         };
 
@@ -220,7 +220,11 @@ impl Cpu {
 
     fn write<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissStore, cp0::ExceptionStage::DC);
+            cp0::except(
+                self,
+                Exception::TlbMissStore(vaddr),
+                cp0::ExceptionStage::DC,
+            );
             return;
         };
 
@@ -243,7 +247,7 @@ impl Cpu {
 
     fn read_opcode(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissLoad, cp0::ExceptionStage::RF);
+            cp0::except(self, Exception::TlbMissLoad(vaddr), cp0::ExceptionStage::RF);
             return 0;
         };
 

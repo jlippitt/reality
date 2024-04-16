@@ -89,9 +89,9 @@ pub struct Context {
     #[bits(4)]
     __: u32,
     #[bits(19)]
-    bad_vpn2: u32,
+    pub bad_vpn2: u32,
     #[bits(9)]
-    pte_base: u32,
+    pub pte_base: u32,
 }
 
 #[bitfield(u32)]
@@ -208,11 +208,11 @@ pub struct XContext {
     #[bits(4)]
     __: u64,
     #[bits(27)]
-    bad_vpn2: u64,
+    pub bad_vpn2: u64,
     #[bits(2)]
-    region: u64,
+    pub region: u64,
     #[bits(31)]
-    pte_base: u64,
+    pub pte_base: u64,
 }
 
 #[bitfield(u32)]

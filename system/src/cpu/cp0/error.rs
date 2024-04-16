@@ -19,8 +19,8 @@ pub struct ExceptionDetails {
 pub enum Exception {
     Interrupt,
     TlbModification,
-    TlbMissLoad,
-    TlbMissStore,
+    TlbMissLoad(u32),
+    TlbMissStore(u32),
     Syscall,
     Breakpoint,
     ReservedInstruction(u32),
@@ -28,7 +28,7 @@ pub enum Exception {
 }
 
 impl Exception {
-    pub fn process(self, _regs: &mut Regs) -> ExceptionDetails {
+    pub fn process(self, regs: &mut Regs) -> ExceptionDetails {
         match self {
             Exception::Interrupt => ExceptionDetails {
                 code: 0,
@@ -42,18 +42,30 @@ impl Exception {
                 error: false,
                 ce: 0,
             },
-            Exception::TlbMissLoad => ExceptionDetails {
-                code: 2,
-                vector: 0x0000,
-                error: false,
-                ce: 0,
-            },
-            Exception::TlbMissStore => ExceptionDetails {
-                code: 3,
-                vector: 0x0000,
-                error: false,
-                ce: 0,
-            },
+            Exception::TlbMissLoad(vaddr) => {
+                regs.bad_vaddr = vaddr;
+                regs.context.set_bad_vpn2(vaddr >> 13);
+                regs.x_context.set_bad_vpn2(vaddr as u64 >> 13);
+
+                ExceptionDetails {
+                    code: 2,
+                    vector: 0x0180,
+                    error: false,
+                    ce: 0,
+                }
+            }
+            Exception::TlbMissStore(vaddr) => {
+                regs.bad_vaddr = vaddr;
+                regs.context.set_bad_vpn2(vaddr >> 13);
+                regs.x_context.set_bad_vpn2(vaddr as u64 >> 13);
+
+                ExceptionDetails {
+                    code: 3,
+                    vector: 0x0180,
+                    error: false,
+                    ce: 0,
+                }
+            }
             Exception::Syscall => ExceptionDetails {
                 code: 8,
                 vector: 0x0180,
