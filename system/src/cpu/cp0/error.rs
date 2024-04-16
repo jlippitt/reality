@@ -43,8 +43,9 @@ impl Exception {
                 ce: 0,
             },
             Exception::TlbMissLoad(vaddr) => {
-                regs.bad_vaddr = vaddr;
                 regs.context.set_bad_vpn2(vaddr >> 13);
+                regs.bad_vaddr = vaddr;
+                regs.entry_hi.set_vpn2(vaddr as u64 >> 13);
                 regs.x_context.set_bad_vpn2(vaddr as u64 >> 13);
 
                 ExceptionDetails {
@@ -55,8 +56,9 @@ impl Exception {
                 }
             }
             Exception::TlbMissStore(vaddr) => {
-                regs.bad_vaddr = vaddr;
                 regs.context.set_bad_vpn2(vaddr >> 13);
+                regs.bad_vaddr = vaddr;
+                regs.entry_hi.set_vpn2(vaddr as u64 >> 13);
                 regs.x_context.set_bad_vpn2(vaddr as u64 >> 13);
 
                 ExceptionDetails {
