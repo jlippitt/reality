@@ -34,19 +34,19 @@ impl ICache {
         line.matches(address).then_some(line)
     }
 
-    pub fn read(&mut self, address: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
+    pub fn read(&mut self, vaddr: u32, paddr: u32, mut reload: impl FnMut(&mut ICacheLine)) -> u32 {
         // TODO: ITLB?
-        let index = ((address >> 5) & 0x01ff) as usize;
+        let index = ((vaddr >> 5) & 0x01ff) as usize;
         let line = &mut self.lines[index];
 
-        if !line.valid || line.ptag != (address >> 12) {
+        if !line.valid || line.ptag != (paddr >> 12) {
             reload(line);
-            line.ptag = address >> 12;
+            line.ptag = paddr >> 12;
             line.valid = true;
             trace!("ICache Line {}: {:08X?}", index, line);
         }
 
-        line.data.read(address as usize & 0x1f)
+        line.data.read(vaddr as usize & 0x1f)
     }
 
     pub fn index_store_tag(&mut self, address: u32, ptag: u32, valid: bool) {

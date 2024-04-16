@@ -247,12 +247,11 @@ impl Cpu {
             return 0;
         };
 
-        // TODO
-        // if result.cached {
-        //     return self.icache.read(address & 0x1fff_ffff, |line| {
-        //         bus.read_block(address & 0x1fff_ffe0, line.bytes_mut());
-        //     });
-        // }
+        if result.cached {
+            return self.icache.read(vaddr, result.paddr, |line| {
+                bus.read_block(result.paddr & !0x1f, line.bytes_mut());
+            });
+        }
 
         bus.read_single(result.paddr)
     }
