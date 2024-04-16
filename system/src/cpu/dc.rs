@@ -412,15 +412,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::CacheOperation { op, vaddr } => {
-            // TODO: TLB
-            assert!((vaddr >> 30) == 2);
-            let paddr = vaddr & 0x1fff_ffff;
+            let _result = cpu.cp0.translate(vaddr)?;
 
             match op {
                 0b00000 => {
-                    let line = cpu.icache.line_mut(paddr);
+                    let line = cpu.icache.line_mut(vaddr);
                     line.clear_valid_flag();
-                    trace!("ICache Line at {:08X} invalidated", paddr);
+                    trace!("ICache Line at {:08X} invalidated", vaddr);
                 }
                 0b00001 => {
                     #[cfg(feature = "dcache")]
@@ -435,7 +433,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
                     let tag = &cpu.cp0.tag_lo();
                     let ptag = tag.ptag_lo();
                     let valid = (tag.pstate() & 0b10) != 0;
-                    cpu.icache.index_store_tag(paddr, ptag, valid);
+                    cpu.icache.index_store_tag(vaddr, ptag, valid);
                 }
                 0b01001 => {
                     #[cfg(feature = "dcache")]
@@ -457,9 +455,9 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
                     }
                 }
                 0b10000 => {
-                    if let Some(line) = cpu.icache.find_mut(paddr) {
+                    if let Some(line) = cpu.icache.find_mut(vaddr) {
                         line.clear_valid_flag();
-                        trace!("ICache Line at {:08X} invalidated", paddr);
+                        trace!("ICache Line at {:08X} invalidated", vaddr);
                     }
                 }
                 0b10001 =>
