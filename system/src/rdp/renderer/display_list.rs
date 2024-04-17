@@ -66,19 +66,19 @@ impl DisplayList {
         self.commands.is_empty()
     }
 
-    pub fn push_triangle(&mut self, edges: [[f32; 2]; 3], fill_color: [f32; 4]) {
+    pub fn push_triangle(&mut self, edges: [[f32; 2]; 3], colors: [[f32; 4]; 3]) {
         let vertices = [
             Vertex {
                 position: edges[0],
-                color: fill_color,
+                color: colors[0],
             },
             Vertex {
                 position: edges[1],
-                color: fill_color,
+                color: colors[1],
             },
             Vertex {
                 position: edges[2],
-                color: fill_color,
+                color: colors[2],
             },
         ];
 

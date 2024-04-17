@@ -1,11 +1,13 @@
+use super::renderer::CycleType;
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
-pub fn set_other_modes(_core: &mut Core, _bus: Bus, word: u64) {
+pub fn set_other_modes(_core: &mut Core, bus: Bus, word: u64) {
     let cmd = SetOtherModes::from(word);
     trace!("{:?}", cmd);
     // TODO
+    bus.renderer.set_cycle_type(cmd.cycle_type());
 }
 
 #[bitfield(u64)]
@@ -149,15 +151,6 @@ impl RgbDitherSelect {
             _ => Self::NoDither,
         }
     }
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum CycleType {
-    OneCycle = 0,
-    TwoCycle = 1,
-    Copy = 2,
-    Fill = 3,
 }
 
 impl CycleType {

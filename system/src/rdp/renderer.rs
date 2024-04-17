@@ -17,10 +17,22 @@ pub struct Rect {
     pub bottom: f32,
 }
 
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum CycleType {
+    #[default]
+    OneCycle = 0,
+    TwoCycle = 1,
+    Copy = 2,
+    Fill = 3,
+}
+
 pub struct Renderer {
     target: Target,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
+    cycle_type: CycleType,
+    blend_color: [f32; 4],
     fill_color: u32,
 }
 
@@ -98,6 +110,8 @@ impl Renderer {
             target: Target::new(gfx, &scissor_bind_group_layout),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
+            cycle_type: CycleType::default(),
+            blend_color: [0.0; 4],
             fill_color: 0,
         }
     }
@@ -124,13 +138,33 @@ impl Renderer {
         }
     }
 
+    pub fn set_cycle_type(&mut self, cycle_type: CycleType) {
+        self.cycle_type = cycle_type;
+        trace!("  Cycle Type: {:?}", self.cycle_type);
+    }
+
+    pub fn blend_color(&self) -> [f32; 4] {
+        self.blend_color
+    }
+
+    pub fn set_blend_color(&mut self, color: u32) {
+        self.blend_color = decode_color(color);
+        trace!("  Blend Color: {:?}", self.blend_color);
+    }
+
     pub fn set_fill_color(&mut self, packed_color: u32) {
         self.fill_color = packed_color;
         trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
-    pub fn draw_triangle(&mut self, edges: [[f32; 2]; 3]) {
-        self.display_list.push_triangle(edges, self.fill_color());
+    pub fn draw_triangle(&mut self, edges: [[f32; 2]; 3], colors: [[f32; 4]; 3]) {
+        let colors = if self.cycle_type == CycleType::Fill {
+            [self.fill_color(); 3]
+        } else {
+            colors
+        };
+
+        self.display_list.push_triangle(edges, colors);
     }
 
     pub fn draw_rectangle(&mut self, rect: Rect) {
@@ -206,17 +240,12 @@ impl Renderer {
             ColorImageFormat::Index8 => todo!("Index8 format"),
             ColorImageFormat::Rgba16 => [
                 // This isn't correct, but it'll do for now
-                ((self.fill_color >> 11) & 0x1f) as f32 / 31.0,
-                ((self.fill_color >> 6) & 0x1f) as f32 / 31.0,
-                ((self.fill_color >> 1) & 0x1f) as f32 / 31.0,
-                (self.fill_color & 0x01) as f32,
+                (((self.fill_color >> 11) & 0x1f) << 3) as f32,
+                (((self.fill_color >> 6) & 0x1f) << 3) as f32,
+                (((self.fill_color >> 1) & 0x1f) << 3) as f32,
+                ((self.fill_color & 0x01) * 255) as f32,
             ],
-            ColorImageFormat::Rgba32 => [
-                (self.fill_color >> 24) as f32 / 255.0,
-                ((self.fill_color >> 16) & 0xff) as f32 / 255.0,
-                ((self.fill_color >> 8) & 0xff) as f32 / 255.0,
-                (self.fill_color & 0xff) as f32 / 255.0,
-            ],
+            ColorImageFormat::Rgba32 => decode_color(self.fill_color),
         }
     }
 }
@@ -229,4 +258,13 @@ impl Rect {
     fn height(&self) -> f32 {
         self.bottom - self.top
     }
+}
+
+fn decode_color(color: u32) -> [f32; 4] {
+    [
+        (color >> 24) as f32,
+        ((color >> 16) & 0xff) as f32,
+        ((color >> 8) & 0xff) as f32,
+        (color & 0xff) as f32,
+    ]
 }

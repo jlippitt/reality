@@ -1,5 +1,6 @@
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
+use std::array;
 use tracing::{trace, warn};
 
 pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
@@ -33,23 +34,49 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     let xh = edge_high.x() as f32 / 65536.0;
     let xl = edge_low.x() as f32 / 65536.0;
     let dxhdy = edge_high.dxdy() as f32 / 65536.0;
-    let dxldy = edge_high.dxdy() as f32 / 65536.0;
 
     let edges: [[f32; 2]; 3] = [
         [xh + (yh - yh.floor()) * dxhdy, yh],
-        [xl - 0.25 * dxldy, ym],
+        [xl, ym],
         [xh + (yl - yh.floor()) * dxhdy, yl],
     ];
 
     trace!("  = {:?}", edges);
 
-    if SHADE {
-        for _ in 0..8 {
-            core.commands.pop_front().unwrap();
-        }
+    let colors = if SHADE {
+        let shade = Color::from(core.commands.pop_front().unwrap());
+        let shade_dx = Color::from(core.commands.pop_front().unwrap());
+        let shade_frac = Color::from(core.commands.pop_front().unwrap());
+        let shade_frac_dx = Color::from(core.commands.pop_front().unwrap());
+        let shade_de = Color::from(core.commands.pop_front().unwrap());
+        let shade_dy = Color::from(core.commands.pop_front().unwrap());
+        let shade_frac_de = Color::from(core.commands.pop_front().unwrap());
+        let shade_frac_dy = Color::from(core.commands.pop_front().unwrap());
 
-        warn!("TODO: Shaded triangles");
-    }
+        let base_color = decode_color(shade, shade_frac);
+        let color_dx = decode_color(shade_dx, shade_frac_dx);
+        let color_de = decode_color(shade_de, shade_frac_de);
+        let color_dy = decode_color(shade_dy, shade_frac_dy);
+        trace!("Base Color: {:?}", base_color);
+        trace!("Color DX: {:?}", color_dx);
+        trace!("Color DE: {:?}", color_de);
+        trace!("Color DY: {:?}", color_dy);
+
+        let colors: [[f32; 4]; 3] = [
+            array::from_fn(|i| base_color[i] + (yh - yh.floor()) * color_de[i]),
+            array::from_fn(|i| {
+                base_color[i]
+                    + (ym - yh.floor()) * color_de[i]
+                    + (xl - (xh + (ym - yh.floor()) * dxhdy)) * color_dx[i]
+            }),
+            array::from_fn(|i| base_color[i] + (yl - yh.floor()) * color_de[i]),
+        ];
+
+        trace!(" = {:?}", colors);
+        colors
+    } else {
+        [bus.renderer.blend_color(); 3]
+    };
 
     if TEXTURE {
         for _ in 0..8 {
@@ -67,7 +94,16 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         warn!("TODO: Z-buffer triangles");
     }
 
-    bus.renderer.draw_triangle(edges);
+    bus.renderer.draw_triangle(edges, colors);
+}
+
+fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
+    [
+        ((integer.r() << 16) | fraction.r()) as f32 / 65536.0,
+        ((integer.g() << 16) | fraction.g()) as f32 / 65536.0,
+        ((integer.b() << 16) | fraction.b()) as f32 / 65536.0,
+        ((integer.a() << 16) | fraction.a()) as f32 / 65536.0,
+    ]
 }
 
 #[bitfield(u64)]
@@ -104,4 +140,16 @@ struct Edge {
     x: i32,
     #[bits(2)]
     __: u64,
+}
+
+#[bitfield(u64)]
+struct Color {
+    #[bits(16)]
+    a: i32,
+    #[bits(16)]
+    b: i32,
+    #[bits(16)]
+    g: i32,
+    #[bits(16)]
+    r: i32,
 }
