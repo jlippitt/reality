@@ -25,6 +25,7 @@ impl Vertex {
 
 #[derive(Debug)]
 enum Command {
+    Triangles(Range<u32>),
     Rectangles(Range<u32>),
 }
 
@@ -63,6 +64,43 @@ impl DisplayList {
 
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
+    }
+
+    pub fn push_triangle(&mut self, edges: &[[f32; 2]; 3], fill_color: u32) {
+        let color = [
+            (fill_color >> 24) as f32 / 255.0,
+            ((fill_color >> 16) & 0xff) as f32 / 255.0,
+            ((fill_color >> 8) & 0xff) as f32 / 255.0,
+            fill_color as f32 / 255.0,
+        ];
+
+        let vertices = [
+            Vertex {
+                position: edges[0],
+                color,
+            },
+            Vertex {
+                position: edges[1],
+                color,
+            },
+            Vertex {
+                position: edges[2],
+                color,
+            },
+        ];
+
+        self.vertices.extend_from_slice(&vertices);
+
+        let end = self.vertices.len().try_into().unwrap();
+
+        match self.commands.last_mut() {
+            Some(Command::Triangles(existing_range)) => {
+                *existing_range = existing_range.start..end;
+            }
+            _ => {
+                self.commands.push(Command::Triangles((end - 3)..end));
+            }
+        }
     }
 
     pub fn push_rectangle(&mut self, rect: Rect, fill_color: u32) {
@@ -132,6 +170,7 @@ impl DisplayList {
 
         for command in self.commands.drain(..) {
             match command {
+                Command::Triangles(range) => render_pass.draw(range.clone(), 0..1),
                 Command::Rectangles(range) => render_pass.draw_indexed(range.clone(), 0, 0..1),
             }
         }

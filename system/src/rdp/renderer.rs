@@ -129,7 +129,11 @@ impl Renderer {
         trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
-    pub fn push_rectangle(&mut self, rect: Rect) {
+    pub fn draw_triangle(&mut self, edges: &[[f32; 2]; 3]) {
+        self.display_list.push_triangle(edges, self.fill_color);
+    }
+
+    pub fn draw_rectangle(&mut self, rect: Rect) {
         self.display_list.push_rectangle(rect, self.fill_color);
     }
 

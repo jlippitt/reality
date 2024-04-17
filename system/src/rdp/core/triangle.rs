@@ -4,7 +4,7 @@ use tracing::{trace, warn};
 
 pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     core: &mut Core,
-    _bus: Bus,
+    bus: Bus,
     word: u64,
 ) {
     let cmd = Triangle::from(word);
@@ -26,6 +26,22 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     trace!("{:?}", edge_low);
     trace!("{:?}", edge_high);
     trace!("{:?}", edge_mid);
+
+    let yh = cmd.yh() as f32 / 4.0;
+    let ym = cmd.ym() as f32 / 4.0;
+    let yl = cmd.yl() as f32 / 4.0;
+    let xh = edge_high.x() as f32 / 65536.0;
+    let xl = edge_low.x() as f32 / 65536.0;
+    let dxhdy = edge_high.dxdy() as f32 / 65536.0;
+    let dxldy = edge_high.dxdy() as f32 / 65536.0;
+
+    let edges: [[f32; 2]; 3] = [
+        [xh + (yh - yh.floor()) * dxhdy, yh],
+        [xl - 0.25 * dxldy, ym],
+        [xh + (yl - yh.floor()) * dxhdy, yl],
+    ];
+
+    trace!("  = {:?}", edges);
 
     if SHADE {
         for _ in 0..8 {
@@ -50,20 +66,22 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
 
         warn!("TODO: Z-buffer triangles");
     }
+
+    bus.renderer.draw_triangle(&edges);
 }
 
 #[bitfield(u64)]
 struct Triangle {
     #[bits(14)]
-    yh: u32,
+    yh: i32,
     #[bits(2)]
     __: u64,
     #[bits(14)]
-    ym: u32,
+    ym: i32,
     #[bits(2)]
     __: u64,
     #[bits(14)]
-    yl: u32,
+    yl: i32,
     #[bits(2)]
     __: u64,
     #[bits(3)]
@@ -79,7 +97,7 @@ struct Triangle {
 #[bitfield(u64)]
 struct Edge {
     #[bits(32)]
-    dxdy: u32,
+    dxdy: i32,
     #[bits(32)]
-    x: u32,
+    x: i32,
 }
