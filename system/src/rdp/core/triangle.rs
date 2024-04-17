@@ -96,8 +96,12 @@ struct Triangle {
 
 #[bitfield(u64)]
 struct Edge {
-    #[bits(32)]
+    #[bits(30)]
     dxdy: i32,
-    #[bits(32)]
+    #[bits(2)]
+    __: u64,
+    #[bits(30)]
     x: i32,
+    #[bits(2)]
+    __: u64,
 }

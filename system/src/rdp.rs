@@ -180,14 +180,14 @@ impl RdpShared {
 
                 if !status.start_pending() {
                     mask.write_partial(&mut self.regs.start, 0x00ff_fff8);
-                    debug!("DPC_START: {:?}", self.regs.start);
+                    debug!("DPC_START: {:08X}", self.regs.start);
                     status.set_start_pending(true);
                     debug!("DPC_STATUS: {:?}", status);
                 }
             }
             1 => {
                 mask.write_partial(&mut self.regs.end, 0x00ff_fff8);
-                debug!("DPC_END: {:?}", self.regs.end);
+                debug!("DPC_END: {:08X}", self.regs.end);
 
                 let status = &mut self.regs.status;
 
@@ -218,8 +218,8 @@ impl RdpShared {
                     self.dma_active.end = self.regs.end;
                 }
 
-                debug!("RSP DMA Active: {:08X?}", self.dma_active);
-                debug!("RSP DMA Pending: {:08X?}", self.dma_pending);
+                debug!("RDP DMA Active: {:08X?}", self.dma_active);
+                debug!("RDP DMA Pending: {:08X?}", self.dma_pending);
 
                 status.set_pipe_busy(true);
                 status.set_start_gclk(true);
