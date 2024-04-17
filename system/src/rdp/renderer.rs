@@ -49,14 +49,15 @@ impl Renderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_main",
-                        buffers: &[Vertex::desc()],
+                        buffers: &[],
+                        //buffers: &[Vertex::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: wgpu::TextureFormat::Rgba8Unorm,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -152,7 +153,12 @@ impl Renderer {
                     view: &color_texture_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -163,24 +169,28 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            render_pass.set_viewport(
-                output.scissor.left as f32,
-                output.scissor.top as f32,
-                output.color_texture.width() as f32,
-                output.color_texture.height() as f32,
-                0.0,
-                1.0,
-            );
+            // render_pass.set_viewport(
+            //     output.scissor.left as f32,
+            //     output.scissor.top as f32,
+            //     output.color_texture.width() as f32,
+            //     output.color_texture.height() as f32,
+            //     0.0,
+            //     1.0,
+            // );
 
-            render_pass.set_scissor_rect(
-                output.scissor.left,
-                output.scissor.top,
-                output.scissor.width(),
-                output.scissor.height(),
-            );
+            // render_pass.set_scissor_rect(
+            //     output.scissor.left,
+            //     output.scissor.top,
+            //     output.scissor.width(),
+            //     output.scissor.height(),
+            // );
 
-            self.display_list.flush(&mut render_pass);
+            //self.display_list.flush(&mut render_pass);
+
+            render_pass.draw(0..3, 0..1);
         }
+
+        gfx.queue().submit(std::iter::once(encoder.finish()));
 
         self.target.request_sync();
     }

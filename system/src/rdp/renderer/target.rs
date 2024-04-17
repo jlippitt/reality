@@ -98,8 +98,8 @@ impl Target {
 
         // Width must be padded to a 64-byte boundary for 'copy to buffer' to work
         // TODO: Width is exclusive in 1-Cycle/2-Cycle mode
-        let width = (scissor.width() + 63) & !63;
-        let height = scissor.height();
+        let width = (scissor.width() / 4 + 63) & !63;
+        let height = scissor.height() / 4;
 
         let size = wgpu::Extent3d {
             width,

@@ -124,6 +124,8 @@ impl DisplayList {
 
     pub fn flush<'a>(&'a mut self, render_pass: &mut wgpu::RenderPass<'a>) {
         trace!("Display List: {:?}", self.commands);
+        trace!("Vertices: {:?}", self.vertices);
+        trace!("Indices: {:?}", self.indices);
 
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
