@@ -138,7 +138,7 @@ impl Renderer {
         let mut encoder = gfx
             .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("RDP Command Encoder"),
+                label: Some("RDP Render Command Encoder"),
             });
 
         {

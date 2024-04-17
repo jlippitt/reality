@@ -136,29 +136,99 @@ impl Target {
         self.dirty = false;
     }
 
-    pub fn sync(&mut self, _gfx: &GfxContext, _rdram: &mut Rdram) {
+    pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
         if self.synced {
             return;
         }
 
-        let Some(_color_image) = &self.color_image else {
+        let Some(color_image) = &self.color_image else {
             debug!("Attempting to sync target output with no Color Image set");
             return;
         };
 
-        let Some(_scissor) = &self.scissor else {
-            debug!("Attempting to sync target output with no Scissor Rect set");
-            return;
-        };
-
-        let Some(_output) = &mut self.output else {
+        let Some(output) = &mut self.output else {
             debug!("Attempting to sync target output with no output texture set");
             return;
         };
 
         debug!("Writing output texture to RDRAM");
 
-        // TODO: Write pixels to existing Color Image
+        let mut encoder = gfx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("RDP Target Sync Command Encoder"),
+            });
+
+        // Copy the color texture into RDRAM
+        encoder.copy_texture_to_buffer(
+            output.color_texture.as_image_copy(),
+            wgpu::ImageCopyBuffer {
+                buffer: &output.sync_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(output.color_texture.width() * 4),
+                    rows_per_image: Some(output.color_texture.height()),
+                },
+            },
+            output.color_texture.size(),
+        );
+
+        gfx.queue().submit(std::iter::once(encoder.finish()));
+
+        // Sets the buffer up for mapping, sending over the result of the mapping back to us when it is finished.
+        let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
+
+        let buffer_slice = output.sync_buffer.slice(..);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+        gfx.device().poll(wgpu::Maintain::Wait);
+
+        if let Some(Ok(())) = pollster::block_on(receiver.receive()) {
+            let pixel_data = &output.sync_buffer.slice(..).get_mapped_range();
+
+            let mut buf_addr = 0;
+            let mut ram_addr = color_image.dram_addr as usize;
+
+            // TODO: What happens when color image width is not the same as texture width?
+            match color_image.format {
+                ColorImageFormat::Index8 => todo!("Index8 output format"),
+                ColorImageFormat::Rgba16 => {
+                    for _ in 0..output.color_texture.height() {
+                        // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
+                        let pixels: Vec<u8> = pixel_data
+                            [buf_addr..(buf_addr + color_image.width as usize * 4)]
+                            .chunks_exact(4)
+                            .flat_map(|chunk| {
+                                let color = ((chunk[0] as u16 >> 3) << 11)
+                                    | ((chunk[1] as u16 >> 3) << 6)
+                                    | ((chunk[2] as u16 >> 3) << 1)
+                                    | (chunk[3] as u16 >> 7);
+
+                                color.to_be_bytes()
+                            })
+                            .collect();
+
+                        rdram.write_block(ram_addr, &pixels);
+                        buf_addr += output.color_texture.width() as usize * 4;
+                        ram_addr += color_image.width as usize * 2;
+                    }
+                }
+                ColorImageFormat::Rgba32 => {
+                    for _ in 0..output.color_texture.height() {
+                        rdram.write_block(
+                            ram_addr,
+                            &pixel_data[buf_addr..(buf_addr + color_image.width as usize * 4)],
+                        );
+                        buf_addr += output.color_texture.width() as usize * 4;
+                        ram_addr += color_image.width as usize * 4;
+                    }
+                }
+            }
+        } else {
+            panic!("Failed to sync with WGPU");
+        }
+
+        output.sync_buffer.unmap();
 
         self.synced = true;
     }
