@@ -67,7 +67,7 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         warn!("TODO: Z-buffer triangles");
     }
 
-    bus.renderer.draw_triangle(&edges);
+    bus.renderer.draw_triangle(edges);
 }
 
 #[bitfield(u64)]

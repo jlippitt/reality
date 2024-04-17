@@ -66,26 +66,19 @@ impl DisplayList {
         self.commands.is_empty()
     }
 
-    pub fn push_triangle(&mut self, edges: &[[f32; 2]; 3], fill_color: u32) {
-        let color = [
-            (fill_color >> 24) as f32 / 255.0,
-            ((fill_color >> 16) & 0xff) as f32 / 255.0,
-            ((fill_color >> 8) & 0xff) as f32 / 255.0,
-            fill_color as f32 / 255.0,
-        ];
-
+    pub fn push_triangle(&mut self, edges: [[f32; 2]; 3], fill_color: [f32; 4]) {
         let vertices = [
             Vertex {
                 position: edges[0],
-                color,
+                color: fill_color,
             },
             Vertex {
                 position: edges[1],
-                color,
+                color: fill_color,
             },
             Vertex {
                 position: edges[2],
-                color,
+                color: fill_color,
             },
         ];
 
@@ -103,30 +96,23 @@ impl DisplayList {
         }
     }
 
-    pub fn push_rectangle(&mut self, rect: Rect, fill_color: u32) {
-        let color = [
-            (fill_color >> 24) as f32 / 255.0,
-            ((fill_color >> 16) & 0xff) as f32 / 255.0,
-            ((fill_color >> 8) & 0xff) as f32 / 255.0,
-            fill_color as f32 / 255.0,
-        ];
-
+    pub fn push_rectangle(&mut self, rect: Rect, fill_color: [f32; 4]) {
         let vertices = [
             Vertex {
                 position: [rect.left, rect.top],
-                color,
+                color: fill_color,
             },
             Vertex {
                 position: [rect.left, rect.bottom],
-                color,
+                color: fill_color,
             },
             Vertex {
                 position: [rect.right, rect.top],
-                color,
+                color: fill_color,
             },
             Vertex {
                 position: [rect.right, rect.bottom],
-                color,
+                color: fill_color,
             },
         ];
 

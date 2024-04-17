@@ -67,6 +67,10 @@ impl Target {
         &self.scissor
     }
 
+    pub fn color_image(&self) -> &ColorImage {
+        &self.color_image
+    }
+
     pub fn scissor_bind_group(&self) -> &wgpu::BindGroup {
         &self.scissor_bind_group
     }

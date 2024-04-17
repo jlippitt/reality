@@ -129,12 +129,12 @@ impl Renderer {
         trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
-    pub fn draw_triangle(&mut self, edges: &[[f32; 2]; 3]) {
-        self.display_list.push_triangle(edges, self.fill_color);
+    pub fn draw_triangle(&mut self, edges: [[f32; 2]; 3]) {
+        self.display_list.push_triangle(edges, self.fill_color());
     }
 
     pub fn draw_rectangle(&mut self, rect: Rect) {
-        self.display_list.push_rectangle(rect, self.fill_color);
+        self.display_list.push_rectangle(rect, self.fill_color());
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
@@ -199,6 +199,25 @@ impl Renderer {
         gfx.queue().submit(std::iter::once(encoder.finish()));
 
         self.target.request_sync();
+    }
+
+    fn fill_color(&self) -> [f32; 4] {
+        match self.target.color_image().format {
+            ColorImageFormat::Index8 => todo!("Index8 format"),
+            ColorImageFormat::Rgba16 => [
+                // This isn't correct, but it'll do for now
+                ((self.fill_color >> 11) & 0x1f) as f32 / 31.0,
+                ((self.fill_color >> 6) & 0x1f) as f32 / 31.0,
+                ((self.fill_color >> 1) & 0x1f) as f32 / 31.0,
+                (self.fill_color & 0x01) as f32,
+            ],
+            ColorImageFormat::Rgba32 => [
+                (self.fill_color >> 24) as f32 / 255.0,
+                ((self.fill_color >> 16) & 0xff) as f32 / 255.0,
+                ((self.fill_color >> 8) & 0xff) as f32 / 255.0,
+                (self.fill_color & 0xff) as f32 / 255.0,
+            ],
+        }
     }
 }
 
