@@ -51,6 +51,7 @@ impl Core {
         let opcode = (word >> 56) & 0x3f;
 
         match opcode {
+            0x27 => sync::sync_pipe(self, bus, word),
             0x29 => sync::sync_full(self, bus, word),
             0x2d => image::set_scissor(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
