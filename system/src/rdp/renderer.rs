@@ -3,6 +3,7 @@ pub use target::ColorImageFormat;
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use target::Target;
+use tracing::trace;
 
 mod target;
 
@@ -16,12 +17,14 @@ pub struct Rect {
 
 pub struct Renderer {
     target: Target,
+    fill_color: u32,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         Self {
             target: Target::new(),
+            fill_color: 0,
         }
     }
 
@@ -31,6 +34,11 @@ impl Renderer {
 
     pub fn set_scissor(&mut self, rect: Rect) {
         self.target.set_scissor(rect);
+    }
+
+    pub fn set_fill_color(&mut self, packed_color: u32) {
+        self.fill_color = packed_color;
+        trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {

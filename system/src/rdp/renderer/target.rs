@@ -1,7 +1,7 @@
 use super::Rect;
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
-use tracing::debug;
+use tracing::{debug, trace};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ColorImageFormat {
@@ -54,6 +54,8 @@ impl Target {
             .is_some_and(|image| *image != new_image);
 
         self.color_image = Some(new_image);
+        trace!("  Color Image: {:?}", self.color_image);
+        trace!("  Dirty: {}", self.dirty);
     }
 
     pub fn set_scissor(&mut self, rect: Rect) {
@@ -63,6 +65,8 @@ impl Target {
             .is_some_and(|scissor| *scissor == rect);
 
         self.scissor = Some(rect);
+        trace!("  Scissor: {:?}", self.scissor);
+        trace!("  Dirty: {}", self.dirty);
     }
 
     pub fn output(&self) -> Option<&TargetOutput> {

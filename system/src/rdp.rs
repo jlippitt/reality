@@ -69,6 +69,7 @@ impl Rdp {
         };
 
         if sync_full {
+            self.sync(gfx, rdram);
             self.rcp_int.raise(RcpIntType::DP);
 
             let status = &mut self.shared.regs.status;
