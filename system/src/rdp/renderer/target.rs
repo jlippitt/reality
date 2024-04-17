@@ -3,14 +3,15 @@ use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use tracing::{debug, trace};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum ColorImageFormat {
     Index8,
     Rgba16,
+    #[default]
     Rgba32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ColorImage {
     pub dram_addr: u32,
     pub width: u32,
@@ -20,12 +21,11 @@ pub struct ColorImage {
 pub struct TargetOutput {
     pub color_texture: wgpu::Texture,
     pub sync_buffer: wgpu::Buffer,
-    pub scissor: Rect,
 }
 
 pub struct Target {
-    color_image: Option<ColorImage>,
-    scissor: Option<Rect>,
+    color_image: ColorImage,
+    scissor: Rect,
     output: Option<TargetOutput>,
     dirty: bool,
     synced: bool,
@@ -34,12 +34,16 @@ pub struct Target {
 impl Target {
     pub fn new() -> Self {
         Self {
-            color_image: None,
-            scissor: None,
+            color_image: ColorImage::default(),
+            scissor: Rect::default(),
             output: None,
             dirty: true,
             synced: false,
         }
+    }
+
+    pub fn scissor(&self) -> &Rect {
+        &self.scissor
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -51,23 +55,15 @@ impl Target {
     }
 
     pub fn set_color_image(&mut self, color_image: ColorImage) {
-        self.dirty |= !self
-            .color_image
-            .as_ref()
-            .is_some_and(|image| *image != color_image);
-
-        self.color_image = Some(color_image);
+        self.dirty |= color_image != self.color_image;
+        self.color_image = color_image;
         trace!("  Color Image: {:?}", self.color_image);
         trace!("  Dirty: {}", self.dirty);
     }
 
-    pub fn set_scissor(&mut self, rect: Rect) {
-        self.dirty |= !self
-            .scissor
-            .as_ref()
-            .is_some_and(|scissor| *scissor == rect);
-
-        self.scissor = Some(rect);
+    pub fn set_scissor(&mut self, scissor: Rect) {
+        self.dirty |= scissor != self.scissor;
+        self.scissor = scissor;
         trace!("  Scissor: {:?}", self.scissor);
         trace!("  Dirty: {}", self.dirty);
     }
@@ -86,20 +82,14 @@ impl Target {
             self.sync(gfx, rdram);
         };
 
-        let Some(_color_image) = &self.color_image else {
-            debug!("Attempting to update target output with no Color Image set");
-            return;
-        };
-
-        let Some(scissor) = &self.scissor else {
-            debug!("Attempting to update target output with no Scissor Rect set");
-            return;
-        };
-
         // Width must be padded to a 64-byte boundary for 'copy to buffer' to work
         // TODO: Width is exclusive in 1-Cycle/2-Cycle mode
-        let width = (scissor.width() / 4 + 63) & !63;
-        let height = scissor.height() / 4;
+        let width = (self.scissor.width() as u32 + 63) & !63;
+        let height = self.scissor.height() as u32;
+
+        if width == 0 || height == 0 {
+            panic!("Cannot create target texture with size of zero")
+        }
 
         let size = wgpu::Extent3d {
             width,
@@ -132,7 +122,6 @@ impl Target {
         self.output = Some(TargetOutput {
             color_texture,
             sync_buffer,
-            scissor: scissor.clone(),
         });
 
         self.dirty = false;
@@ -143,9 +132,8 @@ impl Target {
             return;
         }
 
-        let Some(color_image) = &self.color_image else {
-            debug!("Attempting to sync target output with no Color Image set");
-            return;
+        if self.color_image.width == 0 {
+            debug!("Attempting to sync target output with zero-width color image");
         };
 
         let Some(output) = &mut self.output else {
@@ -189,16 +177,16 @@ impl Target {
             let pixel_data = &output.sync_buffer.slice(..).get_mapped_range();
 
             let mut buf_addr = 0;
-            let mut ram_addr = color_image.dram_addr as usize;
+            let mut ram_addr = self.color_image.dram_addr as usize;
 
             // TODO: What happens when color image width is not the same as texture width?
-            match color_image.format {
+            match self.color_image.format {
                 ColorImageFormat::Index8 => todo!("Index8 output format"),
                 ColorImageFormat::Rgba16 => {
                     for _ in 0..output.color_texture.height() {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
                         let pixels: Vec<u8> = pixel_data
-                            [buf_addr..(buf_addr + color_image.width as usize * 4)]
+                            [buf_addr..(buf_addr + self.color_image.width as usize * 4)]
                             .chunks_exact(4)
                             .flat_map(|chunk| {
                                 let color = ((chunk[0] as u16 >> 3) << 11)
@@ -212,17 +200,17 @@ impl Target {
 
                         rdram.write_block(ram_addr, &pixels);
                         buf_addr += output.color_texture.width() as usize * 4;
-                        ram_addr += color_image.width as usize * 2;
+                        ram_addr += self.color_image.width as usize * 2;
                     }
                 }
                 ColorImageFormat::Rgba32 => {
                     for _ in 0..output.color_texture.height() {
                         rdram.write_block(
                             ram_addr,
-                            &pixel_data[buf_addr..(buf_addr + color_image.width as usize * 4)],
+                            &pixel_data[buf_addr..(buf_addr + self.color_image.width as usize * 4)],
                         );
                         buf_addr += output.color_texture.width() as usize * 4;
-                        ram_addr += color_image.width as usize * 4;
+                        ram_addr += self.color_image.width as usize * 4;
                     }
                 }
             }

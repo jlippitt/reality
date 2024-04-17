@@ -75,19 +75,19 @@ impl DisplayList {
 
         let vertices = [
             Vertex {
-                position: [rect.left as f32, rect.top as f32],
+                position: [rect.left, rect.top],
                 color,
             },
             Vertex {
-                position: [rect.left as f32, rect.bottom as f32],
+                position: [rect.left, rect.bottom],
                 color,
             },
             Vertex {
-                position: [rect.right as f32, rect.top as f32],
+                position: [rect.right, rect.top],
                 color,
             },
             Vertex {
-                position: [rect.right as f32, rect.bottom as f32],
+                position: [rect.right, rect.bottom],
                 color,
             },
         ];

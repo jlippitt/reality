@@ -16,10 +16,10 @@ pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
         bus.gfx,
         bus.rdram,
         Rect {
-            left: cmd.xh(),
-            right: cmd.xl(),
-            top: cmd.yh(),
-            bottom: cmd.yl(),
+            left: cmd.xh() as f32 / 4.0,
+            right: cmd.xl() as f32 / 4.0,
+            top: cmd.yh() as f32 / 4.0,
+            bottom: cmd.yl() as f32 / 4.0,
         },
     );
 }

@@ -9,12 +9,12 @@ use tracing::trace;
 mod display_list;
 mod target;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Rect {
-    pub left: u32,
-    pub right: u32,
-    pub top: u32,
-    pub bottom: u32,
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
 }
 
 pub struct Renderer {
@@ -49,8 +49,7 @@ impl Renderer {
                     vertex: wgpu::VertexState {
                         module: &shader,
                         entry_point: "vs_main",
-                        buffers: &[],
-                        //buffers: &[Vertex::desc()],
+                        buffers: &[Vertex::desc()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -169,25 +168,10 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            // render_pass.set_viewport(
-            //     output.scissor.left as f32,
-            //     output.scissor.top as f32,
-            //     output.color_texture.width() as f32,
-            //     output.color_texture.height() as f32,
-            //     0.0,
-            //     1.0,
-            // );
+            let scissor = self.target.scissor();
+            render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 0.1);
 
-            // render_pass.set_scissor_rect(
-            //     output.scissor.left,
-            //     output.scissor.top,
-            //     output.scissor.width(),
-            //     output.scissor.height(),
-            // );
-
-            //self.display_list.flush(&mut render_pass);
-
-            render_pass.draw(0..3, 0..1);
+            self.display_list.flush(&mut render_pass);
         }
 
         gfx.queue().submit(std::iter::once(encoder.finish()));
@@ -197,11 +181,11 @@ impl Renderer {
 }
 
 impl Rect {
-    fn width(&self) -> u32 {
+    fn width(&self) -> f32 {
         self.right - self.left
     }
 
-    fn height(&self) -> u32 {
+    fn height(&self) -> f32 {
         self.bottom - self.top
     }
 }
