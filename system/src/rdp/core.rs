@@ -53,12 +53,12 @@ impl Core {
 
         match opcode {
             0x08 => triangle::triangle::<false, false, false>(self, bus, word),
-            0x09 => triangle::triangle::<true, false, false>(self, bus, word),
+            0x09 => triangle::triangle::<false, false, true>(self, bus, word),
             0x0a => triangle::triangle::<false, true, false>(self, bus, word),
-            0x0b => triangle::triangle::<true, true, false>(self, bus, word),
-            0x0c => triangle::triangle::<false, false, true>(self, bus, word),
+            0x0b => triangle::triangle::<false, true, true>(self, bus, word),
+            0x0c => triangle::triangle::<true, false, false>(self, bus, word),
             0x0d => triangle::triangle::<true, false, true>(self, bus, word),
-            0x0e => triangle::triangle::<false, true, true>(self, bus, word),
+            0x0e => triangle::triangle::<true, true, false>(self, bus, word),
             0x0f => triangle::triangle::<true, true, true>(self, bus, word),
             0x27 => sync::sync_pipe(self, bus, word),
             0x29 => sync::sync_full(self, bus, word),
