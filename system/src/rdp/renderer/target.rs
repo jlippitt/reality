@@ -11,10 +11,10 @@ pub enum ColorImageFormat {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ColorImage {
-    dram_addr: u32,
-    width: u32,
-    format: ColorImageFormat,
+pub struct ColorImage {
+    pub dram_addr: u32,
+    pub width: u32,
+    pub format: ColorImageFormat,
 }
 
 pub struct TargetOutput {
@@ -41,19 +41,21 @@ impl Target {
         }
     }
 
-    pub fn set_color_image(&mut self, dram_addr: u32, width: u32, format: ColorImageFormat) {
-        let new_image = ColorImage {
-            dram_addr,
-            width,
-            format,
-        };
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
 
+    pub fn request_sync(&mut self) {
+        self.synced = false;
+    }
+
+    pub fn set_color_image(&mut self, color_image: ColorImage) {
         self.dirty |= !self
             .color_image
             .as_ref()
-            .is_some_and(|image| *image != new_image);
+            .is_some_and(|image| *image != color_image);
 
-        self.color_image = Some(new_image);
+        self.color_image = Some(color_image);
         trace!("  Color Image: {:?}", self.color_image);
         trace!("  Dirty: {}", self.dirty);
     }
@@ -130,6 +132,8 @@ impl Target {
             color_texture,
             sync_buffer,
         });
+
+        self.dirty = false;
     }
 
     pub fn sync(&mut self, _gfx: &GfxContext, _rdram: &mut Rdram) {

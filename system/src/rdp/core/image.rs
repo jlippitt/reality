@@ -1,4 +1,4 @@
-use super::renderer::{ColorImageFormat, Rect};
+use super::renderer::{ColorImage, ColorImageFormat, Rect};
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
@@ -12,12 +12,16 @@ pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
         warn!("TODO: Set_Scissor interlace suppport");
     }
 
-    bus.renderer.set_scissor(Rect {
-        left: cmd.xh(),
-        right: cmd.xl(),
-        top: cmd.yh(),
-        bottom: cmd.yl(),
-    });
+    bus.renderer.set_scissor(
+        bus.gfx,
+        bus.rdram,
+        Rect {
+            left: cmd.xh(),
+            right: cmd.xl(),
+            top: cmd.yh(),
+            bottom: cmd.yl(),
+        },
+    );
 }
 
 pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
@@ -36,8 +40,15 @@ pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
         ),
     };
 
-    bus.renderer
-        .set_color_image(cmd.dram_addr(), cmd.width() + 1, format);
+    bus.renderer.set_color_image(
+        bus.gfx,
+        bus.rdram,
+        ColorImage {
+            dram_addr: cmd.dram_addr(),
+            width: cmd.width() + 1,
+            format,
+        },
+    );
 }
 
 #[bitfield(u64)]

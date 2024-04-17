@@ -31,7 +31,7 @@ pub struct Rdp {
 }
 
 impl Rdp {
-    pub fn new(rcp_int: RcpInterrupt) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, gfx: &GfxContext) -> Self {
         Self {
             shared: RdpShared {
                 regs: Regs::default(),
@@ -39,7 +39,7 @@ impl Rdp {
                 dma_pending: None,
             },
             core: Core::new(),
-            renderer: Renderer::new(),
+            renderer: Renderer::new(gfx),
             rcp_int,
         }
     }

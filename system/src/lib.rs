@@ -96,7 +96,7 @@ impl Device {
                 cpu_int,
                 rdram: Rdram::new(),
                 rsp: Rsp::new(rcp_int.clone(), ipl3_data),
-                rdp: Rdp::new(rcp_int.clone()),
+                rdp: Rdp::new(rcp_int.clone(), &gfx),
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
