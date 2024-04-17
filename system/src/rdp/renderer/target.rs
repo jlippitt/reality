@@ -20,6 +20,7 @@ pub struct ColorImage {
 pub struct TargetOutput {
     pub color_texture: wgpu::Texture,
     pub sync_buffer: wgpu::Buffer,
+    pub scissor: Rect,
 }
 
 pub struct Target {
@@ -131,6 +132,7 @@ impl Target {
         self.output = Some(TargetOutput {
             color_texture,
             sync_buffer,
+            scissor: scissor.clone(),
         });
 
         self.dirty = false;

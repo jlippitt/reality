@@ -163,6 +163,22 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
+            render_pass.set_viewport(
+                output.scissor.left as f32,
+                output.scissor.top as f32,
+                output.color_texture.width() as f32,
+                output.color_texture.height() as f32,
+                0.0,
+                1.0,
+            );
+
+            render_pass.set_scissor_rect(
+                output.scissor.left,
+                output.scissor.top,
+                output.scissor.width(),
+                output.scissor.height(),
+            );
+
             self.display_list.flush(&mut render_pass);
         }
 
