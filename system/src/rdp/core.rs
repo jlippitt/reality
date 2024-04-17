@@ -1,3 +1,4 @@
+use super::renderer;
 use super::renderer::Renderer;
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;

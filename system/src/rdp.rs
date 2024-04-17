@@ -44,6 +44,15 @@ impl Rdp {
         }
     }
 
+    pub fn shared(&mut self) -> &mut RdpShared {
+        &mut self.shared
+    }
+
+    pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+        let _span = error_span!("rdp").entered();
+        self.renderer.sync(gfx, rdram);
+    }
+
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
         if !self.core.running() || self.shared.regs.status.freeze() {
             return;
@@ -126,10 +135,6 @@ impl Rdp {
             debug!("RSP DMA Active: {:08X?}", self.shared.dma_active);
             debug!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
         }
-    }
-
-    pub fn shared(&mut self) -> &mut RdpShared {
-        &mut self.shared
     }
 
     pub fn read_command<T: Size>(&self, address: u32) -> T {

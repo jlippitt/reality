@@ -1,8 +1,9 @@
+use super::renderer::{ColorImageFormat, Rect};
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
 
-pub fn set_scissor(_core: &mut Core, _bus: Bus, word: u64) {
+pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
     let cmd = SetScissor::from(word);
 
     trace!("{:?}", cmd);
@@ -11,35 +12,48 @@ pub fn set_scissor(_core: &mut Core, _bus: Bus, word: u64) {
         warn!("TODO: Set_Scissor interlace suppport");
     }
 
-    // TODO
+    bus.renderer.set_scissor(Rect {
+        left: cmd.xh(),
+        right: cmd.xl(),
+        top: cmd.yh(),
+        bottom: cmd.yl(),
+    });
 }
 
-pub fn set_color_image(_core: &mut Core, _bus: Bus, word: u64) {
+pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
     let cmd = SetColorImage::from(word);
 
     trace!("{:?}", cmd);
 
-    if cmd.format() == Format::Rgba {
-        warn!("Color Image not in RGBA format");
-    }
+    let format = match (cmd.format(), cmd.size()) {
+        (Format::ColorIndex, 1) => ColorImageFormat::Index8,
+        (Format::Rgba, 2) => ColorImageFormat::Rgba16,
+        (Format::Rgba, 3) => ColorImageFormat::Rgba32,
+        _ => panic!(
+            "Unsupported format for SetColorImage: {:?} {:?}",
+            cmd.format(),
+            cmd.size(),
+        ),
+    };
 
-    // TODO
+    bus.renderer
+        .set_color_image(cmd.dram_addr(), cmd.width() + 1, format);
 }
 
 #[bitfield(u64)]
 struct SetScissor {
     #[bits(12)]
-    yl: u64,
+    yl: u32,
     #[bits(12)]
-    xl: u64,
+    xl: u32,
     odd_line: bool,
     field: bool,
     #[bits(6)]
     __: u64,
     #[bits(12)]
-    yh: u64,
+    yh: u32,
     #[bits(12)]
-    xh: u64,
+    xh: u32,
     #[bits(8)]
     __: u64,
 }
