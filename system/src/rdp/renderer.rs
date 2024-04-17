@@ -33,11 +33,27 @@ impl Renderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("renderer.wgsl").into()),
             });
 
+        let scissor_bind_group_layout =
+            gfx.device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("RDP Scissor Bind Group Layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+
         let render_pipeline_layout =
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("RDP Render Pipeline Layout"),
-                    bind_group_layouts: &[],
+                    bind_group_layouts: &[&scissor_bind_group_layout],
                     push_constant_ranges: &[],
                 });
 
@@ -79,7 +95,7 @@ impl Renderer {
                 });
 
         Self {
-            target: Target::new(),
+            target: Target::new(gfx, &scissor_bind_group_layout),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
             fill_color: 0,
@@ -103,6 +119,7 @@ impl Renderer {
         self.target.set_scissor(rect);
 
         if self.target.is_dirty() {
+            self.target.upload_buffers(gfx.queue());
             self.flush(gfx, rdram);
         }
     }
@@ -132,7 +149,7 @@ impl Renderer {
             return;
         };
 
-        self.display_list.upload(gfx.queue());
+        self.display_list.upload_buffers(gfx.queue());
 
         // Render the scene
         let mut encoder = gfx
@@ -167,9 +184,10 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, self.target.scissor_bind_group(), &[]);
 
             let scissor = self.target.scissor();
-            render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 0.1);
+            render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 1.0);
 
             self.display_list.flush(&mut render_pass);
         }

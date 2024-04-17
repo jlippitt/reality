@@ -1,6 +1,7 @@
 use super::Rect;
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
+use std::mem;
 use tracing::{debug, trace};
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -26,16 +27,36 @@ pub struct TargetOutput {
 pub struct Target {
     color_image: ColorImage,
     scissor: Rect,
+    scissor_bind_group: wgpu::BindGroup,
+    scissor_buffer: wgpu::Buffer,
     output: Option<TargetOutput>,
     dirty: bool,
     synced: bool,
 }
 
 impl Target {
-    pub fn new() -> Self {
+    pub fn new(gfx: &GfxContext, scissor_bind_group_layout: &wgpu::BindGroupLayout) -> Self {
+        let scissor_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("RDP Scissor Buffer"),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            size: mem::size_of::<[f32; 4]>() as u64,
+            mapped_at_creation: false,
+        });
+
+        let scissor_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("RDP Scissor Bind Group"),
+            layout: scissor_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: scissor_buffer.as_entire_binding(),
+            }],
+        });
+
         Self {
             color_image: ColorImage::default(),
             scissor: Rect::default(),
+            scissor_bind_group,
+            scissor_buffer,
             output: None,
             dirty: true,
             synced: false,
@@ -44,6 +65,10 @@ impl Target {
 
     pub fn scissor(&self) -> &Rect {
         &self.scissor
+    }
+
+    pub fn scissor_bind_group(&self) -> &wgpu::BindGroup {
+        &self.scissor_bind_group
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -70,6 +95,19 @@ impl Target {
 
     pub fn output(&self) -> Option<&TargetOutput> {
         self.output.as_ref()
+    }
+
+    pub fn upload_buffers(&self, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.scissor_buffer,
+            0,
+            bytemuck::cast_slice(&[
+                self.scissor.left,
+                self.scissor.top,
+                self.scissor.width(),
+                self.scissor.height(),
+            ]),
+        );
     }
 
     pub fn update(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {

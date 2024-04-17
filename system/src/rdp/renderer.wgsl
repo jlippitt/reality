@@ -8,10 +8,15 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
 };
 
+@group(0) @binding(0)
+var<uniform> scissor: vec4<f32>;
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(in.position, 0.0, 1.0);
+    let x = ((in.position[0] - scissor[0]) * 2.0 / scissor[2]) - 1.0;
+    let y = 1.0 - ((in.position[1] - scissor[1]) * 2.0 / scissor[3]);
+    out.clip_position = vec4<f32>(x, y, 0.0, 1.0);
     out.color = in.color;
     return out;
 }

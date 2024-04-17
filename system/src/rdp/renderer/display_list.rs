@@ -68,8 +68,8 @@ impl DisplayList {
     pub fn push_rectangle(&mut self, rect: Rect, fill_color: u32) {
         let color = [
             (fill_color >> 24) as f32 / 255.0,
-            (fill_color >> 16) as f32 / 255.0,
-            (fill_color >> 8) as f32 / 255.0,
+            ((fill_color >> 16) & 0xff) as f32 / 255.0,
+            ((fill_color >> 8) & 0xff) as f32 / 255.0,
             fill_color as f32 / 255.0,
         ];
 
@@ -117,7 +117,7 @@ impl DisplayList {
         }
     }
 
-    pub fn upload(&self, queue: &wgpu::Queue) {
+    pub fn upload_buffers(&self, queue: &wgpu::Queue) {
         queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
         queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&self.indices));
     }
