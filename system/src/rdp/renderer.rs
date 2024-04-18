@@ -220,14 +220,20 @@ impl Renderer {
     }
 
     pub fn draw_rectangle(&mut self, rect: Rect) {
+        let color = if self.mode.cycle_type == CycleType::Fill {
+            self.fill_color()
+        } else {
+            // TODO: Proper blending
+            self.blend_color
+        };
+
         let z_value = if self.mode.z_buffer.source == ZSource::Primitive {
             self.prim_depth
         } else {
             0.0
         };
 
-        self.display_list
-            .push_rectangle(rect, self.fill_color(), z_value);
+        self.display_list.push_rectangle(rect, color, z_value);
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
