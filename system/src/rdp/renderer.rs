@@ -112,7 +112,7 @@ impl Renderer {
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: wgpu::TextureFormat::Rgba8Unorm,
-                            blend: Some(wgpu::BlendState::REPLACE),
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
