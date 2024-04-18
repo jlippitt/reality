@@ -27,11 +27,32 @@ pub enum CycleType {
     Fill = 3,
 }
 
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum ZSource {
+    #[default]
+    PerPixel = 0,
+    Primitive = 1,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ZBufferConfig {
+    pub enable: bool,
+    pub write_enable: bool,
+    pub source: ZSource,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Mode {
+    pub cycle_type: CycleType,
+    pub z_buffer: ZBufferConfig,
+}
+
 pub struct Renderer {
     target: Target,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
-    cycle_type: CycleType,
+    mode: Mode,
     blend_color: [f32; 4],
     fill_color: u32,
 }
@@ -110,7 +131,7 @@ impl Renderer {
             target: Target::new(gfx, &scissor_bind_group_layout),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
-            cycle_type: CycleType::default(),
+            mode: Mode::default(),
             blend_color: [0.0; 4],
             fill_color: 0,
         }
@@ -122,25 +143,32 @@ impl Renderer {
         rdram: &mut Rdram,
         color_image: ColorImage,
     ) {
-        self.target.set_color_image(color_image);
-
-        if self.target.is_dirty() {
+        if color_image != *self.target.color_image() {
             self.flush(gfx, rdram);
         }
+
+        self.target.set_color_image(color_image);
     }
 
-    pub fn set_scissor(&mut self, gfx: &GfxContext, rdram: &mut Rdram, rect: Rect) {
-        self.target.set_scissor(rect);
+    pub fn set_scissor(&mut self, gfx: &GfxContext, rdram: &mut Rdram, scissor: Rect) {
+        if scissor != *self.target.scissor() {
+            self.flush(gfx, rdram);
+        }
+
+        self.target.set_scissor(scissor);
 
         if self.target.is_dirty() {
             self.target.upload_buffers(gfx.queue());
-            self.flush(gfx, rdram);
         }
     }
 
-    pub fn set_cycle_type(&mut self, cycle_type: CycleType) {
-        self.cycle_type = cycle_type;
-        trace!("  Cycle Type: {:?}", self.cycle_type);
+    pub fn set_mode(&mut self, gfx: &GfxContext, rdram: &mut Rdram, mode: Mode) {
+        if mode != self.mode {
+            self.flush(gfx, rdram);
+        }
+
+        self.mode = mode;
+        trace!("  Mode: {:?}", self.mode);
     }
 
     pub fn blend_color(&self) -> [f32; 4] {
@@ -158,7 +186,7 @@ impl Renderer {
     }
 
     pub fn draw_triangle(&mut self, edges: [[f32; 2]; 3], colors: [[f32; 4]; 3]) {
-        let colors = if self.cycle_type == CycleType::Fill {
+        let colors = if self.mode.cycle_type == CycleType::Fill {
             [self.fill_color(); 3]
         } else {
             colors
@@ -207,12 +235,7 @@ impl Renderer {
                     view: &color_texture_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                 })],

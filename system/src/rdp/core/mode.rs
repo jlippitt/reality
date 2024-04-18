@@ -1,20 +1,33 @@
-use super::renderer::CycleType;
+use super::renderer::{CycleType, Mode, ZBufferConfig, ZSource};
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
 pub fn set_other_modes(_core: &mut Core, bus: Bus, word: u64) {
     let cmd = SetOtherModes::from(word);
+
     trace!("{:?}", cmd);
-    // TODO
-    bus.renderer.set_cycle_type(cmd.cycle_type());
+
+    bus.renderer.set_mode(
+        bus.gfx,
+        bus.rdram,
+        Mode {
+            cycle_type: cmd.cycle_type(),
+            z_buffer: ZBufferConfig {
+                enable: cmd.z_compare_en(),
+                write_enable: cmd.z_update_en(),
+                source: cmd.z_source_sel(),
+            },
+        },
+    );
 }
 
 #[bitfield(u64)]
 struct SetOtherModes {
     alpha_compare_en: bool,
     dither_alpha_en: bool,
-    z_source_sel: bool,
+    #[bits(1)]
+    z_source_sel: ZSource,
     antialias_en: bool,
     z_compare_en: bool,
     z_update_en: bool,
@@ -149,6 +162,19 @@ impl RgbDitherSelect {
             1 => Self::Bayer,
             2 => Self::Noise,
             _ => Self::NoDither,
+        }
+    }
+}
+
+impl ZSource {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value & 1 {
+            0 => Self::PerPixel,
+            _ => Self::Primitive,
         }
     }
 }

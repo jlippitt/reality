@@ -175,15 +175,15 @@ impl Target {
         }
 
         if self.color_image.width == 0 {
-            debug!("Attempting to sync target output with zero-width color image");
+            debug!("  Attempting to sync target output with zero-width color image");
         };
 
         let Some(output) = &mut self.output else {
-            debug!("Attempting to sync target output with no output texture set");
+            debug!("  Attempting to sync target output with no output texture set");
             return;
         };
 
-        debug!("Writing output texture to RDRAM");
+        debug!("  Writing output texture to RDRAM");
 
         let mut encoder = gfx
             .device()
