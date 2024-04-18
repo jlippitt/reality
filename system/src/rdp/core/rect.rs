@@ -58,12 +58,12 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bu
         };
 
         trace!("  = {:?}", tex_rect);
-        Some(tex_rect)
+        Some((cmd.tile() as usize, tex_rect))
     } else {
         None
     };
 
-    bus.renderer.draw_rectangle(rect, texture);
+    bus.renderer.draw_rectangle(bus.gfx, rect, texture);
 }
 
 #[bitfield(u64)]
@@ -72,7 +72,9 @@ struct Rectangle {
     yh: u32,
     #[bits(12)]
     xh: u32,
-    #[bits(8)]
+    #[bits(3)]
+    tile: u32,
+    #[bits(5)]
     __: u64,
     #[bits(12)]
     yl: u32,

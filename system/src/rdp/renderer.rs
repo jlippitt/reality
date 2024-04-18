@@ -64,6 +64,8 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(gfx: &GfxContext) -> Self {
+        let tmem = Tmem::new(gfx);
+
         let shader = gfx
             .device()
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -91,7 +93,7 @@ impl Renderer {
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("RDP Render Pipeline Layout"),
-                    bind_group_layouts: &[&scissor_bind_group_layout],
+                    bind_group_layouts: &[&scissor_bind_group_layout, tmem.bind_group_layout()],
                     push_constant_ranges: &[],
                 });
 
@@ -140,7 +142,7 @@ impl Renderer {
 
         Self {
             target: Target::new(gfx, &scissor_bind_group_layout),
-            tmem: Tmem::new(),
+            tmem,
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
             mode: Mode::default(),
@@ -188,12 +190,12 @@ impl Renderer {
         self.tmem.set_texture_image(texture_image);
     }
 
-    pub fn set_tile(&mut self, index: usize, tile: TileDescriptor) {
-        self.tmem.set_tile(index, tile);
+    pub fn set_tile(&mut self, index: usize, tile: TileDescriptor, hash_value: u64) {
+        self.tmem.set_tile(index, tile, hash_value);
     }
 
-    pub fn load_tile(&mut self, rdram: &Rdram, index: usize, rect: Rect) {
-        self.tmem.load_tile(rdram, index, rect);
+    pub fn load_tile(&mut self, rdram: &Rdram, index: usize, rect: Rect, hash_value: u64) {
+        self.tmem.load_tile(rdram, index, rect, hash_value);
     }
 
     pub fn blend_color(&self) -> [f32; 4] {
@@ -217,6 +219,7 @@ impl Renderer {
 
     pub fn draw_triangle(
         &mut self,
+        _gfx: &GfxContext,
         edges: [[f32; 2]; 3],
         colors: [[f32; 4]; 3],
         z_values: [f32; 3],
@@ -236,12 +239,18 @@ impl Renderer {
         self.display_list.push_triangle(edges, colors, z_values);
     }
 
-    pub fn draw_rectangle(&mut self, rect: Rect, _texture: Option<Rect>) {
-        let color = if self.mode.cycle_type == CycleType::Fill {
-            self.fill_color()
+    pub fn draw_rectangle(&mut self, gfx: &GfxContext, rect: Rect, texture: Option<(usize, Rect)>) {
+        let (color, texture) = if self.mode.cycle_type == CycleType::Fill {
+            (self.fill_color(), None)
         } else {
-            // TODO: Proper blending
-            self.blend_color
+            (
+                // TODO: Proper blending
+                self.blend_color,
+                texture.map(|(tile_id, rect)| {
+                    let handle = self.tmem.get_texture_handle(gfx, tile_id);
+                    (handle, rect)
+                }),
+            )
         };
 
         let z_value = if self.mode.z_buffer.source == ZSource::Primitive {
@@ -250,7 +259,8 @@ impl Renderer {
             0.0
         };
 
-        self.display_list.push_rectangle(rect, color, z_value);
+        self.display_list
+            .push_rectangle(rect, color, texture, z_value);
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
@@ -318,11 +328,12 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, self.target.scissor_bind_group(), &[]);
+            render_pass.set_bind_group(1, self.tmem.bind_group(None), &[]);
 
             let scissor = self.target.scissor();
             render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 1.0);
 
-            self.display_list.flush(&mut render_pass);
+            self.display_list.flush(&self.tmem, &mut render_pass);
         }
 
         gfx.queue().submit(std::iter::once(encoder.finish()));

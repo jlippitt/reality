@@ -28,6 +28,7 @@ pub fn set_tile(_core: &mut Core, bus: Bus, word: u64) {
             format: texture_format(cmd.format(), cmd.size()),
             // TODO: The rest
         },
+        word & 0x00fb_ffff_00ff_ffff,
     );
 }
 
@@ -43,7 +44,12 @@ pub fn load_tile(_core: &mut Core, bus: Bus, word: u64) {
         bottom: cmd.tl() as f32 / 4.0 + 1.0,
     };
 
-    bus.renderer.load_tile(bus.rdram, cmd.tile() as usize, rect);
+    bus.renderer.load_tile(
+        bus.rdram,
+        cmd.tile() as usize,
+        rect,
+        word & 0x00ff_ffff_00ff_ffff,
+    );
 }
 
 fn texture_format(format: Format, size: u32) -> TextureFormat {

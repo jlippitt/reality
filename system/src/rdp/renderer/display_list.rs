@@ -1,4 +1,5 @@
 use super::Rect;
+use super::Tmem;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
 use tracing::trace;
@@ -8,11 +9,12 @@ use tracing::trace;
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 4],
+    pub tex_coords: [f32; 2],
 }
 
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4];
+    const ATTRIBS: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -27,6 +29,7 @@ impl Vertex {
 enum Command {
     Triangles(Range<u32>),
     Rectangles(Range<u32>),
+    TextureHandle(Option<u128>),
 }
 
 pub struct DisplayList {
@@ -35,6 +38,7 @@ pub struct DisplayList {
     indices: Vec<u32>,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+    current_texture_handle: Option<u128>,
 }
 
 impl DisplayList {
@@ -59,6 +63,7 @@ impl DisplayList {
             indices: vec![],
             vertex_buffer,
             index_buffer,
+            current_texture_handle: None,
         }
     }
 
@@ -76,14 +81,17 @@ impl DisplayList {
             Vertex {
                 position: [edges[0][0], edges[0][1], z_values[0]],
                 color: colors[0],
+                tex_coords: [0.0, 0.0],
             },
             Vertex {
                 position: [edges[1][0], edges[1][1], z_values[1]],
                 color: colors[1],
+                tex_coords: [0.0, 0.0],
             },
             Vertex {
                 position: [edges[2][0], edges[2][1], z_values[2]],
                 color: colors[2],
+                tex_coords: [0.0, 0.0],
             },
         ];
 
@@ -101,23 +109,52 @@ impl DisplayList {
         }
     }
 
-    pub fn push_rectangle(&mut self, rect: Rect, fill_color: [f32; 4], z_value: f32) {
+    pub fn push_rectangle(
+        &mut self,
+        rect: Rect,
+        fill_color: [f32; 4],
+        texture: Option<(u128, Rect)>,
+        z_value: f32,
+    ) {
+        let (handle, tex_coords) = if let Some((handle, tex_rect)) = texture {
+            (
+                Some(handle),
+                [
+                    [tex_rect.left, tex_rect.top],
+                    [tex_rect.left, tex_rect.bottom],
+                    [tex_rect.right, tex_rect.top],
+                    [tex_rect.right, tex_rect.bottom],
+                ],
+            )
+        } else {
+            (None, [[0.0; 2]; 4])
+        };
+
+        if handle != self.current_texture_handle {
+            self.commands.push(Command::TextureHandle(handle));
+            self.current_texture_handle = handle;
+        }
+
         let vertices = [
             Vertex {
                 position: [rect.left, rect.top, z_value],
                 color: fill_color,
+                tex_coords: tex_coords[0],
             },
             Vertex {
                 position: [rect.left, rect.bottom, z_value],
                 color: fill_color,
+                tex_coords: tex_coords[1],
             },
             Vertex {
                 position: [rect.right, rect.top, z_value],
                 color: fill_color,
+                tex_coords: tex_coords[2],
             },
             Vertex {
                 position: [rect.right, rect.bottom, z_value],
                 color: fill_color,
+                tex_coords: tex_coords[3],
             },
         ];
 
@@ -151,7 +188,7 @@ impl DisplayList {
         queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&self.indices));
     }
 
-    pub fn flush<'a>(&'a mut self, render_pass: &mut wgpu::RenderPass<'a>) {
+    pub fn flush<'a>(&'a mut self, tmem: &'a Tmem, render_pass: &mut wgpu::RenderPass<'a>) {
         trace!("  Display List: {:?}", self.commands);
         trace!("  Vertices: {:?}", self.vertices);
         trace!("  Indices: {:?}", self.indices);
@@ -163,10 +200,14 @@ impl DisplayList {
             match command {
                 Command::Triangles(range) => render_pass.draw(range.clone(), 0..1),
                 Command::Rectangles(range) => render_pass.draw_indexed(range.clone(), 0, 0..1),
+                Command::TextureHandle(handle) => {
+                    render_pass.set_bind_group(1, tmem.bind_group(handle), &[])
+                }
             }
         }
 
         self.vertices.clear();
         self.indices.clear();
+        self.current_texture_handle = None;
     }
 }

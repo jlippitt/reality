@@ -111,7 +111,7 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         [0.0; 3]
     };
 
-    bus.renderer.draw_triangle(edges, colors, z_values);
+    bus.renderer.draw_triangle(bus.gfx, edges, colors, z_values);
 }
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
