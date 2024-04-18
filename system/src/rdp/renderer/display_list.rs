@@ -6,13 +6,13 @@ use tracing::trace;
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct Vertex {
-    pub position: [f32; 2],
+    pub position: [f32; 3],
     pub color: [f32; 4],
 }
 
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4];
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -66,18 +66,23 @@ impl DisplayList {
         self.commands.is_empty()
     }
 
-    pub fn push_triangle(&mut self, edges: [[f32; 2]; 3], colors: [[f32; 4]; 3]) {
+    pub fn push_triangle(
+        &mut self,
+        edges: [[f32; 2]; 3],
+        colors: [[f32; 4]; 3],
+        z_values: [f32; 3],
+    ) {
         let vertices = [
             Vertex {
-                position: edges[0],
+                position: [edges[0][0], edges[0][1], z_values[0]],
                 color: colors[0],
             },
             Vertex {
-                position: edges[1],
+                position: [edges[1][0], edges[1][1], z_values[1]],
                 color: colors[1],
             },
             Vertex {
-                position: edges[2],
+                position: [edges[2][0], edges[2][1], z_values[2]],
                 color: colors[2],
             },
         ];
@@ -99,19 +104,19 @@ impl DisplayList {
     pub fn push_rectangle(&mut self, rect: Rect, fill_color: [f32; 4]) {
         let vertices = [
             Vertex {
-                position: [rect.left, rect.top],
+                position: [rect.left, rect.top, 0.0],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.left, rect.bottom],
+                position: [rect.left, rect.bottom, 0.0],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.right, rect.top],
+                position: [rect.right, rect.top, 0.0],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.right, rect.bottom],
+                position: [rect.right, rect.bottom, 0.0],
                 color: fill_color,
             },
         ];

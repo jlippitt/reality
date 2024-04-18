@@ -191,14 +191,21 @@ impl Renderer {
         trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
-    pub fn draw_triangle(&mut self, edges: [[f32; 2]; 3], colors: [[f32; 4]; 3]) {
+    pub fn draw_triangle(
+        &mut self,
+        edges: [[f32; 2]; 3],
+        colors: [[f32; 4]; 3],
+        z_values: [f32; 3],
+    ) {
         let colors = if self.mode.cycle_type == CycleType::Fill {
             [self.fill_color(); 3]
         } else {
             colors
         };
 
-        self.display_list.push_triangle(edges, colors);
+        // TODO: Apply 'primitive depth' where applicable
+
+        self.display_list.push_triangle(edges, colors, z_values);
     }
 
     pub fn draw_rectangle(&mut self, rect: Rect) {
@@ -253,7 +260,9 @@ impl Renderer {
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &depth_texture_view,
                     depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
+                        // TODO: This should be loaded from RDRAM. For now,
+                        // clear it to the max depth value.
+                        load: wgpu::LoadOp::Clear(1.0),
                         store: if self.mode.z_buffer.write_enable {
                             wgpu::StoreOp::Store
                         } else {

@@ -35,15 +35,20 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     let xl = edge_low.x() as f32 / 65536.0;
     let dxhdy = edge_high.dxdy() as f32 / 65536.0;
 
+    let high_y = yh - yh.floor();
+    let mid_y = ym - yh.floor();
+    let mid_x = xl - (xh + mid_y * dxhdy);
+    let low_y = yl - yh.floor();
+
     let edges: [[f32; 2]; 3] = [
-        [xh + (yh - yh.floor()) * dxhdy, yh],
+        [xh + high_y * dxhdy, yh],
         [xl, ym],
-        [xh + (yl - yh.floor()) * dxhdy, yl],
+        [xh + low_y * dxhdy, yl],
     ];
 
     trace!("  = {:?}", edges);
 
-    let colors = if SHADE {
+    let colors: [[f32; 4]; 3] = if SHADE {
         let shade = Color::from(core.commands.pop_front().unwrap());
         let shade_dx = Color::from(core.commands.pop_front().unwrap());
         let shade_frac = Color::from(core.commands.pop_front().unwrap());
@@ -63,16 +68,12 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("Color DY: {:?}", color_dy);
 
         let colors: [[f32; 4]; 3] = [
-            array::from_fn(|i| base_color[i] + (yh - yh.floor()) * color_de[i]),
-            array::from_fn(|i| {
-                base_color[i]
-                    + (ym - yh.floor()) * color_de[i]
-                    + (xl - (xh + (ym - yh.floor()) * dxhdy)) * color_dx[i]
-            }),
-            array::from_fn(|i| base_color[i] + (yl - yh.floor()) * color_de[i]),
+            array::from_fn(|i| base_color[i] + high_y * color_de[i]),
+            array::from_fn(|i| base_color[i] + mid_y * color_de[i] + mid_x * color_dx[i]),
+            array::from_fn(|i| base_color[i] + low_y * color_de[i]),
         ];
 
-        trace!(" = {:?}", colors);
+        trace!("  = {:?}", colors);
         colors
     } else {
         [bus.renderer.blend_color(); 3]
@@ -86,15 +87,31 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         warn!("TODO: Textured triangles");
     }
 
-    if Z_BUFFER {
-        for _ in 0..2 {
-            core.commands.pop_front().unwrap();
-        }
+    // TODO: If z_source_sel is '1', do we ignore all this?
+    let z_values: [f32; 3] = if Z_BUFFER {
+        let z_dzdx_word = core.commands.pop_front().unwrap();
+        let dzde_dzdy_word = core.commands.pop_front().unwrap();
 
-        warn!("TODO: Z-buffer triangles");
-    }
+        let z = ((z_dzdx_word >> 32) as i32) as f32 / 65536.0;
+        let dzdx = (z_dzdx_word as i32) as f32 / 65536.0;
+        let dzde = ((dzde_dzdy_word >> 32) as i32) as f32 / 65536.0;
+        let dzdy = (dzde_dzdy_word as i32) as f32 / 65536.0;
+        trace!("Z: {}, DZDX: {}, DZDE: {}, DZDY: {}", z, dzdx, dzde, dzdy);
 
-    bus.renderer.draw_triangle(edges, colors);
+        let z_values = [
+            z + high_y * dzde,
+            z + mid_y * dzde + mid_x * dzdx,
+            z + low_y * dzde,
+        ];
+
+        trace!("  = {:?}", z_values);
+        z_values
+    } else {
+        // Assume we don't use prim_depth here?
+        [0.0; 3]
+    };
+
+    bus.renderer.draw_triangle(edges, colors, z_values);
 }
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
