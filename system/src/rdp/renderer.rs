@@ -239,16 +239,21 @@ impl Renderer {
         self.display_list.push_triangle(edges, colors, z_values);
     }
 
-    pub fn draw_rectangle(&mut self, gfx: &GfxContext, rect: Rect, texture: Option<(usize, Rect)>) {
+    pub fn draw_rectangle(
+        &mut self,
+        gfx: &GfxContext,
+        rect: Rect,
+        texture: Option<(usize, Rect, bool)>,
+    ) {
         let (color, texture) = if self.mode.cycle_type == CycleType::Fill {
             (self.fill_color(), None)
         } else {
             (
                 // TODO: Proper blending
                 self.blend_color,
-                texture.map(|(tile_id, rect)| {
+                texture.map(|(tile_id, rect, flip)| {
                     let handle = self.tmem.get_texture_handle(gfx, tile_id);
-                    (handle, rect)
+                    (handle, rect, flip)
                 }),
             )
         };

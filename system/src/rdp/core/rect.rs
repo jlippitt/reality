@@ -41,24 +41,15 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bu
         let sl = sh + (rect.right - rect.left) * dsdx;
         let tl = th + (rect.bottom - rect.top) * dtdy;
 
-        let tex_rect = if FLIP {
-            Rect {
-                left: th,
-                right: tl,
-                top: sh,
-                bottom: sl,
-            }
-        } else {
-            Rect {
-                left: sh,
-                right: sl,
-                top: th,
-                bottom: tl,
-            }
+        let tex_rect = Rect {
+            left: sh,
+            right: sl,
+            top: th,
+            bottom: tl,
         };
 
         trace!("  = {:?}", tex_rect);
-        Some((cmd.tile() as usize, tex_rect))
+        Some((cmd.tile() as usize, tex_rect, FLIP))
     } else {
         None
     };

@@ -113,18 +113,27 @@ impl DisplayList {
         &mut self,
         rect: Rect,
         fill_color: [f32; 4],
-        texture: Option<(u128, Rect)>,
+        texture: Option<(u128, Rect, bool)>,
         z_value: f32,
     ) {
-        let (handle, tex_coords) = if let Some((handle, tex_rect)) = texture {
+        let (handle, tex_coords) = if let Some((handle, tex_rect, flip)) = texture {
             (
                 Some(handle),
-                [
-                    [tex_rect.left, tex_rect.top],
-                    [tex_rect.left, tex_rect.bottom],
-                    [tex_rect.right, tex_rect.top],
-                    [tex_rect.right, tex_rect.bottom],
-                ],
+                if flip {
+                    [
+                        [tex_rect.left, tex_rect.top],
+                        [tex_rect.right, tex_rect.top],
+                        [tex_rect.left, tex_rect.bottom],
+                        [tex_rect.right, tex_rect.bottom],
+                    ]
+                } else {
+                    [
+                        [tex_rect.left, tex_rect.top],
+                        [tex_rect.left, tex_rect.bottom],
+                        [tex_rect.right, tex_rect.top],
+                        [tex_rect.right, tex_rect.bottom],
+                    ]
+                },
             )
         } else {
             (None, [[0.0; 2]; 4])
