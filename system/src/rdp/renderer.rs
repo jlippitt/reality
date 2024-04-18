@@ -55,6 +55,7 @@ pub struct Renderer {
     mode: Mode,
     blend_color: [f32; 4],
     fill_color: u32,
+    prim_depth: f32,
 }
 
 impl Renderer {
@@ -140,6 +141,7 @@ impl Renderer {
             mode: Mode::default(),
             blend_color: [0.0; 4],
             fill_color: 0,
+            prim_depth: 0.0,
         }
     }
 
@@ -191,6 +193,11 @@ impl Renderer {
         trace!("  Fill Color: {:08X}", self.fill_color);
     }
 
+    pub fn set_prim_depth(&mut self, prim_depth: f32) {
+        self.prim_depth = prim_depth;
+        trace!("  Prim Depth: {}", self.prim_depth);
+    }
+
     pub fn draw_triangle(
         &mut self,
         edges: [[f32; 2]; 3],
@@ -203,13 +210,24 @@ impl Renderer {
             colors
         };
 
-        // TODO: Apply 'primitive depth' where applicable
+        let z_values = if self.mode.z_buffer.source == ZSource::Primitive {
+            [self.prim_depth; 3]
+        } else {
+            z_values
+        };
 
         self.display_list.push_triangle(edges, colors, z_values);
     }
 
     pub fn draw_rectangle(&mut self, rect: Rect) {
-        self.display_list.push_rectangle(rect, self.fill_color());
+        let z_value = if self.mode.z_buffer.source == ZSource::Primitive {
+            self.prim_depth
+        } else {
+            0.0
+        };
+
+        self.display_list
+            .push_rectangle(rect, self.fill_color(), z_value);
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {

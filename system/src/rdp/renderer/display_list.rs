@@ -101,22 +101,22 @@ impl DisplayList {
         }
     }
 
-    pub fn push_rectangle(&mut self, rect: Rect, fill_color: [f32; 4]) {
+    pub fn push_rectangle(&mut self, rect: Rect, fill_color: [f32; 4], z_value: f32) {
         let vertices = [
             Vertex {
-                position: [rect.left, rect.top, 0.0],
+                position: [rect.left, rect.top, z_value],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.left, rect.bottom, 0.0],
+                position: [rect.left, rect.bottom, z_value],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.right, rect.top, 0.0],
+                position: [rect.right, rect.top, z_value],
                 color: fill_color,
             },
             Vertex {
-                position: [rect.right, rect.bottom, 0.0],
+                position: [rect.right, rect.bottom, z_value],
                 color: fill_color,
             },
         ];

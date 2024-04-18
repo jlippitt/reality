@@ -63,6 +63,7 @@ impl Core {
             0x27 => sync::sync_pipe(self, bus, word),
             0x29 => sync::sync_full(self, bus, word),
             0x2d => image::set_scissor(self, bus, word),
+            0x2e => param::set_prim_depth(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
             0x36 => rect::fill_rectangle(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
