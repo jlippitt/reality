@@ -1,3 +1,4 @@
+use super::Rect;
 use tracing::trace;
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -32,6 +33,7 @@ pub struct TileDescriptor {
 pub struct Tmem {
     texture_image: TextureImage,
     tile_descriptors: [TileDescriptor; 8],
+    tile_sizes: [Rect; 8],
 }
 
 impl Tmem {
@@ -39,6 +41,7 @@ impl Tmem {
         Self {
             texture_image: TextureImage::default(),
             tile_descriptors: Default::default(),
+            tile_sizes: Default::default(),
         }
     }
 
@@ -49,6 +52,17 @@ impl Tmem {
 
     pub fn set_tile(&mut self, index: usize, tile: TileDescriptor) {
         self.tile_descriptors[index] = tile;
-        trace!("  Tile {}: {:?}", index, self.tile_descriptors[index]);
+        trace!(
+            "  Tile {} Descriptor: {:?}",
+            index,
+            self.tile_descriptors[index]
+        );
+    }
+
+    pub fn load_tile(&mut self, index: usize, rect: Rect) {
+        self.tile_sizes[index] = rect;
+        trace!("  Tile {} Size: {:?}", index, self.tile_sizes[index]);
+
+        // TODO: Load Tile
     }
 }

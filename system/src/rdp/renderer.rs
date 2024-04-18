@@ -192,6 +192,10 @@ impl Renderer {
         self.tmem.set_tile(index, tile);
     }
 
+    pub fn load_tile(&mut self, index: usize, rect: Rect) {
+        self.tmem.load_tile(index, rect);
+    }
+
     pub fn blend_color(&self) -> [f32; 4] {
         self.blend_color
     }

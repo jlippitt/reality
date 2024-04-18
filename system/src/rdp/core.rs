@@ -94,6 +94,7 @@ impl Core {
             0x2d => target::set_scissor(self, bus, word),
             0x2e => param::set_prim_depth(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
+            0x34 => tmem::load_tile(self, bus, word),
             0x35 => tmem::set_tile(self, bus, word),
             0x36 => rect::rectangle::<false, false>(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),

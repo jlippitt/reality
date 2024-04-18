@@ -1,4 +1,4 @@
-use super::renderer::{TextureFormat, TextureImage, TileDescriptor};
+use super::renderer::{Rect, TextureFormat, TextureImage, TileDescriptor};
 use super::{Bus, Core, Format};
 use bitfield_struct::bitfield;
 use tracing::trace;
@@ -29,6 +29,21 @@ pub fn set_tile(_core: &mut Core, bus: Bus, word: u64) {
             // TODO: The rest
         },
     );
+}
+
+pub fn load_tile(_core: &mut Core, bus: Bus, word: u64) {
+    let cmd = LoadTile::from(word);
+
+    trace!("{:?}", cmd);
+
+    let rect = Rect {
+        left: cmd.sh() as f32 / 4.0,
+        right: cmd.sl() as f32 / 4.0 + 1.0,
+        top: cmd.th() as f32 / 4.0,
+        bottom: cmd.tl() as f32 / 4.0 + 1.0,
+    };
+
+    bus.renderer.load_tile(cmd.tile() as usize, rect);
 }
 
 fn texture_format(format: Format, size: u32) -> TextureFormat {
@@ -97,6 +112,24 @@ struct SetTile {
     size: u32,
     #[bits(3)]
     format: Format,
+    #[bits(8)]
+    __: u64,
+}
+
+#[bitfield(u64)]
+struct LoadTile {
+    #[bits(12)]
+    sl: u32,
+    #[bits(12)]
+    tl: u32,
+    #[bits(3)]
+    tile: u64,
+    #[bits(5)]
+    __: u64,
+    #[bits(12)]
+    sh: u32,
+    #[bits(12)]
+    th: u32,
     #[bits(8)]
     __: u64,
 }
