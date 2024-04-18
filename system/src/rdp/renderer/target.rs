@@ -21,6 +21,7 @@ pub struct ColorImage {
 
 pub struct TargetOutput {
     pub color_texture: wgpu::Texture,
+    pub depth_texture: wgpu::Texture,
     pub sync_buffer: wgpu::Buffer,
 }
 
@@ -152,6 +153,19 @@ impl Target {
             view_formats: &[],
         });
 
+        let depth_texture = gfx.device().create_texture(&wgpu::TextureDescriptor {
+            label: Some("RDP Target Depth Texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+
         let sync_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("RDP Target Sync Buffer"),
             size: width as u64 * height as u64 * 4,
@@ -163,6 +177,7 @@ impl Target {
 
         self.output = Some(TargetOutput {
             color_texture,
+            depth_texture,
             sync_buffer,
         });
 
