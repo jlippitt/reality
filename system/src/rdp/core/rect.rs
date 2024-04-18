@@ -3,21 +3,71 @@ use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
-pub fn fill_rectangle(_core: &mut Core, bus: Bus, word: u64) {
-    let cmd = FillRectangle::from(word);
+pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bus, word: u64) {
+    let cmd = Rectangle::from(word);
 
     trace!("{:?}", cmd);
 
-    bus.renderer.draw_rectangle(Rect {
+    let rect = Rect {
         left: cmd.xh() as f32 / 4.0,
         right: cmd.xl() as f32 / 4.0,
         top: cmd.yh() as f32 / 4.0,
         bottom: cmd.yl() as f32 / 4.0,
-    });
+    };
+
+    trace!("  = {:?}", rect);
+
+    let texture = if TEXTURE {
+        let Some(coords) = core.commands.pop_front() else {
+            core.commands.push_front(word);
+            core.running = false;
+            return;
+        };
+
+        let sh = (coords >> 48) as i16 as f32 / 32.0;
+        let th = (coords >> 32) as i16 as f32 / 32.0;
+        let dsdx = (coords >> 16) as i16 as f32 / 1024.0;
+        let dtdy = coords as i16 as f32 / 1024.0;
+
+        trace!(
+            "SH = {}, TH = {}, DSDX = {}, DTDY={}, FLIP={}",
+            sh,
+            th,
+            dsdx,
+            dtdy,
+            FLIP
+        );
+
+        let sl = sh + (rect.right - rect.left) * dsdx;
+        let tl = th + (rect.bottom - rect.top) * dtdy;
+
+        let tex_rect = if FLIP {
+            Rect {
+                left: th,
+                right: tl,
+                top: sh,
+                bottom: sl,
+            }
+        } else {
+            Rect {
+                left: sh,
+                right: sl,
+                top: th,
+                bottom: tl,
+            }
+        };
+
+        trace!("  = {:?}", tex_rect);
+        Some(tex_rect)
+    } else {
+        None
+    };
+
+    bus.renderer.draw_rectangle(rect, texture);
 }
 
 #[bitfield(u64)]
-struct FillRectangle {
+struct Rectangle {
     #[bits(12)]
     yh: u32,
     #[bits(12)]

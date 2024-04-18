@@ -219,7 +219,7 @@ impl Renderer {
         self.display_list.push_triangle(edges, colors, z_values);
     }
 
-    pub fn draw_rectangle(&mut self, rect: Rect) {
+    pub fn draw_rectangle(&mut self, rect: Rect, _texture: Option<Rect>) {
         let color = if self.mode.cycle_type == CycleType::Fill {
             self.fill_color()
         } else {
