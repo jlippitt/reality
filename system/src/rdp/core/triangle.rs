@@ -1,7 +1,7 @@
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use std::array;
-use tracing::{trace, warn};
+use tracing::trace;
 
 pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     core: &mut Core,
@@ -79,13 +79,36 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         [bus.renderer.blend_color(); 3]
     };
 
-    if TEXTURE {
-        for _ in 0..8 {
-            core.commands.pop_front().unwrap();
-        }
+    let texture = if TEXTURE {
+        let coord = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_dx = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_frac = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_frac_dx = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_de = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_dy = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_frac_de = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord_frac_dy = TexCoord::from(core.commands.pop_front().unwrap());
 
-        warn!("TODO: Textured triangles");
-    }
+        let base_texel = decode_tex_coord(coord, coord_frac);
+        let texel_dx = decode_tex_coord(coord_dx, coord_frac_dx);
+        let texel_de = decode_tex_coord(coord_de, coord_frac_de);
+        let texel_dy = decode_tex_coord(coord_dy, coord_frac_dy);
+        trace!("Base Texel: {:?}", base_texel);
+        trace!("Texel DX: {:?}", texel_dx);
+        trace!("Texel DE: {:?}", texel_de);
+        trace!("Texel DY: {:?}", texel_dy);
+
+        let tex_coords: [[f32; 3]; 3] = [
+            array::from_fn(|i| base_texel[i] + high_y * texel_de[i]),
+            array::from_fn(|i| base_texel[i] + mid_y * texel_de[i] + mid_x * texel_dx[i]),
+            array::from_fn(|i| base_texel[i] + low_y * texel_de[i]),
+        ];
+
+        trace!("  = {:?}", tex_coords);
+        Some((cmd.tile() as usize, tex_coords))
+    } else {
+        None
+    };
 
     // TODO: If z_source_sel is '1', do we ignore all this?
     let z_values: [f32; 3] = if Z_BUFFER {
@@ -111,7 +134,8 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         [0.0; 3]
     };
 
-    bus.renderer.draw_triangle(bus.gfx, edges, colors, z_values);
+    bus.renderer
+        .draw_triangle(bus.gfx, edges, colors, texture, z_values);
 }
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
@@ -123,6 +147,13 @@ fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
     ]
 }
 
+fn decode_tex_coord(integer: TexCoord, fraction: TexCoord) -> [f32; 3] {
+    [
+        ((integer.s() << 16) | fraction.s()) as f32 / 65536.0 / 32.0,
+        ((integer.t() << 16) | fraction.t()) as f32 / 65536.0 / 32.0,
+        ((integer.w() << 16) | fraction.w()) as f32 / 65536.0 / 32.0,
+    ]
+}
 #[bitfield(u64)]
 struct Triangle {
     #[bits(14)]
@@ -169,4 +200,16 @@ struct Color {
     g: i32,
     #[bits(16)]
     r: i32,
+}
+
+#[bitfield(u64)]
+struct TexCoord {
+    #[bits(16)]
+    __: i32,
+    #[bits(16)]
+    w: i32,
+    #[bits(16)]
+    t: i32,
+    #[bits(16)]
+    s: i32,
 }

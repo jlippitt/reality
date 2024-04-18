@@ -9,12 +9,12 @@ use tracing::trace;
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 4],
-    pub tex_coords: [f32; 2],
+    pub tex_coords: [f32; 3],
 }
 
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 3] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2];
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x3];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -75,23 +75,35 @@ impl DisplayList {
         &mut self,
         edges: [[f32; 2]; 3],
         colors: [[f32; 4]; 3],
+        texture: Option<(u128, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
+        let (handle, tex_coords) = if let Some((handle, tex_coords)) = texture {
+            (Some(handle), tex_coords)
+        } else {
+            (None, [[0.0; 3]; 3])
+        };
+
+        if handle != self.current_texture_handle {
+            self.commands.push(Command::TextureHandle(handle));
+            self.current_texture_handle = handle;
+        }
+
         let vertices = [
             Vertex {
                 position: [edges[0][0], edges[0][1], z_values[0]],
                 color: colors[0],
-                tex_coords: [0.0, 0.0],
+                tex_coords: tex_coords[0],
             },
             Vertex {
                 position: [edges[1][0], edges[1][1], z_values[1]],
                 color: colors[1],
-                tex_coords: [0.0, 0.0],
+                tex_coords: tex_coords[1],
             },
             Vertex {
                 position: [edges[2][0], edges[2][1], z_values[2]],
                 color: colors[2],
-                tex_coords: [0.0, 0.0],
+                tex_coords: tex_coords[2],
             },
         ];
 
@@ -121,22 +133,22 @@ impl DisplayList {
                 Some(handle),
                 if flip {
                     [
-                        [tex_rect.left, tex_rect.top],
-                        [tex_rect.right, tex_rect.top],
-                        [tex_rect.left, tex_rect.bottom],
-                        [tex_rect.right, tex_rect.bottom],
+                        [tex_rect.left, tex_rect.top, 0.0],
+                        [tex_rect.right, tex_rect.top, 0.0],
+                        [tex_rect.left, tex_rect.bottom, 0.0],
+                        [tex_rect.right, tex_rect.bottom, 0.0],
                     ]
                 } else {
                     [
-                        [tex_rect.left, tex_rect.top],
-                        [tex_rect.left, tex_rect.bottom],
-                        [tex_rect.right, tex_rect.top],
-                        [tex_rect.right, tex_rect.bottom],
+                        [tex_rect.left, tex_rect.top, 0.0],
+                        [tex_rect.left, tex_rect.bottom, 0.0],
+                        [tex_rect.right, tex_rect.top, 0.0],
+                        [tex_rect.right, tex_rect.bottom, 0.0],
                     ]
                 },
             )
         } else {
-            (None, [[0.0; 2]; 4])
+            (None, [[0.0; 3]; 4])
         };
 
         if handle != self.current_texture_handle {

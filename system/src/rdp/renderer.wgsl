@@ -1,13 +1,13 @@
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) tex_coords: vec2<f32>,
+    @location(2) tex_coords: vec3<f32>,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
-    @location(1) tex_coords: vec2<f32>,
+    @location(1) tex_coords: vec3<f32>,
 };
 
 @group(0) @binding(0)
@@ -32,9 +32,10 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // TODO: Handle W coordinate
     let size = textureDimensions(t_diffuse);
-    let x = in.tex_coords[0] / f32(size[0]);
-    let y = in.tex_coords[1] / f32(size[1]);
-    let sample = textureSample(t_diffuse, s_diffuse, vec2<f32>(x, y));
+    let s = in.tex_coords[0] / f32(size[0]);
+    let t = in.tex_coords[1] / f32(size[1]);
+    let sample = textureSample(t_diffuse, s_diffuse, vec2<f32>(s, t));
     return sample + in.color;
 }

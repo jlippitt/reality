@@ -219,15 +219,22 @@ impl Renderer {
 
     pub fn draw_triangle(
         &mut self,
-        _gfx: &GfxContext,
+        gfx: &GfxContext,
         edges: [[f32; 2]; 3],
         colors: [[f32; 4]; 3],
+        texture: Option<(usize, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
-        let colors = if self.mode.cycle_type == CycleType::Fill {
-            [self.fill_color(); 3]
+        let (colors, texture) = if self.mode.cycle_type == CycleType::Fill {
+            ([self.fill_color(); 3], None)
         } else {
-            colors
+            (
+                colors,
+                texture.map(|(tile_id, rect)| {
+                    let handle = self.tmem.get_texture_handle(gfx, tile_id);
+                    (handle, rect)
+                }),
+            )
         };
 
         let z_values = if self.mode.z_buffer.source == ZSource::Primitive {
@@ -236,7 +243,8 @@ impl Renderer {
             z_values
         };
 
-        self.display_list.push_triangle(edges, colors, z_values);
+        self.display_list
+            .push_triangle(edges, colors, texture, z_values);
     }
 
     pub fn draw_rectangle(
