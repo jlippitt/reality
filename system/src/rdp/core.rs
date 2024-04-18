@@ -5,12 +5,12 @@ use crate::rdram::Rdram;
 use std::collections::VecDeque;
 use tracing::warn;
 
-mod image;
 mod mode;
 mod param;
 mod rect;
 mod sync;
-mod texture;
+mod target;
+mod tmem;
 mod triangle;
 
 #[repr(u32)]
@@ -91,15 +91,15 @@ impl Core {
             0x25 => rect::rectangle::<true, true>(self, bus, word),
             0x27 => sync::sync_pipe(self, bus, word),
             0x29 => sync::sync_full(self, bus, word),
-            0x2d => image::set_scissor(self, bus, word),
+            0x2d => target::set_scissor(self, bus, word),
             0x2e => param::set_prim_depth(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
-            0x35 => texture::set_tile(self, bus, word),
+            0x35 => tmem::set_tile(self, bus, word),
             0x36 => rect::rectangle::<false, false>(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
             0x39 => param::set_blend_color(self, bus, word),
-            0x3d => texture::set_texture_image(self, bus, word),
-            0x3f => image::set_color_image(self, bus, word),
+            0x3d => tmem::set_texture_image(self, bus, word),
+            0x3f => target::set_color_image(self, bus, word),
             _ => warn!("TODO: RDP Command: {:#02X}", opcode),
         }
 
