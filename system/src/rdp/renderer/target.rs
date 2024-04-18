@@ -6,10 +6,10 @@ use tracing::{debug, trace};
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum ColorImageFormat {
-    Index8,
     Rgba16,
     #[default]
     Rgba32,
+    ClrIndex8,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -238,7 +238,6 @@ impl Target {
 
             // TODO: What happens when color image width is not the same as texture width?
             match self.color_image.format {
-                ColorImageFormat::Index8 => todo!("Index8 output format"),
                 ColorImageFormat::Rgba16 => {
                     for _ in 0..output.color_texture.height() {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
@@ -270,6 +269,7 @@ impl Target {
                         ram_addr += self.color_image.width as usize * 4;
                     }
                 }
+                ColorImageFormat::ClrIndex8 => todo!("Index8 output format"),
             }
         } else {
             panic!("Failed to sync with WGPU");

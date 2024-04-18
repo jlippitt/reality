@@ -1,13 +1,16 @@
 pub use target::{ColorImage, ColorImageFormat};
+pub use tmem::{TextureImage, TextureImageFormat};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use display_list::{DisplayList, Vertex};
 use target::Target;
+use tmem::Tmem;
 use tracing::trace;
 
 mod display_list;
 mod target;
+mod tmem;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Rect {
@@ -50,6 +53,7 @@ pub struct Mode {
 
 pub struct Renderer {
     target: Target,
+    tmem: Tmem,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
     mode: Mode,
@@ -136,6 +140,7 @@ impl Renderer {
 
         Self {
             target: Target::new(gfx, &scissor_bind_group_layout),
+            tmem: Tmem::new(),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
             mode: Mode::default(),
@@ -177,6 +182,10 @@ impl Renderer {
 
         self.mode = mode;
         trace!("  Mode: {:?}", self.mode);
+    }
+
+    pub fn set_texture_image(&mut self, texture_image: TextureImage) {
+        self.tmem.set_texture_image(texture_image);
     }
 
     pub fn blend_color(&self) -> [f32; 4] {
@@ -315,7 +324,7 @@ impl Renderer {
 
     fn fill_color(&self) -> [f32; 4] {
         match self.target.color_image().format {
-            ColorImageFormat::Index8 => todo!("Index8 format"),
+            ColorImageFormat::ClrIndex8 => todo!("Index8 format"),
             ColorImageFormat::Rgba16 => [
                 // This isn't correct, but it'll do for now
                 (((self.fill_color >> 11) & 0x1f) << 3) as f32,

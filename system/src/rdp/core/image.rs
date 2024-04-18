@@ -1,4 +1,4 @@
-use super::renderer::{ColorImage, ColorImageFormat, Rect};
+use super::renderer::{ColorImage, ColorImageFormat, Rect, TextureImage, TextureImageFormat};
 use super::{Bus, Core};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
@@ -30,9 +30,9 @@ pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
     trace!("{:?}", cmd);
 
     let format = match (cmd.format(), cmd.size()) {
-        (Format::ColorIndex, 1) => ColorImageFormat::Index8,
         (Format::Rgba, 2) => ColorImageFormat::Rgba16,
         (Format::Rgba, 3) => ColorImageFormat::Rgba32,
+        (Format::ColorIndex, 1) => ColorImageFormat::ClrIndex8,
         _ => panic!(
             "Unsupported format for SetColorImage: {:?} {:?}",
             cmd.format(),
@@ -49,6 +49,36 @@ pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
             format,
         },
     );
+}
+
+pub fn set_texture_image(_core: &mut Core, bus: Bus, word: u64) {
+    let cmd = SetTextureImage::from(word);
+
+    trace!("{:?}", cmd);
+
+    let format = match (cmd.format(), cmd.size()) {
+        (Format::Rgba, 2) => TextureImageFormat::Rgba16,
+        (Format::Rgba, 3) => TextureImageFormat::Rgba32,
+        (Format::Yuv, 2) => TextureImageFormat::Yuv16,
+        (Format::ColorIndex, 0) => TextureImageFormat::ClrIndex4,
+        (Format::ColorIndex, 1) => TextureImageFormat::ClrIndex8,
+        (Format::IA, 0) => TextureImageFormat::IA4,
+        (Format::IA, 1) => TextureImageFormat::IA8,
+        (Format::IA, 2) => TextureImageFormat::IA16,
+        (Format::I, 0) => TextureImageFormat::I4,
+        (Format::I, 1) => TextureImageFormat::I8,
+        _ => panic!(
+            "Unsupported format for SetTextureImage: {:?} {:?}",
+            cmd.format(),
+            cmd.size(),
+        ),
+    };
+
+    bus.renderer.set_texture_image(TextureImage {
+        dram_addr: cmd.dram_addr(),
+        width: cmd.width() + 1,
+        format,
+    });
 }
 
 #[bitfield(u64)]
@@ -71,6 +101,24 @@ struct SetScissor {
 
 #[bitfield(u64)]
 struct SetColorImage {
+    #[bits(26)]
+    dram_addr: u32,
+    #[bits(6)]
+    __: u64,
+    #[bits(10)]
+    width: u32,
+    #[bits(9)]
+    __: u64,
+    #[bits(2)]
+    size: u32,
+    #[bits(3)]
+    format: Format,
+    #[bits(8)]
+    __: u64,
+}
+
+#[bitfield(u64)]
+struct SetTextureImage {
     #[bits(26)]
     dram_addr: u32,
     #[bits(6)]
