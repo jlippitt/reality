@@ -1,5 +1,5 @@
 pub use target::{ColorImage, ColorImageFormat};
-pub use tmem::{TextureImage, TextureImageFormat};
+pub use tmem::{TextureFormat, TextureImage, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
@@ -186,6 +186,10 @@ impl Renderer {
 
     pub fn set_texture_image(&mut self, texture_image: TextureImage) {
         self.tmem.set_texture_image(texture_image);
+    }
+
+    pub fn set_tile(&mut self, index: usize, tile: TileDescriptor) {
+        self.tmem.set_tile(index, tile);
     }
 
     pub fn blend_color(&self) -> [f32; 4] {

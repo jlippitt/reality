@@ -10,7 +10,34 @@ mod mode;
 mod param;
 mod rect;
 mod sync;
+mod texture;
 mod triangle;
+
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum Format {
+    Rgba = 0,
+    Yuv = 1,
+    ColorIndex = 2,
+    IA = 3,
+    I = 4,
+}
+
+impl Format {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value & 3 {
+            0 => Self::Rgba,
+            1 => Self::Yuv,
+            2 => Self::ColorIndex,
+            3 => Self::IA,
+            _ => Self::I,
+        }
+    }
+}
 
 pub struct Bus<'a> {
     pub renderer: &'a mut Renderer,
@@ -67,10 +94,11 @@ impl Core {
             0x2d => image::set_scissor(self, bus, word),
             0x2e => param::set_prim_depth(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
+            0x35 => texture::set_tile(self, bus, word),
             0x36 => rect::rectangle::<false, false>(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
             0x39 => param::set_blend_color(self, bus, word),
-            0x3d => image::set_texture_image(self, bus, word),
+            0x3d => texture::set_texture_image(self, bus, word),
             0x3f => image::set_color_image(self, bus, word),
             _ => warn!("TODO: RDP Command: {:#02X}", opcode),
         }

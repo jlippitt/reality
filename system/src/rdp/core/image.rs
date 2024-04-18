@@ -1,5 +1,5 @@
-use super::renderer::{ColorImage, ColorImageFormat, Rect, TextureImage, TextureImageFormat};
-use super::{Bus, Core};
+use super::renderer::{ColorImage, ColorImageFormat, Rect};
+use super::{Bus, Core, Format};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
 
@@ -51,36 +51,6 @@ pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
     );
 }
 
-pub fn set_texture_image(_core: &mut Core, bus: Bus, word: u64) {
-    let cmd = SetTextureImage::from(word);
-
-    trace!("{:?}", cmd);
-
-    let format = match (cmd.format(), cmd.size()) {
-        (Format::Rgba, 2) => TextureImageFormat::Rgba16,
-        (Format::Rgba, 3) => TextureImageFormat::Rgba32,
-        (Format::Yuv, 2) => TextureImageFormat::Yuv16,
-        (Format::ColorIndex, 0) => TextureImageFormat::ClrIndex4,
-        (Format::ColorIndex, 1) => TextureImageFormat::ClrIndex8,
-        (Format::IA, 0) => TextureImageFormat::IA4,
-        (Format::IA, 1) => TextureImageFormat::IA8,
-        (Format::IA, 2) => TextureImageFormat::IA16,
-        (Format::I, 0) => TextureImageFormat::I4,
-        (Format::I, 1) => TextureImageFormat::I8,
-        _ => panic!(
-            "Unsupported format for SetTextureImage: {:?} {:?}",
-            cmd.format(),
-            cmd.size(),
-        ),
-    };
-
-    bus.renderer.set_texture_image(TextureImage {
-        dram_addr: cmd.dram_addr(),
-        width: cmd.width() + 1,
-        format,
-    });
-}
-
 #[bitfield(u64)]
 struct SetScissor {
     #[bits(12)]
@@ -115,48 +85,4 @@ struct SetColorImage {
     format: Format,
     #[bits(8)]
     __: u64,
-}
-
-#[bitfield(u64)]
-struct SetTextureImage {
-    #[bits(26)]
-    dram_addr: u32,
-    #[bits(6)]
-    __: u64,
-    #[bits(10)]
-    width: u32,
-    #[bits(9)]
-    __: u64,
-    #[bits(2)]
-    size: u32,
-    #[bits(3)]
-    format: Format,
-    #[bits(8)]
-    __: u64,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum Format {
-    Rgba = 0,
-    Yuv = 1,
-    ColorIndex = 2,
-    IA = 3,
-    I = 4,
-}
-
-impl Format {
-    const fn into_bits(self) -> u32 {
-        self as u32
-    }
-
-    const fn from_bits(value: u32) -> Self {
-        match value & 3 {
-            0 => Self::Rgba,
-            1 => Self::Yuv,
-            2 => Self::ColorIndex,
-            3 => Self::IA,
-            _ => Self::I,
-        }
-    }
 }
