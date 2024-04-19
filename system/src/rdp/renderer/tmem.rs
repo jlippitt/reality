@@ -109,14 +109,15 @@ impl Tmem {
         trace!("  Tile {} Hash Value: {:016X}", tile_id, tile.hash_value);
     }
 
-    pub fn load_tile(&mut self, rdram: &Rdram, tile_id: usize, rect: Rect, hash_value: u64) {
-        let x_offset = rect.left as usize;
-        let x_size = rect.width() as usize;
-        let y_offset = rect.top as usize;
-        let y_size = rect.height() as usize;
-
-        self.set_tile_size(tile_id, rect, hash_value);
-
+    pub fn load_tile(
+        &mut self,
+        rdram: &Rdram,
+        tile_id: usize,
+        x_offset: usize,
+        x_size: usize,
+        y_offset: usize,
+        y_size: usize,
+    ) {
         // TODO: Finer-grained cache invalidation
         self.texture_cache.clear();
 
@@ -124,16 +125,15 @@ impl Tmem {
         let bits_per_pixel = self.texture_image.format.bits_per_pixel();
 
         let dram_width = (self.texture_image.width as usize * bits_per_pixel + 7) / 8;
+        let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
         let tmem_width = (x_size * bits_per_pixel + 63) / 64;
-        let line_offset = (x_offset * bits_per_pixel + 7) / 8;
 
         let mut dram_addr = self.texture_image.dram_addr as usize + dram_width * y_offset;
         let mut tmem_addr = tile.descriptor.tmem_addr as usize;
 
         for _ in 0..y_size {
             let dst = &mut self.tmem_data[tmem_addr..(tmem_addr + tmem_width)];
-            rdram.read_block(dram_addr + line_offset, dst);
-
+            rdram.read_block(dram_addr + dram_line_offset, dst);
             dram_addr += dram_width;
             tmem_addr += tmem_width;
         }
@@ -146,7 +146,70 @@ impl Tmem {
             tmem_addr,
             tmem_width,
             y_size,
-            tmem_width * y_size * 8,
+            dram_addr - self.texture_image.dram_addr as usize,
+        );
+    }
+
+    pub fn load_block(
+        &mut self,
+        rdram: &Rdram,
+        tile_id: usize,
+        x_offset: usize,
+        x_size: usize,
+        _y_offset: usize,
+        y_delta: usize,
+    ) {
+        // TODO: Finer-grained cache invalidation
+        self.texture_cache.clear();
+
+        let tile = &self.tiles[tile_id];
+        let bits_per_pixel = self.texture_image.format.bits_per_pixel();
+
+        let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
+        let tmem_width = (x_size * bits_per_pixel + 63) / 64;
+
+        // TODO: Does y_offset ('tl') get used at all?
+        let mut dram_addr = self.texture_image.dram_addr as usize + dram_line_offset;
+        let mut tmem_addr = tile.descriptor.tmem_addr as usize;
+
+        let mut y_pos = 0;
+
+        while tmem_addr < tmem_width {
+            let mut tmem_start = tmem_addr;
+
+            while (y_pos & 0x0800) == 0 && tmem_addr < tmem_width {
+                y_pos += y_delta;
+                tmem_addr += 1;
+            }
+
+            let dst = &mut self.tmem_data[tmem_start..tmem_addr];
+            rdram.read_block(dram_addr, dst);
+            dram_addr += (tmem_addr - tmem_start) << 3;
+
+            if tmem_addr >= tmem_width {
+                break;
+            }
+
+            tmem_start = tmem_addr;
+
+            while (y_pos & 0x0800) != 0 && tmem_addr < tmem_width {
+                y_pos += y_delta;
+                tmem_addr += 1;
+            }
+
+            let dst = &mut self.tmem_data[tmem_start..tmem_addr];
+            rdram.read_block(dram_addr, dst);
+            dram_addr += (tmem_addr - tmem_start) << 3;
+        }
+
+        trace!(
+            "  Block data uploaded from {:08X}..{:08X} to {:04X}..{:04X} ({} words = {} bytes)",
+            self.texture_image.dram_addr,
+            dram_addr,
+            tile.descriptor.tmem_addr,
+            tmem_addr,
+            tmem_addr - tile.descriptor.tmem_addr as usize,
+            dram_addr - self.texture_image.dram_addr as usize,
         );
     }
 
