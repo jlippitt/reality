@@ -198,7 +198,15 @@ impl Renderer {
         self.tmem.set_tile_size(index, rect, hash_value);
     }
 
-    pub fn load_tile(&mut self, rdram: &Rdram, index: usize, rect: Rect, hash_value: u64) {
+    pub fn load_tile(
+        &mut self,
+        gfx: &GfxContext,
+        rdram: &mut Rdram,
+        index: usize,
+        rect: Rect,
+        hash_value: u64,
+    ) {
+        self.flush(gfx, rdram);
         self.tmem.load_tile(rdram, index, rect, hash_value);
     }
 

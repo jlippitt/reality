@@ -117,6 +117,9 @@ impl Tmem {
 
         self.set_tile_size(tile_id, rect, hash_value);
 
+        // TODO: Finer-grained cache invalidation
+        self.texture_cache.clear();
+
         let tile = &self.tiles[tile_id];
         let bits_per_pixel = self.texture_image.format.bits_per_pixel();
 

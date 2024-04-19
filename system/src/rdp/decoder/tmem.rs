@@ -61,6 +61,7 @@ pub fn load_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
     };
 
     ctx.renderer.load_tile(
+        ctx.gfx,
         ctx.rdram,
         cmd.tile() as usize,
         rect,
