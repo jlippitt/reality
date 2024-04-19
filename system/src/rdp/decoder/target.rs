@@ -1,5 +1,5 @@
-use super::renderer::{ColorImage, ColorImageFormat, Rect};
-use super::{Context, Decoder, Format};
+use super::renderer::{ColorImage, Format, Rect};
+use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
 
@@ -29,24 +29,13 @@ pub fn set_color_image(_decoder: &mut Decoder, ctx: Context, word: u64) {
 
     trace!("{:?}", cmd);
 
-    let format = match (cmd.format(), cmd.size()) {
-        (Format::Rgba, 2) => ColorImageFormat::Rgba16,
-        (Format::Rgba, 3) => ColorImageFormat::Rgba32,
-        (Format::ColorIndex, 1) => ColorImageFormat::ClrIndex8,
-        _ => panic!(
-            "Unsupported format for SetColorImage: {:?} {:?}",
-            cmd.format(),
-            cmd.size(),
-        ),
-    };
-
     ctx.renderer.set_color_image(
         ctx.gfx,
         ctx.rdram,
         ColorImage {
             dram_addr: cmd.dram_addr(),
             width: cmd.width() + 1,
-            format,
+            format: (cmd.format(), cmd.size()),
         },
     );
 }

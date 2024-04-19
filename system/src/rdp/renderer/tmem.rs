@@ -1,4 +1,4 @@
-use super::Rect;
+use super::{Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::HashMap;
@@ -6,21 +6,6 @@ use texture::Texture;
 use tracing::trace;
 
 mod texture;
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-pub enum TextureFormat {
-    Rgba16,
-    #[default]
-    Rgba32,
-    Yuv16,
-    ClrIndex4,
-    ClrIndex8,
-    IA4,
-    IA8,
-    IA16,
-    I4,
-    I8,
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct TextureImage {
@@ -122,7 +107,7 @@ impl Tmem {
         self.texture_cache.clear();
 
         let tile = &self.tiles[tile_id];
-        let bits_per_pixel = self.texture_image.format.bits_per_pixel();
+        let bits_per_pixel = 4 << self.texture_image.format.1;
 
         let dram_width = (self.texture_image.width as usize * bits_per_pixel + 7) / 8;
         let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
@@ -163,7 +148,7 @@ impl Tmem {
         self.texture_cache.clear();
 
         let tile = &self.tiles[tile_id];
-        let bits_per_pixel = self.texture_image.format.bits_per_pixel();
+        let bits_per_pixel = 4 << self.texture_image.format.1;
 
         let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
         let tmem_width = (x_size * bits_per_pixel + 63) / 64;
@@ -234,23 +219,6 @@ impl Tmem {
             self.texture_cache.get(&hash_value).unwrap().bind_group()
         } else {
             self.null_texture.bind_group()
-        }
-    }
-}
-
-impl TextureFormat {
-    fn bits_per_pixel(self) -> usize {
-        match self {
-            Self::Rgba16 => 16,
-            Self::Rgba32 => 32,
-            Self::Yuv16 => 16,
-            Self::ClrIndex4 => 4,
-            Self::ClrIndex8 => 8,
-            Self::IA4 => 4,
-            Self::IA8 => 8,
-            Self::IA16 => 16,
-            Self::I4 => 4,
-            Self::I8 => 8,
         }
     }
 }

@@ -1,5 +1,5 @@
 use super::renderer;
-use super::renderer::Renderer;
+use super::renderer::{Format, Renderer};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::VecDeque;
@@ -12,32 +12,6 @@ mod sync;
 mod target;
 mod tmem;
 mod triangle;
-
-#[repr(u32)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum Format {
-    Rgba = 0,
-    Yuv = 1,
-    ColorIndex = 2,
-    IA = 3,
-    I = 4,
-}
-
-impl Format {
-    const fn into_bits(self) -> u32 {
-        self as u32
-    }
-
-    const fn from_bits(value: u32) -> Self {
-        match value & 3 {
-            0 => Self::Rgba,
-            1 => Self::Yuv,
-            2 => Self::ColorIndex,
-            3 => Self::IA,
-            _ => Self::I,
-        }
-    }
-}
 
 pub struct Context<'a> {
     pub renderer: &'a mut Renderer,
@@ -110,5 +84,21 @@ impl Decoder {
 
         // If SYNC_FULL was run, let the caller know
         opcode == 0x29
+    }
+}
+
+impl Format {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value & 3 {
+            0 => Self::Rgba,
+            1 => Self::Yuv,
+            2 => Self::ClrIndex,
+            3 => Self::IA,
+            _ => Self::I,
+        }
     }
 }

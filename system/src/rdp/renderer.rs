@@ -1,5 +1,5 @@
-pub use target::{ColorImage, ColorImageFormat};
-pub use tmem::{TextureFormat, TextureImage, TileDescriptor};
+pub use target::ColorImage;
+pub use tmem::{TextureImage, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
@@ -19,6 +19,19 @@ pub struct Rect {
     pub top: f32,
     pub bottom: f32,
 }
+
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum Format {
+    #[default]
+    Rgba = 0,
+    Yuv = 1,
+    ClrIndex = 2,
+    IA = 3,
+    I = 4,
+}
+
+pub type TextureFormat = (Format, u32);
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -388,15 +401,16 @@ impl Renderer {
 
     fn fill_color(&self) -> [f32; 4] {
         match self.target.color_image().format {
-            ColorImageFormat::ClrIndex8 => todo!("Index8 format"),
-            ColorImageFormat::Rgba16 => [
+            (Format::Rgba, 3) => decode_color(self.fill_color),
+            (Format::Rgba, 2) => [
                 // This isn't correct, but it'll do for now
                 (((self.fill_color >> 11) & 0x1f) << 3) as f32,
                 (((self.fill_color >> 6) & 0x1f) << 3) as f32,
                 (((self.fill_color >> 1) & 0x1f) << 3) as f32,
                 ((self.fill_color & 0x01) * 255) as f32,
             ],
-            ColorImageFormat::Rgba32 => decode_color(self.fill_color),
+            (Format::ClrIndex, 1) => todo!("Index8 format"),
+            _ => panic!("Unsupported Color Image format"),
         }
     }
 }

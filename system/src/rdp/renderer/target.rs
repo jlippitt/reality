@@ -1,22 +1,14 @@
-use super::Rect;
+use super::{Format, Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::mem;
 use tracing::{debug, trace};
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-pub enum ColorImageFormat {
-    Rgba16,
-    #[default]
-    Rgba32,
-    ClrIndex8,
-}
-
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ColorImage {
     pub dram_addr: u32,
     pub width: u32,
-    pub format: ColorImageFormat,
+    pub format: TextureFormat,
 }
 
 pub struct TargetOutput {
@@ -238,7 +230,17 @@ impl Target {
 
             // TODO: What happens when color image width is not the same as texture width?
             match self.color_image.format {
-                ColorImageFormat::Rgba16 => {
+                (Format::Rgba, 3) => {
+                    for _ in 0..output.color_texture.height() {
+                        rdram.write_block(
+                            ram_addr,
+                            &pixel_data[buf_addr..(buf_addr + self.color_image.width as usize * 4)],
+                        );
+                        buf_addr += output.color_texture.width() as usize * 4;
+                        ram_addr += self.color_image.width as usize * 4;
+                    }
+                }
+                (Format::Rgba, 2) => {
                     for _ in 0..output.color_texture.height() {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
                         let pixels: Vec<u8> = pixel_data
@@ -259,17 +261,8 @@ impl Target {
                         ram_addr += self.color_image.width as usize * 2;
                     }
                 }
-                ColorImageFormat::Rgba32 => {
-                    for _ in 0..output.color_texture.height() {
-                        rdram.write_block(
-                            ram_addr,
-                            &pixel_data[buf_addr..(buf_addr + self.color_image.width as usize * 4)],
-                        );
-                        buf_addr += output.color_texture.width() as usize * 4;
-                        ram_addr += self.color_image.width as usize * 4;
-                    }
-                }
-                ColorImageFormat::ClrIndex8 => todo!("Index8 output format"),
+                (Format::ClrIndex, 1) => todo!("Index8 output format"),
+                _ => panic!("Unsupported Color Image format"),
             }
         } else {
             panic!("Failed to sync with WGPU");

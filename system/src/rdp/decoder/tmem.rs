@@ -1,5 +1,5 @@
-use super::renderer::{Rect, TextureFormat, TextureImage, TileDescriptor};
-use super::{Context, Decoder, Format};
+use super::renderer::{Format, Rect, TextureImage, TileDescriptor};
+use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
@@ -11,7 +11,7 @@ pub fn set_texture_image(_decoder: &mut Decoder, ctx: Context, word: u64) {
     ctx.renderer.set_texture_image(TextureImage {
         dram_addr: cmd.dram_addr(),
         width: cmd.width() + 1,
-        format: texture_format(cmd.format(), cmd.size()),
+        format: (cmd.format(), cmd.size()),
     });
 }
 
@@ -25,7 +25,7 @@ pub fn set_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
         TileDescriptor {
             tmem_addr: cmd.tmem_addr(),
             width: cmd.line(),
-            format: texture_format(cmd.format(), cmd.size()),
+            format: (cmd.format(), cmd.size()),
             // TODO: The rest
         },
         word & 0x00fb_ffff_00ff_ffff,
@@ -103,25 +103,6 @@ pub fn load_block(_decoder: &mut Decoder, ctx: Context, word: u64) {
         cmd.tl(),
         cmd.dxt(),
     );
-}
-
-fn texture_format(format: Format, size: u32) -> TextureFormat {
-    match (format, size) {
-        (Format::Rgba, 2) => TextureFormat::Rgba16,
-        (Format::Rgba, 3) => TextureFormat::Rgba32,
-        (Format::Yuv, 2) => TextureFormat::Yuv16,
-        (Format::ColorIndex, 0) => TextureFormat::ClrIndex4,
-        (Format::ColorIndex, 1) => TextureFormat::ClrIndex8,
-        (Format::IA, 0) => TextureFormat::IA4,
-        (Format::IA, 1) => TextureFormat::IA8,
-        (Format::IA, 2) => TextureFormat::IA16,
-        (Format::I, 0) => TextureFormat::I4,
-        (Format::I, 1) => TextureFormat::I8,
-        _ => panic!(
-            "Unsupported format for SetTextureImage: {:?} {:?}",
-            format, size,
-        ),
-    }
 }
 
 #[bitfield(u64)]
