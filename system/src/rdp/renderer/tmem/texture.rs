@@ -91,7 +91,7 @@ impl Texture {
         let height = tile.size.height() as u32;
         let format = tile.descriptor.format;
 
-        let mut buf: [u64; 2048] = [0; 2048];
+        let mut buf: [u64; 4096] = [0; 4096];
 
         let buf_start = deinterleave_tmem_data(
             &mut buf,
