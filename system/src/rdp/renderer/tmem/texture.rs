@@ -155,59 +155,93 @@ fn deinterleave_tmem_data(
 fn decode_texture(buf: &mut [u64], buf_start: usize, format: TextureFormat) -> &[u8] {
     let output_start = match format {
         (Format::Rgba, 3) => buf_start,
-        (Format::Rgba, 2) => {
-            let read_start = buf_start << 2;
-
-            for index in 0..((buf.len() - buf_start) << 2) {
-                let input: &[u16] = bytemuck::must_cast_slice_mut(buf);
-                let word = input[read_start + index].swap_bytes();
-
-                let red = ((word >> 11) as u8 & 31) << 3;
-                let green = ((word >> 6) as u8 & 31) << 3;
-                let blue = ((word >> 1) as u8 & 31) << 3;
-                let alpha = (word as u8 & 1) * 255;
-
-                let color = u32::from_le_bytes([red, green, blue, alpha]);
-
-                bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
-            }
-
-            0
-        }
-        (Format::I, 1) => {
-            let read_start = buf_start << 3;
-
-            for index in 0..((buf.len() - buf_start) << 3) {
-                let input: &[u8] = bytemuck::must_cast_slice_mut(buf);
-                let intensity = input[read_start + index];
-                let color = u32::from_le_bytes([intensity; 4]);
-                bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
-            }
-
-            0
-        }
-        (Format::I, 0) => {
-            let read_start = buf_start << 3;
-
-            for index in 0..((buf.len() - buf_start) << 4) {
-                let input: &[u8] = bytemuck::must_cast_slice_mut(buf);
-                let word = input[read_start + (index >> 1)];
-
-                let intensity = if (index & 1) == 0 {
-                    word & !15
-                } else {
-                    (word & 15) << 4
-                };
-
-                let color = u32::from_le_bytes([intensity; 4]);
-
-                bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
-            }
-
-            0
-        }
+        (Format::Rgba, 2) => decode_color16(buf, buf_start, |word| {
+            let red = ((word >> 11) as u8 & 31) << 3;
+            let green = ((word >> 6) as u8 & 31) << 3;
+            let blue = ((word >> 1) as u8 & 31) << 3;
+            let alpha = (word as u8 & 1) * 255;
+            u32::from_le_bytes([red, green, blue, alpha])
+        }),
+        (Format::IA, 2) => decode_color16(buf, buf_start, |word| {
+            let intensity = (word >> 8) as u8;
+            let alpha = word as u8;
+            u32::from_le_bytes([intensity, intensity, intensity, alpha])
+        }),
+        (Format::IA, 1) => decode_color8(buf, buf_start, |word| {
+            let intensity = word & 0xf0;
+            let alpha = word << 4;
+            u32::from_le_bytes([intensity, intensity, intensity, alpha])
+        }),
+        (Format::IA, 0) => decode_color4(buf, buf_start, |word| {
+            (
+                {
+                    let intensity = word & !31;
+                    let alpha = ((word >> 4) & 1) * 255;
+                    u32::from_le_bytes([intensity, intensity, intensity, alpha])
+                },
+                {
+                    let intensity = (word & 14) << 4;
+                    let alpha = (word & 1) * 255;
+                    u32::from_le_bytes([intensity, intensity, intensity, alpha])
+                },
+            )
+        }),
+        (Format::I, 1) => decode_color8(buf, buf_start, |word| u32::from_le_bytes([word; 4])),
+        (Format::I, 0) => decode_color4(buf, buf_start, |word| {
+            (
+                {
+                    let intensity = word & !15;
+                    u32::from_le_bytes([intensity; 4])
+                },
+                {
+                    let intensity = (word & 15) << 4;
+                    u32::from_le_bytes([intensity; 4])
+                },
+            )
+        }),
         _ => panic!("Unsupported TMEM texture format"),
     };
 
     bytemuck::must_cast_slice(&buf[output_start..])
+}
+
+fn decode_color4(buf: &mut [u64], buf_start: usize, cb: impl Fn(u8) -> (u32, u32)) -> usize {
+    let read_start = buf_start << 3;
+
+    for index in 0..((buf.len() - buf_start) << 3) {
+        let input: &[u8] = bytemuck::must_cast_slice_mut(buf);
+        let word = input[read_start + index];
+        let color = cb(word);
+        let output: &mut [u32] = bytemuck::must_cast_slice_mut(buf);
+        output[index << 1] = color.0;
+        output[(index << 1) | 1] = color.1;
+    }
+
+    0
+}
+
+fn decode_color8(buf: &mut [u64], buf_start: usize, cb: impl Fn(u8) -> u32) -> usize {
+    let read_start = buf_start << 3;
+
+    for index in 0..((buf.len() - buf_start) << 3) {
+        let input: &[u8] = bytemuck::must_cast_slice_mut(buf);
+        let word = input[read_start + index];
+        let color = cb(word);
+        bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
+    }
+
+    0
+}
+
+fn decode_color16(buf: &mut [u64], buf_start: usize, cb: impl Fn(u16) -> u32) -> usize {
+    let read_start = buf_start << 2;
+
+    for index in 0..((buf.len() - buf_start) << 2) {
+        let input: &[u16] = bytemuck::must_cast_slice_mut(buf);
+        let word = input[read_start + index].swap_bytes();
+        let color = cb(word);
+        bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
+    }
+
+    0
 }
