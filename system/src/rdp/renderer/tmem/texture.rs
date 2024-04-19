@@ -174,6 +174,18 @@ fn decode_texture(buf: &mut [u64], buf_start: usize, format: TextureFormat) -> &
 
             0
         }
+        (Format::I, 1) => {
+            let read_start = buf_start << 3;
+
+            for index in 0..((buf.len() - buf_start) << 3) {
+                let input: &[u8] = bytemuck::must_cast_slice_mut(buf);
+                let intensity = input[read_start + index];
+                let color = u32::from_le_bytes([intensity; 4]);
+                bytemuck::must_cast_slice_mut::<u64, u32>(buf)[index] = color;
+            }
+
+            0
+        }
         (Format::I, 0) => {
             let read_start = buf_start << 3;
 
