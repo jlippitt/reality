@@ -126,11 +126,12 @@ fn deinterleave_tmem_data(
 ) -> usize {
     let tmem_line_len = ((width as usize * bits_per_pixel) + 63) / 64;
     let buf_start = buf.len() - tmem_line_len * height as usize;
+    println!("{}x{} = {}, {}", width, height, buf_start, tmem_line_len);
 
     let mut buf_index = buf_start;
     let mut tmem_index = 0;
 
-    for line in 0..height {
+    for line in 0..(height as usize).min(tmem_data.len() / tmem_line_len) {
         let tmem_line = &tmem_data[tmem_index..(tmem_index + tmem_line_len)];
         let buf_line = &mut buf[buf_index..(buf_index + tmem_line_len)];
 
