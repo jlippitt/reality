@@ -1,5 +1,6 @@
-use super::{Format, Tile};
+use super::{Format, TextureFormat, Tile};
 use crate::gfx::GfxContext;
+use tracing::trace;
 use wgpu::util::DeviceExt;
 
 pub struct Texture {
@@ -17,6 +18,8 @@ impl Texture {
         height: u32,
         data: &[u8],
     ) -> Self {
+        trace!("{}x{}: {:?}", width, height, data);
+
         let size = wgpu::Extent3d {
             width,
             height,
@@ -86,38 +89,92 @@ impl Texture {
     ) -> Self {
         let width = tile.size.width() as u32;
         let height = tile.size.height() as u32;
+        let format = tile.descriptor.format;
 
-        let in_data: &[u8] =
-            bytemuck::must_cast_slice(&tmem_data[tile.descriptor.tmem_addr as usize..]);
+        let mut buf: [u64; 512] = [0; 512];
 
-        let mut buf: [u8; 4096] = [0; 4096];
-        let buf_view = &mut buf[0..(width * height * 4) as usize];
+        let buf_start = deinterleave_tmem_data(
+            &mut buf,
+            &tmem_data[tile.descriptor.tmem_addr as usize..],
+            width,
+            height,
+            4 << format.1,
+        );
 
-        let out_data = match tile.descriptor.format {
-            (Format::Rgba, 3) => &in_data[0..(width * height * 4) as usize],
-            (Format::Rgba, 2) => {
-                let iter = in_data.chunks_exact(2).flat_map(|chunk| {
-                    let word = u16::from_be_bytes([chunk[0], chunk[1]]);
-                    let red = ((word >> 11) as u8 & 31) << 3;
-                    let green = ((word >> 6) as u8 & 31) << 3;
-                    let blue = ((word >> 1) as u8 & 31) << 3;
-                    let alpha = (word as u8 & 1) * 255;
-                    [red, green, blue, alpha]
-                });
+        let output = decode_texture(&mut buf, buf_start, format);
 
-                for (dst, src) in buf_view.iter_mut().zip(iter) {
-                    *dst = src;
-                }
-
-                buf_view
-            }
-            _ => panic!("Unsupported TMEM texture format"),
-        };
-
-        Texture::new(gfx, bind_group_layout, width, height, out_data)
+        Texture::new(
+            gfx,
+            bind_group_layout,
+            width,
+            height,
+            &output[0..(width * height * 4) as usize],
+        )
     }
 
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }
+}
+
+fn deinterleave_tmem_data(
+    buf: &mut [u64],
+    tmem_data: &[u64],
+    width: u32,
+    height: u32,
+    bits_per_pixel: usize,
+) -> usize {
+    let tmem_line_len = ((width as usize * bits_per_pixel) + 63) / 64;
+    let buf_start = buf.len() - tmem_line_len * height as usize;
+
+    let mut buf_index = buf_start;
+    let mut tmem_index = 0;
+
+    for line in 0..height {
+        let tmem_line = &tmem_data[tmem_index..(tmem_index + tmem_line_len)];
+        let buf_line = &mut buf[buf_index..(buf_index + tmem_line_len)];
+
+        if (line & 1) != 0 {
+            for (dst, src) in buf_line
+                .iter_mut()
+                .zip(tmem_line.iter().map(|word| (word << 32) | (word >> 32)))
+            {
+                *dst = src
+            }
+        } else {
+            buf_line.copy_from_slice(tmem_line);
+        }
+
+        tmem_index += tmem_line_len;
+        buf_index += tmem_line_len;
+    }
+
+    buf_start
+}
+
+fn decode_texture(buf: &mut [u64], buf_start: usize, format: TextureFormat) -> &[u8] {
+    let output_start = match format {
+        (Format::Rgba, 3) => buf_start,
+        (Format::Rgba, 2) => {
+            let read_start = buf_start << 2;
+
+            for index in 0..((buf.len() - buf_start) << 2) {
+                let input: &[u16] = bytemuck::must_cast_slice_mut(buf);
+                let word = input[read_start + index].swap_bytes();
+
+                let red = ((word >> 11) as u8 & 31) << 3;
+                let green = ((word >> 6) as u8 & 31) << 3;
+                let blue = ((word >> 1) as u8 & 31) << 3;
+                let alpha = (word as u8 & 1) * 255;
+
+                let output: &mut [u32] = bytemuck::must_cast_slice_mut(buf);
+                output[index] = u32::from_le_bytes([red, green, blue, alpha]);
+            }
+
+            0
+        }
+        _ => panic!("Unsupported TMEM texture format"),
+    };
+
+    bytemuck::must_cast_slice(&buf[output_start..])
 }

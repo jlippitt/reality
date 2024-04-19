@@ -117,9 +117,16 @@ impl Tmem {
         let mut dram_addr = self.texture_image.dram_addr as usize + dram_width * y_offset;
         let mut tmem_addr = tile.descriptor.tmem_addr as usize;
 
-        for _ in 0..y_size {
+        for line in 0..y_size {
             let dst = &mut self.tmem_data[tmem_addr..(tmem_addr + tmem_width)];
             rdram.read_block(dram_addr + dram_line_offset, dst);
+
+            if (line & 1) != 0 {
+                for word in dst {
+                    *word = (*word << 32) | (*word >> 32);
+                }
+            }
+
             dram_addr += dram_width;
             tmem_addr += tmem_width;
         }
@@ -186,6 +193,10 @@ impl Tmem {
             let dst = &mut self.tmem_data[tmem_start..tmem_addr];
             rdram.read_block(dram_addr, dst);
             dram_addr += (tmem_addr - tmem_start) << 3;
+
+            for word in dst {
+                *word = (*word << 32) | (*word >> 32);
+            }
         }
 
         trace!(
