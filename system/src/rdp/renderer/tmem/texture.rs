@@ -1,4 +1,4 @@
-use super::Tile;
+use super::{Format, Tile};
 use crate::gfx::GfxContext;
 use wgpu::util::DeviceExt;
 
@@ -87,16 +87,34 @@ impl Texture {
         let width = tile.size.width() as u32;
         let height = tile.size.height() as u32;
 
-        let data: &[u8] =
+        let in_data: &[u8] =
             bytemuck::must_cast_slice(&tmem_data[tile.descriptor.tmem_addr as usize..]);
 
-        Texture::new(
-            gfx,
-            bind_group_layout,
-            width,
-            height,
-            &data[0..(width * height * 4) as usize],
-        )
+        let mut buf: [u8; 4096] = [0; 4096];
+        let buf_view = &mut buf[0..(width * height * 4) as usize];
+
+        let out_data = match tile.descriptor.format {
+            (Format::Rgba, 3) => &in_data[0..(width * height * 4) as usize],
+            (Format::Rgba, 2) => {
+                let iter = in_data.chunks_exact(2).flat_map(|chunk| {
+                    let word = u16::from_be_bytes([chunk[0], chunk[1]]);
+                    let red = ((word >> 11) as u8 & 31) << 3;
+                    let green = ((word >> 6) as u8 & 31) << 3;
+                    let blue = ((word >> 1) as u8 & 31) << 3;
+                    let alpha = (word as u8 & 1) * 255;
+                    [red, green, blue, alpha]
+                });
+
+                for (dst, src) in buf_view.iter_mut().zip(iter) {
+                    *dst = src;
+                }
+
+                buf_view
+            }
+            _ => panic!("Unsupported TMEM texture format"),
+        };
+
+        Texture::new(gfx, bind_group_layout, width, height, out_data)
     }
 
     pub fn bind_group(&self) -> &wgpu::BindGroup {

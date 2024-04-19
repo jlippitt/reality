@@ -1,3 +1,4 @@
+use super::Format;
 use super::{Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
