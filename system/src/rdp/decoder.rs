@@ -39,18 +39,18 @@ impl Format {
     }
 }
 
-pub struct Bus<'a> {
+pub struct Context<'a> {
     pub renderer: &'a mut Renderer,
     pub rdram: &'a mut Rdram,
     pub gfx: &'a GfxContext,
 }
 
-pub struct Core {
+pub struct Decoder {
     running: bool,
     commands: VecDeque<u64>,
 }
 
-impl Core {
+impl Decoder {
     pub fn new() -> Self {
         Self {
             running: false,
@@ -70,7 +70,7 @@ impl Core {
         self.commands.push_back(value)
     }
 
-    pub fn step(&mut self, bus: Bus) -> bool {
+    pub fn step(&mut self, bus: Context) -> bool {
         let Some(word) = self.commands.pop_front() else {
             self.running = false;
             return false;

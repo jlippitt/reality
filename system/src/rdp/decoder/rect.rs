@@ -1,9 +1,13 @@
 use super::renderer::Rect;
-use super::{Bus, Core};
+use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
-pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bus, word: u64) {
+pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(
+    decoder: &mut Decoder,
+    ctx: Context,
+    word: u64,
+) {
     let cmd = Rectangle::from(word);
 
     trace!("{:?}", cmd);
@@ -18,9 +22,9 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bu
     trace!("  = {:?}", rect);
 
     let texture = if TEXTURE {
-        let Some(coords) = core.commands.pop_front() else {
-            core.commands.push_front(word);
-            core.running = false;
+        let Some(coords) = decoder.commands.pop_front() else {
+            decoder.commands.push_front(word);
+            decoder.running = false;
             return;
         };
 
@@ -54,7 +58,7 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(core: &mut Core, bus: Bu
         None
     };
 
-    bus.renderer.draw_rectangle(bus.gfx, rect, texture);
+    ctx.renderer.draw_rectangle(ctx.gfx, rect, texture);
 }
 
 #[bitfield(u64)]

@@ -1,9 +1,9 @@
 use super::renderer::{ColorImage, ColorImageFormat, Rect};
-use super::{Bus, Core, Format};
+use super::{Context, Decoder, Format};
 use bitfield_struct::bitfield;
 use tracing::{trace, warn};
 
-pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_scissor(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetScissor::from(word);
 
     trace!("{:?}", cmd);
@@ -12,9 +12,9 @@ pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
         warn!("TODO: Set_Scissor interlace suppport");
     }
 
-    bus.renderer.set_scissor(
-        bus.gfx,
-        bus.rdram,
+    ctx.renderer.set_scissor(
+        ctx.gfx,
+        ctx.rdram,
         Rect {
             left: cmd.xh() as f32 / 4.0,
             right: cmd.xl() as f32 / 4.0,
@@ -24,7 +24,7 @@ pub fn set_scissor(_core: &mut Core, bus: Bus, word: u64) {
     );
 }
 
-pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_color_image(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetColorImage::from(word);
 
     trace!("{:?}", cmd);
@@ -40,9 +40,9 @@ pub fn set_color_image(_core: &mut Core, bus: Bus, word: u64) {
         ),
     };
 
-    bus.renderer.set_color_image(
-        bus.gfx,
-        bus.rdram,
+    ctx.renderer.set_color_image(
+        ctx.gfx,
+        ctx.rdram,
         ColorImage {
             dram_addr: cmd.dram_addr(),
             width: cmd.width() + 1,

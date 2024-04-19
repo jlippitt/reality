@@ -1,11 +1,11 @@
-use super::{Bus, Core};
+use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use std::array;
 use tracing::trace;
 
 pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
-    core: &mut Core,
-    bus: Bus,
+    decoder: &mut Decoder,
+    ctx: Context,
     word: u64,
 ) {
     let cmd = Triangle::from(word);
@@ -15,15 +15,15 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
 
     // Check we have enough command data to satisfy our parameters,
     // or else we have to wait for more to be uploaded
-    if core.commands.len() < param_size {
-        core.commands.push_front(word);
-        core.running = false;
+    if decoder.commands.len() < param_size {
+        decoder.commands.push_front(word);
+        decoder.running = false;
         return;
     }
 
-    let edge_low = Edge::from(core.commands.pop_front().unwrap());
-    let edge_high = Edge::from(core.commands.pop_front().unwrap());
-    let edge_mid = Edge::from(core.commands.pop_front().unwrap());
+    let edge_low = Edge::from(decoder.commands.pop_front().unwrap());
+    let edge_high = Edge::from(decoder.commands.pop_front().unwrap());
+    let edge_mid = Edge::from(decoder.commands.pop_front().unwrap());
     trace!("{:?}", edge_low);
     trace!("{:?}", edge_high);
     trace!("{:?}", edge_mid);
@@ -49,14 +49,14 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     trace!("  = {:?}", edges);
 
     let colors: [[f32; 4]; 3] = if SHADE {
-        let shade = Color::from(core.commands.pop_front().unwrap());
-        let shade_dx = Color::from(core.commands.pop_front().unwrap());
-        let shade_frac = Color::from(core.commands.pop_front().unwrap());
-        let shade_frac_dx = Color::from(core.commands.pop_front().unwrap());
-        let shade_de = Color::from(core.commands.pop_front().unwrap());
-        let shade_dy = Color::from(core.commands.pop_front().unwrap());
-        let shade_frac_de = Color::from(core.commands.pop_front().unwrap());
-        let shade_frac_dy = Color::from(core.commands.pop_front().unwrap());
+        let shade = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_dx = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_dx = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_de = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_dy = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_de = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_dy = Color::from(decoder.commands.pop_front().unwrap());
 
         let base_color = decode_color(shade, shade_frac);
         let color_dx = decode_color(shade_dx, shade_frac_dx);
@@ -76,18 +76,18 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("  = {:?}", colors);
         colors
     } else {
-        [bus.renderer.blend_color(); 3]
+        [ctx.renderer.blend_color(); 3]
     };
 
     let texture = if TEXTURE {
-        let coord = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_dx = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_frac = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_frac_dx = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_de = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_dy = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_frac_de = TexCoord::from(core.commands.pop_front().unwrap());
-        let coord_frac_dy = TexCoord::from(core.commands.pop_front().unwrap());
+        let coord = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_dx = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_dx = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_de = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_de = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
 
         let base_texel = decode_tex_coord(coord, coord_frac);
         let texel_dx = decode_tex_coord(coord_dx, coord_frac_dx);
@@ -114,8 +114,8 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
 
     // TODO: If z_source_sel is '1', do we ignore all this?
     let z_values: [f32; 3] = if Z_BUFFER {
-        let z_dzdx_word = core.commands.pop_front().unwrap();
-        let dzde_dzdy_word = core.commands.pop_front().unwrap();
+        let z_dzdx_word = decoder.commands.pop_front().unwrap();
+        let dzde_dzdy_word = decoder.commands.pop_front().unwrap();
 
         let z = ((z_dzdx_word >> 32) as i32) as f32 / 65536.0;
         let dzdx = (z_dzdx_word as i32) as f32 / 65536.0;
@@ -136,8 +136,8 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         [0.0; 3]
     };
 
-    bus.renderer
-        .draw_triangle(bus.gfx, edges, colors, texture, z_values);
+    ctx.renderer
+        .draw_triangle(ctx.gfx, edges, colors, texture, z_values);
 }
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {

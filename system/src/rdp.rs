@@ -2,12 +2,12 @@ use crate::gfx::GfxContext;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
-use core::{Bus, Core};
+use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
 use tracing::{debug, error_span, warn};
 
-mod core;
+mod decoder;
 mod regs;
 mod renderer;
 
@@ -25,7 +25,7 @@ pub struct RdpShared {
 
 pub struct Rdp {
     shared: RdpShared,
-    core: Core,
+    decoder: Decoder,
     renderer: Renderer,
     rcp_int: RcpInterrupt,
 }
@@ -38,7 +38,7 @@ impl Rdp {
                 dma_active: Dma { start: 0, end: 0 },
                 dma_pending: None,
             },
-            core: Core::new(),
+            decoder: Decoder::new(),
             renderer: Renderer::new(gfx),
             rcp_int,
         }
@@ -54,14 +54,14 @@ impl Rdp {
     }
 
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
-        if !self.core.running() || self.shared.regs.status.freeze() {
+        if !self.decoder.running() || self.shared.regs.status.freeze() {
             return;
         }
 
         let sync_full = {
             let _span = error_span!("rdp").entered();
 
-            self.core.step(Bus {
+            self.decoder.step(Context {
                 renderer: &mut self.renderer,
                 rdram,
                 gfx,
@@ -95,7 +95,7 @@ impl Rdp {
         if self.shared.regs.status.xbus() {
             for _ in 0..block_len {
                 let command: u64 = rsp_mem.read(current as usize & 0xfff);
-                self.core.write_command(command);
+                self.decoder.write_command(command);
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -107,7 +107,7 @@ impl Rdp {
         } else {
             for _ in 0..block_len {
                 let command: u64 = rdram.read_single(current as usize);
-                self.core.write_command(command);
+                self.decoder.write_command(command);
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -118,7 +118,7 @@ impl Rdp {
             );
         }
 
-        self.core.restart();
+        self.decoder.restart();
 
         dma.start = current;
 

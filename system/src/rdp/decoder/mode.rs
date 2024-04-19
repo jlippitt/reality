@@ -1,16 +1,16 @@
 use super::renderer::{CycleType, Mode, ZBufferConfig, ZSource};
-use super::{Bus, Core};
+use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
-pub fn set_other_modes(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetOtherModes::from(word);
 
     trace!("{:?}", cmd);
 
-    bus.renderer.set_mode(
-        bus.gfx,
-        bus.rdram,
+    ctx.renderer.set_mode(
+        ctx.gfx,
+        ctx.rdram,
         Mode {
             cycle_type: cmd.cycle_type(),
             z_buffer: ZBufferConfig {

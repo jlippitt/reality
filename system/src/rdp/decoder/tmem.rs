@@ -1,26 +1,26 @@
 use super::renderer::{Rect, TextureFormat, TextureImage, TileDescriptor};
-use super::{Bus, Core, Format};
+use super::{Context, Decoder, Format};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
-pub fn set_texture_image(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_texture_image(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetTextureImage::from(word);
 
     trace!("{:?}", cmd);
 
-    bus.renderer.set_texture_image(TextureImage {
+    ctx.renderer.set_texture_image(TextureImage {
         dram_addr: cmd.dram_addr(),
         width: cmd.width() + 1,
         format: texture_format(cmd.format(), cmd.size()),
     });
 }
 
-pub fn set_tile(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetTile::from(word);
 
     trace!("{:?}", cmd);
 
-    bus.renderer.set_tile(
+    ctx.renderer.set_tile(
         cmd.tile() as usize,
         TileDescriptor {
             tmem_addr: cmd.tmem_addr(),
@@ -32,7 +32,7 @@ pub fn set_tile(_core: &mut Core, bus: Bus, word: u64) {
     );
 }
 
-pub fn set_tile_size(_core: &mut Core, bus: Bus, word: u64) {
+pub fn set_tile_size(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetTileSize::from(word);
 
     trace!("{:?}", cmd);
@@ -44,11 +44,11 @@ pub fn set_tile_size(_core: &mut Core, bus: Bus, word: u64) {
         bottom: cmd.th() as f32 / 4.0 + 1.0,
     };
 
-    bus.renderer
+    ctx.renderer
         .set_tile_size(cmd.tile() as usize, rect, word & 0x00ff_ffff_00ff_ffff);
 }
 
-pub fn load_tile(_core: &mut Core, bus: Bus, word: u64) {
+pub fn load_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = LoadTile::from(word);
 
     trace!("{:?}", cmd);
@@ -60,8 +60,8 @@ pub fn load_tile(_core: &mut Core, bus: Bus, word: u64) {
         bottom: cmd.th() as f32 / 4.0 + 1.0,
     };
 
-    bus.renderer.load_tile(
-        bus.rdram,
+    ctx.renderer.load_tile(
+        ctx.rdram,
         cmd.tile() as usize,
         rect,
         word & 0x00ff_ffff_00ff_ffff,
