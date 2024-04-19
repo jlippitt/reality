@@ -32,16 +32,32 @@ pub fn set_tile(_core: &mut Core, bus: Bus, word: u64) {
     );
 }
 
+pub fn set_tile_size(_core: &mut Core, bus: Bus, word: u64) {
+    let cmd = SetTileSize::from(word);
+
+    trace!("{:?}", cmd);
+
+    let rect = Rect {
+        left: cmd.sl() as f32 / 4.0,
+        right: cmd.sh() as f32 / 4.0 + 1.0,
+        top: cmd.tl() as f32 / 4.0,
+        bottom: cmd.th() as f32 / 4.0 + 1.0,
+    };
+
+    bus.renderer
+        .set_tile_size(cmd.tile() as usize, rect, word & 0x00ff_ffff_00ff_ffff);
+}
+
 pub fn load_tile(_core: &mut Core, bus: Bus, word: u64) {
     let cmd = LoadTile::from(word);
 
     trace!("{:?}", cmd);
 
     let rect = Rect {
-        left: cmd.sh() as f32 / 4.0,
-        right: cmd.sl() as f32 / 4.0 + 1.0,
-        top: cmd.th() as f32 / 4.0,
-        bottom: cmd.tl() as f32 / 4.0 + 1.0,
+        left: cmd.sl() as f32 / 4.0,
+        right: cmd.sh() as f32 / 4.0 + 1.0,
+        top: cmd.tl() as f32 / 4.0,
+        bottom: cmd.th() as f32 / 4.0 + 1.0,
     };
 
     bus.renderer.load_tile(
@@ -123,19 +139,37 @@ struct SetTile {
 }
 
 #[bitfield(u64)]
-struct LoadTile {
+struct SetTileSize {
     #[bits(12)]
-    sl: u32,
+    sh: u32,
     #[bits(12)]
-    tl: u32,
+    th: u32,
     #[bits(3)]
     tile: u64,
     #[bits(5)]
     __: u64,
     #[bits(12)]
+    sl: u32,
+    #[bits(12)]
+    tl: u32,
+    #[bits(8)]
+    __: u64,
+}
+
+#[bitfield(u64)]
+struct LoadTile {
+    #[bits(12)]
     sh: u32,
     #[bits(12)]
     th: u32,
+    #[bits(3)]
+    tile: u64,
+    #[bits(5)]
+    __: u64,
+    #[bits(12)]
+    sl: u32,
+    #[bits(12)]
+    tl: u32,
     #[bits(8)]
     __: u64,
 }

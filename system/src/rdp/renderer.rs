@@ -194,6 +194,10 @@ impl Renderer {
         self.tmem.set_tile(index, tile, hash_value);
     }
 
+    pub fn set_tile_size(&mut self, index: usize, rect: Rect, hash_value: u64) {
+        self.tmem.set_tile_size(index, rect, hash_value);
+    }
+
     pub fn load_tile(&mut self, rdram: &Rdram, index: usize, rect: Rect, hash_value: u64) {
         self.tmem.load_tile(rdram, index, rect, hash_value);
     }

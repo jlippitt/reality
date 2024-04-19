@@ -101,18 +101,23 @@ impl Tmem {
         trace!("  Tile {} Hash Value: {:016X}", tile_id, tile.hash_value);
     }
 
+    pub fn set_tile_size(&mut self, tile_id: usize, rect: Rect, hash_value: u64) {
+        let tile = &mut self.tiles[tile_id];
+        tile.size = rect;
+        tile.hash_value = (tile.hash_value & 0x0000_0000_ffff_ffff) | ((hash_value as u128) << 64);
+        trace!("  Tile {} Size: {:?}", tile_id, tile.size);
+        trace!("  Tile {} Hash Value: {:016X}", tile_id, tile.hash_value);
+    }
+
     pub fn load_tile(&mut self, rdram: &Rdram, tile_id: usize, rect: Rect, hash_value: u64) {
         let x_offset = rect.left as usize;
         let x_size = rect.width() as usize;
         let y_offset = rect.top as usize;
         let y_size = rect.height() as usize;
 
-        let tile = &mut self.tiles[tile_id];
-        tile.size = rect;
-        tile.hash_value = (tile.hash_value & 0x0000_0000_ffff_ffff) | ((hash_value as u128) << 64);
-        trace!("  Tile {} Size: {:?}", tile_id, tile.size);
-        trace!("  Tile {} Hash Value: {:016X}", tile_id, tile.hash_value);
+        self.set_tile_size(tile_id, rect, hash_value);
 
+        let tile = &self.tiles[tile_id];
         let bits_per_pixel = self.texture_image.format.bits_per_pixel();
 
         let dram_width = (self.texture_image.width as usize * bits_per_pixel + 7) / 8;
