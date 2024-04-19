@@ -93,7 +93,7 @@ impl Format {
     }
 
     const fn from_bits(value: u32) -> Self {
-        match value & 3 {
+        match value {
             0 => Self::Rgba,
             1 => Self::Yuv,
             2 => Self::ClrIndex,

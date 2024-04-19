@@ -112,7 +112,7 @@ impl Tmem {
 
         let dram_width = (self.texture_image.width as usize * bits_per_pixel + 7) / 8;
         let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
-        let tmem_width = (x_size * bits_per_pixel + 63) / 64;
+        let tmem_width = ((x_size * bits_per_pixel + 63) / 8).min(dram_width) / 8;
 
         let mut dram_addr = self.texture_image.dram_addr as usize + dram_width * y_offset;
         let mut tmem_addr = tile.descriptor.tmem_addr as usize;
