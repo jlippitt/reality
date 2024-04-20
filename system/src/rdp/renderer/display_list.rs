@@ -106,7 +106,7 @@ impl DisplayList {
             }],
         });
 
-        Self {
+        let mut display_list = Self {
             commands: vec![],
             vertices: vec![],
             indices: vec![],
@@ -118,7 +118,10 @@ impl DisplayList {
             constant_bind_group_layout,
             constant_bind_group,
             current_texture_handle: None,
-        }
+        };
+
+        display_list.push_constants();
+        display_list
     }
 
     pub fn constant_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
@@ -146,21 +149,22 @@ impl DisplayList {
     }
 
     fn push_constants(&mut self) {
+        let size = mem::size_of::<Constants>();
         let constants = bytemuck::bytes_of(&self.constants);
+
         match self.commands.last_mut() {
-            Some(Command::SetConstants(Range { start, end })) => {
-                self.constant_data[*start as usize..*end as usize].copy_from_slice(constants);
+            Some(Command::SetConstants(Range { start, .. })) => {
+                self.constant_data[*start as usize..(*start as usize + size)]
+                    .copy_from_slice(constants);
             }
             _ => {
+                let start = self.constant_data.len() as u32;
+
                 self.constant_data.extend_from_slice(constants);
 
                 // Pad to 256 bytes
-                self.constant_data.resize(
-                    self.constant_data.len() + 256 - mem::size_of::<Constants>(),
-                    0,
-                );
-
-                let start = self.constant_data.len() as u32;
+                self.constant_data
+                    .resize(self.constant_data.len() + 256 - size, 0);
 
                 self.commands
                     .push(Command::SetConstants(start..(start + 256)));
@@ -301,28 +305,23 @@ impl DisplayList {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.vertices.clear();
+        self.indices.clear();
+        self.constant_data.clear();
+        self.current_texture_handle = None;
+        self.push_constants();
+    }
+
     pub fn upload_buffers(&mut self, queue: &wgpu::Queue) {
         queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
         queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&self.indices));
-
-        self.constant_data
-            .extend_from_slice(bytemuck::bytes_of(&self.constants));
-
-        // Pad to 256 bytes
-        self.constant_data.resize(
-            self.constant_data.len() + 256 - mem::size_of::<Constants>(),
-            0,
-        );
 
         queue.write_buffer(
             &self.constant_buffer,
             0,
             bytemuck::cast_slice(&self.constant_data),
         );
-
-        self.vertices.clear();
-        self.indices.clear();
-        self.constant_data.clear();
     }
 
     pub fn flush<'a>(&'a mut self, tmem: &'a Tmem, render_pass: &mut wgpu::RenderPass<'a>) {
@@ -332,8 +331,6 @@ impl DisplayList {
 
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-
-        render_pass.set_bind_group(2, &self.constant_bind_group, &[0]);
 
         for command in self.commands.drain(..) {
             match command {
@@ -347,7 +344,5 @@ impl DisplayList {
                 }
             }
         }
-
-        self.current_texture_handle = None;
     }
 }

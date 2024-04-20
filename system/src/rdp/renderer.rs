@@ -424,6 +424,7 @@ impl Renderer {
 
         gfx.queue().submit(std::iter::once(encoder.finish()));
 
+        self.display_list.reset();
         self.target.request_sync();
     }
 
