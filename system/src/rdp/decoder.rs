@@ -78,6 +78,7 @@ impl Decoder {
             0x36 => rect::rectangle::<false, false>(self, bus, word),
             0x37 => param::set_fill_color(self, bus, word),
             0x39 => param::set_blend_color(self, bus, word),
+            0x3c => mode::set_combine_mode(self, bus, word),
             0x3d => tmem::set_texture_image(self, bus, word),
             0x3f => target::set_color_image(self, bus, word),
             _ => warn!("TODO: RDP Command: {:#02X}", opcode),

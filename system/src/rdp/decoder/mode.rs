@@ -1,8 +1,51 @@
-use super::renderer::{CycleType, Mode, ZBufferConfig, ZSource};
+use super::renderer::{
+    CombineModeRaw, CombineModeRawParams, CycleType, Mode, ZBufferConfig, ZSource,
+};
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
 
+pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
+    let cmd = SetCombineMode::from(word);
+
+    trace!("{:?}", cmd);
+
+    ctx.renderer.set_combine_mode(
+        ctx.gfx,
+        ctx.rdram,
+        CombineModeRaw {
+            rgb: [
+                CombineModeRawParams {
+                    sub_a: cmd.sub_a_r_0(),
+                    sub_b: cmd.sub_b_r_0(),
+                    mul: cmd.mul_r_0(),
+                    add: cmd.add_r_0(),
+                },
+                CombineModeRawParams {
+                    sub_a: cmd.sub_a_r_1(),
+                    sub_b: cmd.sub_b_r_1(),
+                    mul: cmd.mul_r_1(),
+                    add: cmd.add_r_1(),
+                },
+            ],
+            alpha: [
+                CombineModeRawParams {
+                    sub_a: cmd.sub_a_a_0(),
+                    sub_b: cmd.sub_b_a_0(),
+                    mul: cmd.mul_a_0(),
+                    add: cmd.add_a_0(),
+                },
+                CombineModeRawParams {
+                    sub_a: cmd.sub_a_a_1(),
+                    sub_b: cmd.sub_b_a_1(),
+                    mul: cmd.mul_a_1(),
+                    add: cmd.add_a_1(),
+                },
+            ],
+        },
+        word & 0x00ff_ffff_ffff_ffff,
+    );
+}
 pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetOtherModes::from(word);
 
@@ -20,6 +63,44 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
             },
         },
     );
+}
+
+#[bitfield(u64)]
+struct SetCombineMode {
+    #[bits(3)]
+    add_a_1: u32,
+    #[bits(3)]
+    sub_b_a_1: u32,
+    #[bits(3)]
+    add_r_1: u32,
+    #[bits(3)]
+    add_a_0: u32,
+    #[bits(3)]
+    sub_b_a_0: u32,
+    #[bits(3)]
+    add_r_0: u32,
+    #[bits(3)]
+    mul_a_1: u32,
+    #[bits(3)]
+    sub_a_a_1: u32,
+    #[bits(4)]
+    sub_b_r_1: u32,
+    #[bits(4)]
+    sub_b_r_0: u32,
+    #[bits(5)]
+    mul_r_1: u32,
+    #[bits(4)]
+    sub_a_r_1: u32,
+    #[bits(3)]
+    mul_a_0: u32,
+    #[bits(3)]
+    sub_a_a_0: u32,
+    #[bits(5)]
+    mul_r_0: u32,
+    #[bits(4)]
+    sub_a_r_0: u32,
+    #[bits(8)]
+    __: u64,
 }
 
 #[bitfield(u64)]

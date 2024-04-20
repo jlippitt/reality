@@ -1,13 +1,16 @@
+pub use combiner::{CombineModeRaw, CombineModeRawParams};
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
+use combiner::Combiner;
 use display_list::{DisplayList, Vertex};
 use target::Target;
 use tmem::Tmem;
 use tracing::trace;
 
+mod combiner;
 mod display_list;
 mod target;
 mod tmem;
@@ -67,6 +70,7 @@ pub struct Mode {
 pub struct Renderer {
     target: Target,
     tmem: Tmem,
+    combiner: Combiner,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
     mode: Mode,
@@ -156,6 +160,7 @@ impl Renderer {
         Self {
             target: Target::new(gfx, &scissor_bind_group_layout),
             tmem,
+            combiner: Combiner::new(),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
             mode: Mode::default(),
@@ -197,6 +202,20 @@ impl Renderer {
 
         self.mode = mode;
         trace!("  Mode: {:?}", self.mode);
+    }
+
+    pub fn set_combine_mode(
+        &mut self,
+        gfx: &GfxContext,
+        rdram: &mut Rdram,
+        combine_mode: CombineModeRaw,
+        hash_value: u64,
+    ) {
+        if hash_value != self.combiner.hash_value() {
+            self.flush(gfx, rdram);
+        }
+
+        self.combiner.set_combine_mode(combine_mode, hash_value);
     }
 
     pub fn set_texture_image(&mut self, texture_image: TextureImage) {
