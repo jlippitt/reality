@@ -1,55 +1,61 @@
+use bytemuck::{Pod, Zeroable};
+use pod_enum::pod_enum;
 use std::array;
 use std::fmt::{self, Display, Formatter};
 use tracing::trace;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[pod_enum]
+#[repr(u8)]
 enum CombinerInput {
     CombinedColor = 0,
-    Texel0Color,
-    Texel1Color,
-    PrimColor,
-    ShadeColor,
-    EnvColor,
-    KeyCenter,
-    KeyScale,
-    CombinedAlpha,
-    Texel0Alpha,
-    Texel1Alpha,
-    PrimAlpha,
-    ShadeAlpha,
-    EnvAlpha,
-    LodFraction,
-    PrimLodFraction,
-    Noise,
-    ConvertK4,
-    ConvertK5,
-    Constant1,
-    Constant0,
+    Texel0Color = 1,
+    Texel1Color = 2,
+    PrimColor = 3,
+    ShadeColor = 4,
+    EnvColor = 5,
+    KeyCenter = 6,
+    KeyScale = 7,
+    CombinedAlpha = 8,
+    Texel0Alpha = 9,
+    Texel1Alpha = 10,
+    PrimAlpha = 11,
+    ShadeAlpha = 12,
+    EnvAlpha = 13,
+    LodFraction = 14,
+    PrimLodFraction = 15,
+    Noise = 16,
+    ConvertK4 = 17,
+    ConvertK5 = 18,
+    Constant1 = 19,
+    Constant0 = 20,
 }
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[pod_enum]
+#[repr(u8)]
 enum BlenderInput {
     CombinedColor = 0,
-    MemoryColor,
-    BlendColor,
-    FogColor,
+    MemoryColor = 1,
+    BlendColor = 2,
+    FogColor = 3,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[pod_enum]
+#[repr(u8)]
 enum BlendFactorA {
     CombinedAlpha = 0,
-    FogAlpha,
-    ShadeAlpha,
-    Constant0,
+    FogAlpha = 1,
+    ShadeAlpha = 2,
+    Constant0 = 3,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[pod_enum]
+#[repr(u8)]
 enum BlendFactorB {
     OneMinusA = 0,
-    MemoryAlpha,
-    Constant1,
-    Constant0,
+    MemoryAlpha = 1,
+    Constant1 = 2,
+    Constant0 = 3,
 }
 
 #[derive(Debug, Default)]
@@ -66,7 +72,8 @@ pub struct CombineModeRaw {
     pub alpha: [CombineModeRawParams; 2],
 }
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 struct CombineModeParams {
     pub sub_a: CombinerInput,
     pub sub_b: CombinerInput,
@@ -74,7 +81,8 @@ struct CombineModeParams {
     pub add: CombinerInput,
 }
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 struct CombineMode {
     pub rgb: [CombineModeParams; 2],
     pub alpha: [CombineModeParams; 2],
@@ -90,7 +98,8 @@ pub struct BlendModeRawParams {
 
 pub type BlendModeRaw = [BlendModeRawParams; 2];
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 struct BlendModeParams {
     pub p: BlenderInput,
     pub a: BlendFactorA,
@@ -99,6 +108,13 @@ struct BlendModeParams {
 }
 
 type BlendMode = [BlendModeParams; 2];
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct BufferData {
+    combine_mode: CombineMode,
+    blend_mode: BlendMode,
+}
 
 pub struct Combiner {
     combine_mode: CombineMode,

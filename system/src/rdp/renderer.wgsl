@@ -1,3 +1,25 @@
+const CI_COMBINED_COLOR = 0;
+const CI_TEXEL0_COLOR = 1;
+const CI_TEXEL1_COLOR = 2;
+const CI_PRIM_COLOR = 3;
+const CI_SHADE_COLOR = 4;
+const CI_ENV_COLOR = 5;
+const CI_KEY_CENTER = 6;
+const CI_KEY_SCALE = 7;
+const CI_COMBINED_ALPHA = 8;
+const CI_TEXEL0_ALPHA = 9;
+const CI_TEXEL1_ALPHA = 10;
+const CI_PRIM_ALPHA = 11;
+const CI_SHADE_ALPHA = 12;
+const CI_ENV_ALPHA = 13;
+const CI_LOD_FRACTION = 14;
+const CI_PRIM_LOD_FRACTION = 15;
+const CI_NOISE = 16;
+const CI_CONVERT_K4 = 17;
+const CI_CONVERT_K5 = 18;
+const CI_CONSTANT_1 = 19;
+const CI_CONSTANT_0 = 20;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec4<f32>,
