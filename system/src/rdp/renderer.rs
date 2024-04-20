@@ -1,15 +1,18 @@
-pub use combiner::{BlendModeRawParams, CombineModeRaw, CombineModeRawParams};
+pub use blender::{BlendModeRaw, BlendModeRawParams};
+pub use combiner::{CombineModeRaw, CombineModeRawParams};
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
-use combiner::{BlendModeRaw, Combiner};
+use blender::BlendMode;
+use combiner::CombineMode;
 use display_list::{DisplayList, Vertex};
 use target::Target;
 use tmem::Tmem;
 use tracing::trace;
 
+mod blender;
 mod combiner;
 mod display_list;
 mod target;
@@ -62,19 +65,19 @@ pub struct ZBufferConfig {
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Mode {
+pub struct RenderMode {
     pub cycle_type: CycleType,
     pub z_buffer: ZBufferConfig,
-    pub blend_mode: BlendModeRaw,
 }
 
 pub struct Renderer {
     target: Target,
     tmem: Tmem,
-    combiner: Combiner,
+    combine_mode: CombineMode,
+    blend_mode: BlendMode,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
-    mode: Mode,
+    mode: RenderMode,
     blend_color: [f32; 4],
     fill_color: u32,
     prim_depth: f32,
@@ -161,10 +164,11 @@ impl Renderer {
         Self {
             target: Target::new(gfx, &scissor_bind_group_layout),
             tmem,
-            combiner: Combiner::new(),
+            mode: RenderMode::default(),
+            combine_mode: CombineMode::default(),
+            blend_mode: BlendMode::default(),
             display_list: DisplayList::new(gfx.device()),
             render_pipeline,
-            mode: Mode::default(),
             blend_color: [0.0; 4],
             fill_color: 0,
             prim_depth: 0.0,
@@ -196,7 +200,13 @@ impl Renderer {
         }
     }
 
-    pub fn set_mode(&mut self, gfx: &GfxContext, rdram: &mut Rdram, mode: Mode) {
+    pub fn set_other_modes(
+        &mut self,
+        gfx: &GfxContext,
+        rdram: &mut Rdram,
+        mode: RenderMode,
+        blend_mode: BlendModeRaw,
+    ) {
         if mode != self.mode {
             self.flush(gfx, rdram);
         }
@@ -206,21 +216,21 @@ impl Renderer {
         self.mode = mode;
         trace!("  Mode: {:?}", self.mode);
 
-        self.combiner.set_blend_mode(self.mode.blend_mode.clone());
+        let prev_blend_mode = self.blend_mode;
+        self.blend_mode = BlendMode::from_raw(blend_mode);
+
+        if prev_blend_mode != self.blend_mode {
+            // TODO: Set constants
+        }
     }
 
-    pub fn set_combine_mode(
-        &mut self,
-        gfx: &GfxContext,
-        rdram: &mut Rdram,
-        combine_mode: CombineModeRaw,
-        hash_value: u64,
-    ) {
-        if hash_value != self.combiner.hash_value() {
-            self.flush(gfx, rdram);
-        }
+    pub fn set_combine_mode(&mut self, combine_mode: CombineModeRaw) {
+        let prev_combine_mode = self.combine_mode;
+        self.combine_mode = CombineMode::from_raw(combine_mode);
 
-        self.combiner.set_combine_mode(combine_mode, hash_value);
+        if prev_combine_mode != self.combine_mode {
+            // TODO: Set constants
+        }
     }
 
     pub fn set_texture_image(&mut self, texture_image: TextureImage) {

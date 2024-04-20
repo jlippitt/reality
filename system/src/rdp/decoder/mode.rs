@@ -1,6 +1,6 @@
 use super::renderer::{
-    BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, Mode, ZBufferConfig,
-    ZSource,
+    BlendModeRaw, BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, RenderMode,
+    ZBufferConfig, ZSource,
 };
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
@@ -11,58 +11,56 @@ pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
 
     trace!("{:?}", cmd);
 
-    ctx.renderer.set_combine_mode(
-        ctx.gfx,
-        ctx.rdram,
-        CombineModeRaw {
-            rgb: [
-                CombineModeRawParams {
-                    sub_a: cmd.sub_a_r_0(),
-                    sub_b: cmd.sub_b_r_0(),
-                    mul: cmd.mul_r_0(),
-                    add: cmd.add_r_0(),
-                },
-                CombineModeRawParams {
-                    sub_a: cmd.sub_a_r_1(),
-                    sub_b: cmd.sub_b_r_1(),
-                    mul: cmd.mul_r_1(),
-                    add: cmd.add_r_1(),
-                },
-            ],
-            alpha: [
-                CombineModeRawParams {
-                    sub_a: cmd.sub_a_a_0(),
-                    sub_b: cmd.sub_b_a_0(),
-                    mul: cmd.mul_a_0(),
-                    add: cmd.add_a_0(),
-                },
-                CombineModeRawParams {
-                    sub_a: cmd.sub_a_a_1(),
-                    sub_b: cmd.sub_b_a_1(),
-                    mul: cmd.mul_a_1(),
-                    add: cmd.add_a_1(),
-                },
-            ],
-        },
-        word & 0x00ff_ffff_ffff_ffff,
-    );
+    ctx.renderer.set_combine_mode(CombineModeRaw {
+        rgb: [
+            CombineModeRawParams {
+                sub_a: cmd.sub_a_r_0(),
+                sub_b: cmd.sub_b_r_0(),
+                mul: cmd.mul_r_0(),
+                add: cmd.add_r_0(),
+            },
+            CombineModeRawParams {
+                sub_a: cmd.sub_a_r_1(),
+                sub_b: cmd.sub_b_r_1(),
+                mul: cmd.mul_r_1(),
+                add: cmd.add_r_1(),
+            },
+        ],
+        alpha: [
+            CombineModeRawParams {
+                sub_a: cmd.sub_a_a_0(),
+                sub_b: cmd.sub_b_a_0(),
+                mul: cmd.mul_a_0(),
+                add: cmd.add_a_0(),
+            },
+            CombineModeRawParams {
+                sub_a: cmd.sub_a_a_1(),
+                sub_b: cmd.sub_b_a_1(),
+                mul: cmd.mul_a_1(),
+                add: cmd.add_a_1(),
+            },
+        ],
+    });
 }
+
 pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetOtherModes::from(word);
 
     trace!("{:?}", cmd);
 
-    ctx.renderer.set_mode(
+    ctx.renderer.set_other_modes(
         ctx.gfx,
         ctx.rdram,
-        Mode {
+        RenderMode {
             cycle_type: cmd.cycle_type(),
             z_buffer: ZBufferConfig {
                 enable: cmd.z_compare_en(),
                 write_enable: cmd.z_update_en(),
                 source: cmd.z_source_sel(),
             },
-            blend_mode: [
+        },
+        BlendModeRaw {
+            mode: [
                 BlendModeRawParams {
                     p: cmd.b_m1a_0(),
                     a: cmd.b_m1b_0(),

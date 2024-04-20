@@ -1,12 +1,12 @@
 use bytemuck::{Pod, Zeroable};
 use pod_enum::pod_enum;
-use std::array;
 use std::fmt::{self, Display, Formatter};
 use tracing::trace;
 
 #[pod_enum]
 #[repr(u8)]
-enum CombinerInput {
+#[derive(Eq)]
+pub enum CombinerInput {
     CombinedColor = 0,
     Texel0Color = 1,
     Texel1Color = 2,
@@ -30,35 +30,7 @@ enum CombinerInput {
     Constant0 = 20,
 }
 
-#[allow(clippy::enum_variant_names)]
-#[pod_enum]
-#[repr(u8)]
-enum BlenderInput {
-    CombinedColor = 0,
-    MemoryColor = 1,
-    BlendColor = 2,
-    FogColor = 3,
-}
-
-#[pod_enum]
-#[repr(u8)]
-enum BlendFactorA {
-    CombinedAlpha = 0,
-    FogAlpha = 1,
-    ShadeAlpha = 2,
-    Constant0 = 3,
-}
-
-#[pod_enum]
-#[repr(u8)]
-enum BlendFactorB {
-    OneMinusA = 0,
-    MemoryAlpha = 1,
-    Constant1 = 2,
-    Constant0 = 3,
-}
-
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CombineModeRawParams {
     pub sub_a: u32,
     pub sub_b: u32,
@@ -66,15 +38,15 @@ pub struct CombineModeRawParams {
     pub add: u32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CombineModeRaw {
     pub rgb: [CombineModeRawParams; 2],
     pub alpha: [CombineModeRawParams; 2],
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct CombineModeParams {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
+pub struct CombineModeParams {
     pub sub_a: CombinerInput,
     pub sub_b: CombinerInput,
     pub mul: CombinerInput,
@@ -82,81 +54,15 @@ struct CombineModeParams {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct CombineMode {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
+pub struct CombineMode {
     pub rgb: [CombineModeParams; 2],
     pub alpha: [CombineModeParams; 2],
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BlendModeRawParams {
-    pub p: u32,
-    pub a: u32,
-    pub m: u32,
-    pub b: u32,
-}
-
-pub type BlendModeRaw = [BlendModeRawParams; 2];
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct BlendModeParams {
-    pub p: BlenderInput,
-    pub a: BlendFactorA,
-    pub m: BlenderInput,
-    pub b: BlendFactorB,
-}
-
-type BlendMode = [BlendModeParams; 2];
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-struct BufferData {
-    combine_mode: CombineMode,
-    blend_mode: BlendMode,
-}
-
-pub struct Combiner {
-    combine_mode: CombineMode,
-    blend_mode: BlendMode,
-    hash_value: u64,
-}
-
-impl Combiner {
-    pub fn new() -> Self {
-        Self {
-            combine_mode: CombineMode::from_raw(CombineModeRaw::default()),
-            blend_mode: array::from_fn(
-                |_| BlendModeParams::from_raw(BlendModeRawParams::default()),
-            ),
-            hash_value: 0,
-        }
-    }
-
-    pub fn hash_value(&self) -> u64 {
-        self.hash_value
-    }
-
-    pub fn set_combine_mode(&mut self, combine_mode: CombineModeRaw, hash_value: u64) {
-        self.combine_mode = CombineMode::from_raw(combine_mode);
-        self.hash_value = hash_value;
-        trace!("  RGB Cycle 0: {}", self.combine_mode.rgb[0]);
-        trace!("  RGB Cycle 1: {}", self.combine_mode.rgb[1]);
-        trace!("  Alpha Cycle 0: {}", self.combine_mode.alpha[0]);
-        trace!("  Alpha Cycle 1: {}", self.combine_mode.alpha[1]);
-        trace!("  Combine Mode Hash Value: {:08X}", self.hash_value);
-    }
-
-    pub fn set_blend_mode(&mut self, blend_mode: BlendModeRaw) {
-        self.blend_mode = blend_mode.map(BlendModeParams::from_raw);
-        trace!("  Blend Cycle 0: {}", self.blend_mode[0]);
-        trace!("  Blend Cycle 1: {}", self.blend_mode[1]);
-    }
-}
-
 impl CombineMode {
-    fn from_raw(raw: CombineModeRaw) -> Self {
-        CombineMode {
+    pub fn from_raw(raw: CombineModeRaw) -> Self {
+        let mode = CombineMode {
             rgb: raw.rgb.map(
                 |CombineModeRawParams {
                      sub_a,
@@ -266,7 +172,20 @@ impl CombineMode {
                     },
                 },
             ),
-        }
+        };
+
+        trace!("  RGB Cycle 0: {}", mode.rgb[0]);
+        trace!("  RGB Cycle 1: {}", mode.rgb[1]);
+        trace!("  Alpha Cycle 0: {}", mode.alpha[0]);
+        trace!("  Alpha Cycle 1: {}", mode.alpha[1]);
+
+        mode
+    }
+}
+
+impl Default for CombineMode {
+    fn default() -> Self {
+        Self::from_raw(CombineModeRaw::default())
     }
 }
 
@@ -276,60 +195,6 @@ impl Display for CombineModeParams {
             f,
             "({:?} - {:?}) * {:?} + {:?}",
             self.sub_a, self.sub_b, self.mul, self.add,
-        )
-    }
-}
-
-impl BlenderInput {
-    fn from_raw(value: u32) -> Self {
-        match value {
-            0 => Self::CombinedColor,
-            1 => Self::MemoryColor,
-            2 => Self::BlendColor,
-            _ => Self::FogColor,
-        }
-    }
-}
-
-impl BlendFactorA {
-    fn from_raw(value: u32) -> Self {
-        match value {
-            0 => Self::CombinedAlpha,
-            1 => Self::FogAlpha,
-            2 => Self::ShadeAlpha,
-            _ => Self::Constant0,
-        }
-    }
-}
-
-impl BlendFactorB {
-    fn from_raw(value: u32) -> Self {
-        match value {
-            0 => Self::OneMinusA,
-            1 => Self::MemoryAlpha,
-            2 => Self::Constant1,
-            _ => Self::Constant0,
-        }
-    }
-}
-
-impl BlendModeParams {
-    fn from_raw(raw: BlendModeRawParams) -> Self {
-        Self {
-            p: BlenderInput::from_raw(raw.p),
-            m: BlenderInput::from_raw(raw.m),
-            a: BlendFactorA::from_raw(raw.a),
-            b: BlendFactorB::from_raw(raw.b),
-        }
-    }
-}
-
-impl Display for BlendModeParams {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:?} * {:?} + {:?} * {:?}",
-            self.p, self.a, self.m, self.b
         )
     }
 }
