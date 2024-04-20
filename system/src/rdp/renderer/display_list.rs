@@ -80,7 +80,7 @@ impl DisplayList {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: true,
-                        min_binding_size: None,
+                        min_binding_size: wgpu::BufferSize::new(256),
                     },
                     count: None,
                 }],
@@ -98,7 +98,11 @@ impl DisplayList {
             layout: &constant_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: constant_buffer.as_entire_binding(),
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &constant_buffer,
+                    offset: 0,
+                    size: wgpu::BufferSize::new(256),
+                }),
             }],
         });
 
@@ -143,19 +147,23 @@ impl DisplayList {
 
     fn push_constants(&mut self) {
         let constants = bytemuck::bytes_of(&self.constants);
-
         match self.commands.last_mut() {
             Some(Command::SetConstants(Range { start, end })) => {
                 self.constant_data[*start as usize..*end as usize].copy_from_slice(constants);
             }
             _ => {
-                let start = self.constant_data.len() as u32;
-
                 self.constant_data.extend_from_slice(constants);
 
-                self.commands.push(Command::SetConstants(
-                    start..(start + mem::size_of::<Constants>() as u32),
-                ));
+                // Pad to 256 bytes
+                self.constant_data.resize(
+                    self.constant_data.len() + 256 - mem::size_of::<Constants>(),
+                    0,
+                );
+
+                let start = self.constant_data.len() as u32;
+
+                self.commands
+                    .push(Command::SetConstants(start..(start + 256)));
             }
         }
     }
@@ -299,6 +307,12 @@ impl DisplayList {
 
         self.constant_data
             .extend_from_slice(bytemuck::bytes_of(&self.constants));
+
+        // Pad to 256 bytes
+        self.constant_data.resize(
+            self.constant_data.len() + 256 - mem::size_of::<Constants>(),
+            0,
+        );
 
         queue.write_buffer(
             &self.constant_buffer,
