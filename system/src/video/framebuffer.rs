@@ -1,4 +1,5 @@
 use super::regs::{AntiAliasMode, DisplayMode};
+use crate::gfx;
 use crate::rdram::Rdram;
 
 pub struct Framebuffer {
@@ -101,14 +102,8 @@ impl Framebuffer {
 
                     for index in 0..(draw_area.len() / 2) {
                         let word = draw_area[read_start + index].swap_bytes();
-
-                        let red = ((word >> 11) as u8 & 31) << 3;
-                        let green = ((word >> 6) as u8 & 31) << 3;
-                        let blue = ((word >> 1) as u8 & 31) << 3;
-                        let alpha = (word as u8 & 1) * 255;
-
-                        bytemuck::cast_slice_mut::<u16, u32>(draw_area)[index] =
-                            u32::from_le_bytes([red, green, blue, alpha]);
+                        let color = gfx::decode_rgba16(word);
+                        bytemuck::cast_slice_mut::<u16, u32>(draw_area)[index] = color;
                     }
 
                     self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);

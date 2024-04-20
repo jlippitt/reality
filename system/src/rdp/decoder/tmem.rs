@@ -26,6 +26,7 @@ pub fn set_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
             tmem_addr: cmd.tmem_addr(),
             width: cmd.line(),
             format: (cmd.format(), cmd.size()),
+            palette: cmd.palette(),
             // TODO: The rest
         },
         word & 0x00fb_ffff_00ff_ffff,
@@ -64,6 +65,22 @@ pub fn load_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
         .set_tile_size(cmd.tile(), rect, word & 0x00ff_ffff_00ff_ffff);
 
     ctx.renderer.load_tile(
+        ctx.gfx,
+        ctx.rdram,
+        cmd.tile(),
+        cmd.sl() / 4,
+        ((cmd.sh() - cmd.sl()) / 4) + 1,
+        cmd.tl() / 4,
+        ((cmd.th() - cmd.tl()) / 4) + 1,
+    );
+}
+
+pub fn load_tlut(_decoder: &mut Decoder, ctx: Context, word: u64) {
+    let cmd = LoadTlut::from(word);
+
+    trace!("{:?}", cmd);
+
+    ctx.renderer.load_tlut(
         ctx.gfx,
         ctx.rdram,
         cmd.tile(),
@@ -176,6 +193,24 @@ struct SetTileSize {
 
 #[bitfield(u64)]
 struct LoadTile {
+    #[bits(12)]
+    th: usize,
+    #[bits(12)]
+    sh: usize,
+    #[bits(3)]
+    tile: usize,
+    #[bits(5)]
+    __: u64,
+    #[bits(12)]
+    tl: usize,
+    #[bits(12)]
+    sl: usize,
+    #[bits(8)]
+    __: u64,
+}
+
+#[bitfield(u64)]
+struct LoadTlut {
     #[bits(12)]
     th: usize,
     #[bits(12)]

@@ -70,6 +70,7 @@ impl Decoder {
             0x2d => target::set_scissor(self, bus, word),
             0x2e => param::set_prim_depth(self, bus, word),
             0x2f => mode::set_other_modes(self, bus, word),
+            0x30 => tmem::load_tlut(self, bus, word),
             0x32 => tmem::set_tile_size(self, bus, word),
             0x33 => tmem::load_block(self, bus, word),
             0x34 => tmem::load_tile(self, bus, word),

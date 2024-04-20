@@ -96,3 +96,11 @@ impl GfxContext {
         self.surface.configure(&self.device, &self.config);
     }
 }
+
+pub fn decode_rgba16(word: u16) -> u32 {
+    let red = ((word >> 11) as u8 & 31) << 3;
+    let green = ((word >> 6) as u8 & 31) << 3;
+    let blue = ((word >> 1) as u8 & 31) << 3;
+    let alpha = (word as u8 & 1) * 255;
+    u32::from_le_bytes([red, green, blue, alpha])
+}

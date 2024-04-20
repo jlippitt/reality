@@ -20,6 +20,7 @@ pub struct TileDescriptor {
     pub tmem_addr: u32,
     pub width: u32,
     pub format: TextureFormat,
+    pub palette: u32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -139,7 +140,55 @@ impl Tmem {
             tmem_addr,
             tmem_width,
             y_size,
-            dram_addr - self.texture_image.dram_addr as usize,
+            tmem_width * y_size * 8,
+        );
+    }
+
+    pub fn load_tlut(
+        &mut self,
+        rdram: &Rdram,
+        tile_id: usize,
+        x_offset: usize,
+        x_size: usize,
+        y_offset: usize,
+        y_size: usize,
+    ) {
+        // TODO: Finer-grained cache invalidation
+        self.texture_cache.clear();
+
+        // TODO: Load TLUT
+        let tile = &self.tiles[tile_id];
+        let bits_per_pixel = 4 << self.texture_image.format.1;
+
+        let dram_width = (self.texture_image.width as usize * bits_per_pixel + 7) / 8;
+        let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
+
+        let mut dram_addr =
+            self.texture_image.dram_addr as usize + y_offset * dram_width + dram_line_offset;
+        let mut tmem_addr = tile.descriptor.tmem_addr as usize;
+
+        for _ in 0..(x_size * y_size) {
+            let color = rdram.read_single::<u16>(dram_addr).swap_bytes();
+
+            let word = ((color as u64) << 48)
+                | ((color as u64) << 32)
+                | ((color as u64) << 16)
+                | (color as u64);
+
+            self.tmem_data[tmem_addr] = word;
+            tmem_addr += 1;
+            dram_addr += 2;
+        }
+
+        trace!(
+            "  TLUT data uploaded from {:08X}..{:08X} to {:04X}..{:04X} ({}x{} words = {} bytes)",
+            self.texture_image.dram_addr,
+            dram_addr,
+            tile.descriptor.tmem_addr,
+            tmem_addr,
+            x_size,
+            y_size,
+            x_size * y_size * 2,
         );
     }
 

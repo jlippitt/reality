@@ -228,6 +228,22 @@ impl Renderer {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub fn load_tlut(
+        &mut self,
+        gfx: &GfxContext,
+        rdram: &mut Rdram,
+        index: usize,
+        x_offset: usize,
+        x_size: usize,
+        y_offset: usize,
+        y_size: usize,
+    ) {
+        self.flush(gfx, rdram);
+        self.tmem
+            .load_tlut(rdram, index, x_offset, x_size, y_offset, y_size);
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn load_block(
         &mut self,
         gfx: &GfxContext,

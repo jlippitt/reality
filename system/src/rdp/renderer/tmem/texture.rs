@@ -1,5 +1,5 @@
 use super::{Format, TextureFormat, Tile};
-use crate::gfx::GfxContext;
+use crate::gfx::{self, GfxContext};
 use tracing::trace;
 use wgpu::util::DeviceExt;
 
@@ -101,7 +101,13 @@ impl Texture {
             4 << format.1,
         );
 
-        let output = decode_texture(&mut buf, buf_start, format);
+        let output = decode_texture(
+            &mut buf,
+            buf_start,
+            &tmem_data[256..],
+            (tile.descriptor.palette as usize) << 4,
+            format,
+        );
 
         Texture::new(
             gfx,
@@ -126,7 +132,6 @@ fn deinterleave_tmem_data(
 ) -> usize {
     let tmem_line_len = ((width as usize * bits_per_pixel) + 63) / 64;
     let buf_start = buf.len() - tmem_line_len * height as usize;
-    println!("{}x{} = {}, {}", width, height, buf_start, tmem_line_len);
 
     let mut buf_index = buf_start;
     let mut tmem_index = 0;
@@ -153,15 +158,24 @@ fn deinterleave_tmem_data(
     buf_start
 }
 
-fn decode_texture(buf: &mut [u64], buf_start: usize, format: TextureFormat) -> &[u8] {
+fn decode_texture<'a>(
+    buf: &'a mut [u64],
+    buf_start: usize,
+    tlut: &[u64],
+    tlut_start: usize,
+    format: TextureFormat,
+) -> &'a [u8] {
     let output_start = match format {
         (Format::Rgba, 3) => buf_start,
-        (Format::Rgba, 2) => decode_color16(buf, buf_start, |word| {
-            let red = ((word >> 11) as u8 & 31) << 3;
-            let green = ((word >> 6) as u8 & 31) << 3;
-            let blue = ((word >> 1) as u8 & 31) << 3;
-            let alpha = (word as u8 & 1) * 255;
-            u32::from_le_bytes([red, green, blue, alpha])
+        (Format::Rgba, 2) => decode_color16(buf, buf_start, gfx::decode_rgba16),
+        (Format::ClrIndex, 1) => decode_color8(buf, buf_start, |word| {
+            gfx::decode_rgba16((tlut[word as usize] as u16).swap_bytes())
+        }),
+        (Format::ClrIndex, 0) => decode_color4(buf, buf_start, |word| {
+            (
+                gfx::decode_rgba16((tlut[tlut_start + (word >> 4) as usize] as u16).swap_bytes()),
+                gfx::decode_rgba16((tlut[tlut_start + (word & 15) as usize] as u16).swap_bytes()),
+            )
         }),
         (Format::IA, 2) => decode_color16(buf, buf_start, |word| {
             let intensity = (word >> 8) as u8;
