@@ -1,6 +1,6 @@
-use super::Rect;
-use super::Tmem;
+use super::{BlendMode, CombineMode, Rect, Tmem};
 use bytemuck::{Pod, Zeroable};
+use std::mem;
 use std::ops::Range;
 use tracing::trace;
 
@@ -25,19 +25,33 @@ impl Vertex {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
+pub struct Constants {
+    combine_mode: CombineMode,
+    blend_mode: BlendMode,
+    __: [u8; 8],
+}
+
 #[derive(Debug)]
 enum Command {
     Triangles(Range<u32>),
     Rectangles(Range<u32>),
-    TextureHandle(Option<u128>),
+    SetTexture(Option<u128>),
+    SetConstants(Range<u32>),
 }
 
 pub struct DisplayList {
     commands: Vec<Command>,
+    constants: Constants,
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
+    constant_data: Vec<u8>,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+    constant_buffer: wgpu::Buffer,
+    constant_bind_group_layout: wgpu::BindGroupLayout,
+    constant_bind_group: wgpu::BindGroup,
     current_texture_handle: Option<u128>,
 }
 
@@ -51,24 +65,99 @@ impl DisplayList {
         });
 
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Index Buffer"),
+            label: Some("RDP Index Buffer"),
             size: 131072,
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
+        });
+
+        let constant_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("RDP Constant Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let constant_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("RDP Constant Buffer"),
+            size: 65536,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let constant_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("RDP Constant Bind Group"),
+            layout: &constant_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: constant_buffer.as_entire_binding(),
+            }],
         });
 
         Self {
             commands: vec![],
             vertices: vec![],
             indices: vec![],
+            constants: Default::default(),
+            constant_data: vec![],
             vertex_buffer,
             index_buffer,
+            constant_buffer,
+            constant_bind_group_layout,
+            constant_bind_group,
             current_texture_handle: None,
         }
     }
 
+    pub fn constant_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.constant_bind_group_layout
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
+        self.vertices.is_empty()
+    }
+
+    pub fn set_combine_mode(&mut self, combine_mode: CombineMode) {
+        if combine_mode != self.constants.combine_mode {
+            self.push_constants();
+        }
+
+        self.constants.combine_mode = combine_mode;
+    }
+
+    pub fn set_blend_mode(&mut self, blend_mode: BlendMode) {
+        if blend_mode != self.constants.blend_mode {
+            self.push_constants();
+        }
+
+        self.constants.blend_mode = blend_mode;
+    }
+
+    fn push_constants(&mut self) {
+        let constants = bytemuck::bytes_of(&self.constants);
+
+        match self.commands.last_mut() {
+            Some(Command::SetConstants(Range { start, end })) => {
+                self.constant_data[*start as usize..*end as usize].copy_from_slice(constants);
+            }
+            _ => {
+                let start = self.constant_data.len() as u32;
+
+                self.constant_data.extend_from_slice(constants);
+
+                self.commands.push(Command::SetConstants(
+                    start..(start + mem::size_of::<Constants>() as u32),
+                ));
+            }
+        }
     }
 
     pub fn push_triangle(
@@ -85,7 +174,7 @@ impl DisplayList {
         };
 
         if handle != self.current_texture_handle {
-            self.commands.push(Command::TextureHandle(handle));
+            self.commands.push(Command::SetTexture(handle));
             self.current_texture_handle = handle;
         }
 
@@ -152,7 +241,7 @@ impl DisplayList {
         };
 
         if handle != self.current_texture_handle {
-            self.commands.push(Command::TextureHandle(handle));
+            self.commands.push(Command::SetTexture(handle));
             self.current_texture_handle = handle;
         }
 
@@ -204,9 +293,22 @@ impl DisplayList {
         }
     }
 
-    pub fn upload_buffers(&self, queue: &wgpu::Queue) {
+    pub fn upload_buffers(&mut self, queue: &wgpu::Queue) {
         queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
         queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&self.indices));
+
+        self.constant_data
+            .extend_from_slice(bytemuck::bytes_of(&self.constants));
+
+        queue.write_buffer(
+            &self.constant_buffer,
+            0,
+            bytemuck::cast_slice(&self.constant_data),
+        );
+
+        self.vertices.clear();
+        self.indices.clear();
+        self.constant_data.clear();
     }
 
     pub fn flush<'a>(&'a mut self, tmem: &'a Tmem, render_pass: &mut wgpu::RenderPass<'a>) {
@@ -217,18 +319,21 @@ impl DisplayList {
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
+        render_pass.set_bind_group(2, &self.constant_bind_group, &[0]);
+
         for command in self.commands.drain(..) {
             match command {
                 Command::Triangles(range) => render_pass.draw(range.clone(), 0..1),
                 Command::Rectangles(range) => render_pass.draw_indexed(range.clone(), 0, 0..1),
-                Command::TextureHandle(handle) => {
+                Command::SetTexture(handle) => {
                     render_pass.set_bind_group(1, tmem.bind_group(handle), &[])
+                }
+                Command::SetConstants(range) => {
+                    render_pass.set_bind_group(2, &self.constant_bind_group, &[range.start])
                 }
             }
         }
 
-        self.vertices.clear();
-        self.indices.clear();
         self.current_texture_handle = None;
     }
 }

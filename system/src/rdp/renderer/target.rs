@@ -20,25 +20,41 @@ pub struct TargetOutput {
 pub struct Target {
     color_image: ColorImage,
     scissor: Rect,
-    scissor_bind_group: wgpu::BindGroup,
     scissor_buffer: wgpu::Buffer,
+    scissor_bind_group_layout: wgpu::BindGroupLayout,
+    scissor_bind_group: wgpu::BindGroup,
     output: Option<TargetOutput>,
     dirty: bool,
     synced: bool,
 }
 
 impl Target {
-    pub fn new(gfx: &GfxContext, scissor_bind_group_layout: &wgpu::BindGroupLayout) -> Self {
-        let scissor_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let scissor_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("RDP Scissor Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let scissor_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("RDP Scissor Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             size: mem::size_of::<[f32; 4]>() as u64,
             mapped_at_creation: false,
         });
 
-        let scissor_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+        let scissor_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("RDP Scissor Bind Group"),
-            layout: scissor_bind_group_layout,
+            layout: &scissor_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: scissor_buffer.as_entire_binding(),
@@ -48,20 +64,25 @@ impl Target {
         Self {
             color_image: ColorImage::default(),
             scissor: Rect::default(),
-            scissor_bind_group,
             scissor_buffer,
+            scissor_bind_group_layout,
+            scissor_bind_group,
             output: None,
             dirty: true,
             synced: false,
         }
     }
 
+    pub fn color_image(&self) -> &ColorImage {
+        &self.color_image
+    }
+
     pub fn scissor(&self) -> &Rect {
         &self.scissor
     }
 
-    pub fn color_image(&self) -> &ColorImage {
-        &self.color_image
+    pub fn scissor_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.scissor_bind_group_layout
     }
 
     pub fn scissor_bind_group(&self) -> &wgpu::BindGroup {

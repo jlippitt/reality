@@ -73,11 +73,9 @@ pub struct RenderMode {
 pub struct Renderer {
     target: Target,
     tmem: Tmem,
-    combine_mode: CombineMode,
-    blend_mode: BlendMode,
     display_list: DisplayList,
-    render_pipeline: wgpu::RenderPipeline,
     mode: RenderMode,
+    render_pipeline: wgpu::RenderPipeline,
     blend_color: [f32; 4],
     fill_color: u32,
     prim_depth: f32,
@@ -85,7 +83,9 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(gfx: &GfxContext) -> Self {
+        let target = Target::new(gfx.device());
         let tmem = Tmem::new(gfx);
+        let display_list = DisplayList::new(gfx.device());
 
         let shader = gfx
             .device()
@@ -94,27 +94,15 @@ impl Renderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("renderer.wgsl").into()),
             });
 
-        let scissor_bind_group_layout =
-            gfx.device()
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("RDP Scissor Bind Group Layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
         let render_pipeline_layout =
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("RDP Render Pipeline Layout"),
-                    bind_group_layouts: &[&scissor_bind_group_layout, tmem.bind_group_layout()],
+                    bind_group_layouts: &[
+                        target.scissor_bind_group_layout(),
+                        tmem.bind_group_layout(),
+                        display_list.constant_bind_group_layout(),
+                    ],
                     push_constant_ranges: &[],
                 });
 
@@ -162,12 +150,10 @@ impl Renderer {
                 });
 
         Self {
-            target: Target::new(gfx, &scissor_bind_group_layout),
+            target,
             tmem,
+            display_list,
             mode: RenderMode::default(),
-            combine_mode: CombineMode::default(),
-            blend_mode: BlendMode::default(),
-            display_list: DisplayList::new(gfx.device()),
             render_pipeline,
             blend_color: [0.0; 4],
             fill_color: 0,
@@ -200,6 +186,11 @@ impl Renderer {
         }
     }
 
+    pub fn set_combine_mode(&mut self, combine_mode: CombineModeRaw) {
+        let combine_mode = CombineMode::from_raw(combine_mode);
+        self.display_list.set_combine_mode(combine_mode);
+    }
+
     pub fn set_other_modes(
         &mut self,
         gfx: &GfxContext,
@@ -216,21 +207,8 @@ impl Renderer {
         self.mode = mode;
         trace!("  Mode: {:?}", self.mode);
 
-        let prev_blend_mode = self.blend_mode;
-        self.blend_mode = BlendMode::from_raw(blend_mode);
-
-        if prev_blend_mode != self.blend_mode {
-            // TODO: Set constants
-        }
-    }
-
-    pub fn set_combine_mode(&mut self, combine_mode: CombineModeRaw) {
-        let prev_combine_mode = self.combine_mode;
-        self.combine_mode = CombineMode::from_raw(combine_mode);
-
-        if prev_combine_mode != self.combine_mode {
-            // TODO: Set constants
-        }
+        let blend_mode = BlendMode::from_raw(blend_mode);
+        self.display_list.set_blend_mode(blend_mode);
     }
 
     pub fn set_texture_image(&mut self, texture_image: TextureImage) {

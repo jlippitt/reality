@@ -47,10 +47,22 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 }
 
+struct Constants {
+    combine_rgb_0: u32,
+    combine_rgb_1: u32,
+    combine_alpha_0: u32,
+    combine_alpha_1: u32,
+    blend_0: u32,
+    blend_1: u32,
+}
+
 @group(1) @binding(0)
 var t_diffuse: texture_2d<f32>;
 @group(1) @binding(1)
 var s_diffuse: sampler;
+
+@group(2) @binding(0)
+var<uniform> constants: Constants;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
