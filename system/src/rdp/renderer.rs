@@ -1,4 +1,4 @@
-pub use combiner::{CombineModeRaw, CombineModeRawParams};
+pub use combiner::{CombineMode, CombineModeParams};
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
@@ -208,7 +208,7 @@ impl Renderer {
         &mut self,
         gfx: &GfxContext,
         rdram: &mut Rdram,
-        combine_mode: CombineModeRaw,
+        combine_mode: CombineMode<u32>,
         hash_value: u64,
     ) {
         if hash_value != self.combiner.hash_value() {

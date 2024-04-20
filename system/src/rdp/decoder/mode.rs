@@ -1,6 +1,4 @@
-use super::renderer::{
-    CombineModeRaw, CombineModeRawParams, CycleType, Mode, ZBufferConfig, ZSource,
-};
+use super::renderer::{CombineMode, CombineModeParams, CycleType, Mode, ZBufferConfig, ZSource};
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
@@ -13,15 +11,15 @@ pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
     ctx.renderer.set_combine_mode(
         ctx.gfx,
         ctx.rdram,
-        CombineModeRaw {
+        CombineMode {
             rgb: [
-                CombineModeRawParams {
+                CombineModeParams {
                     sub_a: cmd.sub_a_r_0(),
                     sub_b: cmd.sub_b_r_0(),
                     mul: cmd.mul_r_0(),
                     add: cmd.add_r_0(),
                 },
-                CombineModeRawParams {
+                CombineModeParams {
                     sub_a: cmd.sub_a_r_1(),
                     sub_b: cmd.sub_b_r_1(),
                     mul: cmd.mul_r_1(),
@@ -29,13 +27,13 @@ pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
                 },
             ],
             alpha: [
-                CombineModeRawParams {
+                CombineModeParams {
                     sub_a: cmd.sub_a_a_0(),
                     sub_b: cmd.sub_b_a_0(),
                     mul: cmd.mul_a_0(),
                     add: cmd.add_a_0(),
                 },
-                CombineModeRawParams {
+                CombineModeParams {
                     sub_a: cmd.sub_a_a_1(),
                     sub_b: cmd.sub_b_a_1(),
                     mul: cmd.mul_a_1(),
