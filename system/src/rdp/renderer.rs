@@ -1,10 +1,10 @@
-pub use combiner::{CombineMode, CombineModeParams};
+pub use combiner::{BlendModeRawParams, CombineModeRaw, CombineModeRawParams};
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
-use combiner::Combiner;
+use combiner::{BlendModeRaw, Combiner};
 use display_list::{DisplayList, Vertex};
 use target::Target;
 use tmem::Tmem;
@@ -54,17 +54,18 @@ pub enum ZSource {
     Primitive = 1,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct ZBufferConfig {
     pub enable: bool,
     pub write_enable: bool,
     pub source: ZSource,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Mode {
     pub cycle_type: CycleType,
     pub z_buffer: ZBufferConfig,
+    pub blend_mode: BlendModeRaw,
 }
 
 pub struct Renderer {
@@ -200,15 +201,19 @@ impl Renderer {
             self.flush(gfx, rdram);
         }
 
+        // TODO: Not all of the mode params need to be stored here as some are
+        // used by specific components, e.g. combiner
         self.mode = mode;
         trace!("  Mode: {:?}", self.mode);
+
+        self.combiner.set_blend_mode(self.mode.blend_mode.clone());
     }
 
     pub fn set_combine_mode(
         &mut self,
         gfx: &GfxContext,
         rdram: &mut Rdram,
-        combine_mode: CombineMode<u32>,
+        combine_mode: CombineModeRaw,
         hash_value: u64,
     ) {
         if hash_value != self.combiner.hash_value() {

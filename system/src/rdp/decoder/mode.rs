@@ -1,4 +1,7 @@
-use super::renderer::{CombineMode, CombineModeParams, CycleType, Mode, ZBufferConfig, ZSource};
+use super::renderer::{
+    BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, Mode, ZBufferConfig,
+    ZSource,
+};
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
@@ -11,15 +14,15 @@ pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
     ctx.renderer.set_combine_mode(
         ctx.gfx,
         ctx.rdram,
-        CombineMode {
+        CombineModeRaw {
             rgb: [
-                CombineModeParams {
+                CombineModeRawParams {
                     sub_a: cmd.sub_a_r_0(),
                     sub_b: cmd.sub_b_r_0(),
                     mul: cmd.mul_r_0(),
                     add: cmd.add_r_0(),
                 },
-                CombineModeParams {
+                CombineModeRawParams {
                     sub_a: cmd.sub_a_r_1(),
                     sub_b: cmd.sub_b_r_1(),
                     mul: cmd.mul_r_1(),
@@ -27,13 +30,13 @@ pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
                 },
             ],
             alpha: [
-                CombineModeParams {
+                CombineModeRawParams {
                     sub_a: cmd.sub_a_a_0(),
                     sub_b: cmd.sub_b_a_0(),
                     mul: cmd.mul_a_0(),
                     add: cmd.add_a_0(),
                 },
-                CombineModeParams {
+                CombineModeRawParams {
                     sub_a: cmd.sub_a_a_1(),
                     sub_b: cmd.sub_b_a_1(),
                     mul: cmd.mul_a_1(),
@@ -59,6 +62,20 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
                 write_enable: cmd.z_update_en(),
                 source: cmd.z_source_sel(),
             },
+            blend_mode: [
+                BlendModeRawParams {
+                    p: cmd.b_m1a_0(),
+                    a: cmd.b_m1b_0(),
+                    m: cmd.b_m2a_0(),
+                    b: cmd.b_m2b_0(),
+                },
+                BlendModeRawParams {
+                    p: cmd.b_m1a_1(),
+                    a: cmd.b_m1b_1(),
+                    m: cmd.b_m2a_1(),
+                    b: cmd.b_m2b_1(),
+                },
+            ],
         },
     );
 }
@@ -120,9 +137,22 @@ struct SetOtherModes {
     alpha_cvg_select: bool,
     force_blend: bool,
     __: bool,
-    // TODO: Split this up (once we implement blend)
-    #[bits(16)]
-    blend_modeword: u64,
+    #[bits(2)]
+    b_m2b_1: u32,
+    #[bits(2)]
+    b_m2b_0: u32,
+    #[bits(2)]
+    b_m2a_1: u32,
+    #[bits(2)]
+    b_m2a_0: u32,
+    #[bits(2)]
+    b_m1b_1: u32,
+    #[bits(2)]
+    b_m1b_0: u32,
+    #[bits(2)]
+    b_m1a_1: u32,
+    #[bits(2)]
+    b_m1a_0: u32,
     #[bits(4)]
     __: u64,
     #[bits(2)]
