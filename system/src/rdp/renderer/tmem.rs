@@ -83,7 +83,7 @@ impl Tmem {
     pub fn set_tile(&mut self, tile_id: usize, descriptor: TileDescriptor, hash_value: u64) {
         let tile = &mut self.tiles[tile_id];
         tile.descriptor = descriptor;
-        tile.hash_value = (tile.hash_value & 0xffff_ffff_0000_0000) | (hash_value as u128);
+        tile.hash_value = (tile.hash_value & !0xffff_ffff_ffff_ffff) | (hash_value as u128);
         trace!("  Tile {} Descriptor: {:?}", tile_id, tile.descriptor);
         trace!("  Tile {} Hash Value: {:032X}", tile_id, tile.hash_value);
     }
@@ -91,7 +91,7 @@ impl Tmem {
     pub fn set_tile_size(&mut self, tile_id: usize, rect: Rect, hash_value: u64) {
         let tile = &mut self.tiles[tile_id];
         tile.size = rect;
-        tile.hash_value = (tile.hash_value & 0x0000_0000_ffff_ffff) | ((hash_value as u128) << 64);
+        tile.hash_value = (tile.hash_value & 0xffff_ffff_ffff_ffff) | ((hash_value as u128) << 64);
         trace!("  Tile {} Size: {:?}", tile_id, tile.size);
         trace!("  Tile {} Hash Value: {:032X}", tile_id, tile.hash_value);
     }
