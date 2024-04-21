@@ -68,9 +68,9 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("Color DY: {:?}", color_dy);
 
         let colors: [[f32; 4]; 3] = [
-            array::from_fn(|i| base_color[i] + high_y * color_de[i]),
-            array::from_fn(|i| base_color[i] + mid_y * color_de[i] + mid_x * color_dx[i]),
-            array::from_fn(|i| base_color[i] + low_y * color_de[i]),
+            array::from_fn(|i| (base_color[i] + high_y * color_de[i]) / 255.0),
+            array::from_fn(|i| (base_color[i] + mid_y * color_de[i] + mid_x * color_dx[i]) / 255.0),
+            array::from_fn(|i| (base_color[i] + low_y * color_de[i]) / 255.0),
         ];
 
         trace!("  = {:?}", colors);

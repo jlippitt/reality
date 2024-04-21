@@ -433,10 +433,10 @@ impl Renderer {
             (Format::Rgba, 3) => decode_color(self.fill_color),
             (Format::Rgba, 2) => [
                 // This isn't correct, but it'll do for now
-                (((self.fill_color >> 11) & 0x1f) << 3) as f32,
-                (((self.fill_color >> 6) & 0x1f) << 3) as f32,
-                (((self.fill_color >> 1) & 0x1f) << 3) as f32,
-                ((self.fill_color & 0x01) * 255) as f32,
+                (((self.fill_color >> 11) & 0x1f) << 3) as f32 / 255.0,
+                (((self.fill_color >> 6) & 0x1f) << 3) as f32 / 255.0,
+                (((self.fill_color >> 1) & 0x1f) << 3) as f32 / 255.0,
+                (self.fill_color & 0x01) as f32,
             ],
             (Format::ClrIndex, 1) => todo!("Index8 format"),
             _ => panic!("Unsupported Color Image format"),
@@ -456,9 +456,9 @@ impl Rect {
 
 fn decode_color(color: u32) -> [f32; 4] {
     [
-        (color >> 24) as f32,
-        ((color >> 16) & 0xff) as f32,
-        ((color >> 8) & 0xff) as f32,
-        (color & 0xff) as f32,
+        (color >> 24) as f32 / 255.0,
+        ((color >> 16) & 0xff) as f32 / 255.0,
+        ((color >> 8) & 0xff) as f32 / 255.0,
+        (color & 0xff) as f32 / 255.0,
     ]
 }
