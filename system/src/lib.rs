@@ -122,7 +122,7 @@ impl Device {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.bus.rdp.sync(&self.gfx, &mut self.bus.rdram);
+        //self.bus.rdp.sync(&self.gfx, &mut self.bus.rdram);
         self.bus.vi.render(&self.bus.rdram, &self.gfx)
     }
 
