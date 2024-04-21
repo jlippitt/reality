@@ -282,7 +282,8 @@ impl Target {
                     for _ in 0..output.color_texture.height() {
                         rdram.write_block(
                             ram_addr,
-                            &pixel_data[buf_addr..(buf_addr + self.color_image.width as usize * 4)],
+                            &pixel_data
+                                [buf_addr..(buf_addr + output.color_texture.width() as usize * 4)],
                         );
                         buf_addr += output.color_texture.width() as usize * 4;
                         ram_addr += self.color_image.width as usize * 4;
@@ -292,7 +293,7 @@ impl Target {
                     for _ in 0..output.color_texture.height() {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
                         let pixels: Vec<u8> = pixel_data
-                            [buf_addr..(buf_addr + self.color_image.width as usize * 4)]
+                            [buf_addr..(buf_addr + output.color_texture.width() as usize * 4)]
                             .chunks_exact(4)
                             .flat_map(|chunk| {
                                 let color = ((chunk[0] as u16 >> 3) << 11)
