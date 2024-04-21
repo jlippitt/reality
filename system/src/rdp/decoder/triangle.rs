@@ -158,10 +158,10 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
     [
-        ((integer.r() << 16) | fraction.r()) as f32 / 65536.0,
-        ((integer.g() << 16) | fraction.g()) as f32 / 65536.0,
-        ((integer.b() << 16) | fraction.b()) as f32 / 65536.0,
-        ((integer.a() << 16) | fraction.a()) as f32 / 65536.0,
+        ((integer.r() << 16) | fraction.r()) as i32 as f32 / 65536.0,
+        ((integer.g() << 16) | fraction.g()) as i32 as f32 / 65536.0,
+        ((integer.b() << 16) | fraction.b()) as i32 as f32 / 65536.0,
+        ((integer.a() << 16) | fraction.a()) as i32 as f32 / 65536.0,
     ]
 }
 
@@ -211,13 +211,13 @@ struct Edge {
 #[bitfield(u64)]
 struct Color {
     #[bits(16)]
-    a: i32,
+    a: u32,
     #[bits(16)]
-    b: i32,
+    b: u32,
     #[bits(16)]
-    g: i32,
+    g: u32,
     #[bits(16)]
-    r: i32,
+    r: u32,
 }
 
 #[bitfield(u64)]
