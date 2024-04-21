@@ -61,6 +61,10 @@ struct Constants {
     combine_alpha_1: Combine,
     blend_0: Blend,
     blend_1: Blend,
+    fog_color: vec4<f32>,
+    blend_color: vec4<f32>,
+    prim_color: vec4<f32>,
+    env_color: vec4<f32>,
     cycle_type: u32,
 }
 
@@ -128,7 +132,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         combine_alpha(constants.combine_alpha_1, sample[3], in.color[3]),
     );
 
-    return blend(constants.blend_0, combined);
+    return blend(constants.blend_0, combined, in.color[3]);
 }
 
 fn combine_rgb(combine: Combine, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32> {
@@ -147,11 +151,11 @@ fn combine_alpha(combine: Combine, tex0: f32, shade: f32) -> f32 {
     return (sub_a - sub_b) * mul + add;
 }
 
-fn blend(blend: Blend, combined: vec4<f32>) -> vec4<f32> {
+fn blend(blend: Blend, combined: vec4<f32>, shade_alpha: f32) -> vec4<f32> {
     let color = vec3<f32>(combined[0], combined[1], combined[2]);
 
     let p = blend_input(blend.p, vec3<f32>(color));
-    let a = blend_factor_a(blend.a, combined[3]);
+    let a = blend_factor_a(blend.a, combined[3], shade_alpha);
 
     if blend.m == BI_MEMORY_COLOR {
         // Alpha blending
@@ -172,18 +176,30 @@ fn combine_rgb_input(input: u32, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32>
         case CI_COMBINED_COLOR: { return vec3<f32>(0.0); } // TODO
         case CI_TEXEL0_COLOR: { return vec3<f32>(tex0[0], tex0[1], tex0[2]); }
         case CI_TEXEL1_COLOR: { return vec3<f32>(0.0); } // TODO
-        case CI_PRIM_COLOR: { return vec3<f32>(0.0); } // TODO
+        case CI_PRIM_COLOR: {
+            return vec3<f32>(
+                constants.prim_color[0],
+                constants.prim_color[1],
+                constants.prim_color[2],
+            );
+        }
         case CI_SHADE_COLOR: { return vec3<f32>(shade[0], shade[1], shade[2]); }
-        case CI_ENV_COLOR: { return vec3<f32>(0.0); } // TODO
+        case CI_ENV_COLOR: {
+            return vec3<f32>(
+                constants.env_color[0],
+                constants.env_color[1],
+                constants.env_color[2],
+            );
+        }
         case CI_KEY_CENTER: { return vec3<f32>(0.0); } // TODO
         case CI_KEY_SCALE: { return vec3<f32>(0.0); } // TODO
         case CI_COMBINED_ALPHA: { return vec3<f32>(0.0); } // TODO
         case CI_TEXEL0_ALPHA: { return vec3<f32>(tex0[3]); }
         case CI_TEXEL1_ALPHA: { return vec3<f32>(0.0); } // TODO
-        case CI_PRIM_ALPHA: { return vec3<f32>(0.0); } // TODO
+        case CI_PRIM_ALPHA: { return vec3<f32>(constants.prim_color[3]); }
         case CI_SHADE_ALPHA: { return vec3<f32>(shade[3]); }
-        case CI_ENV_ALPHA: { return vec3<f32>(0.0); } // TODO
-        case CI_LOD_FRACTION: { return vec3<f32>(1.0); }
+        case CI_ENV_ALPHA: { return vec3<f32>(constants.env_color[3]); }
+        case CI_LOD_FRACTION: { return vec3<f32>(1.0); } // TODO
         case CI_PRIM_LOD_FRACTION: { return vec3<f32>(1.0); } // TODO
         case CI_NOISE: { return vec3<f32>(0.0); } // TODO
         case CI_CONVERT_K4: { return vec3<f32>(0.0); } // TODO
@@ -199,10 +215,10 @@ fn combine_alpha_input(input: u32, tex0: f32, shade: f32) -> f32 {
         case CI_COMBINED_ALPHA: { return 0.0; } // TODO
         case CI_TEXEL0_ALPHA: { return tex0; }
         case CI_TEXEL1_ALPHA: { return 0.0; } // TODO
-        case CI_PRIM_ALPHA: { return 0.0; } // TODO
+        case CI_PRIM_ALPHA: { return constants.prim_color[3]; }
         case CI_SHADE_ALPHA: { return shade; }
-        case CI_ENV_ALPHA: { return 0.0; } // TODO
-        case CI_LOD_FRACTION: { return 1.0; }
+        case CI_ENV_ALPHA: { return constants.env_color[3]; }
+        case CI_LOD_FRACTION: { return 1.0; } // TODO
         case CI_PRIM_LOD_FRACTION: { return 1.0; } // TODO
         case CI_CONSTANT_1: { return 1.0; }
         case CI_CONSTANT_0: { return 0.0; }
@@ -214,18 +230,30 @@ fn blend_input(input: u32, combined: vec3<f32>) -> vec3<f32> {
     switch input {
         case BI_COMBINED_COLOR: { return combined; }
         case BI_MEMORY_COLOR: { return vec3<f32>(0.0); } // TODO
-        case BI_BLEND_COLOR: { return vec3<f32>(0.0); } // TODO
-        case BI_FOG_COLOR: { return vec3<f32>(0.0); } // TODO
+        case BI_BLEND_COLOR: {
+            return vec3<f32>(
+                constants.blend_color[0],
+                constants.blend_color[1],
+                constants.blend_color[2],
+            );
+        }
+        case BI_FOG_COLOR: {
+            return vec3<f32>(
+                constants.fog_color[0],
+                constants.fog_color[1],
+                constants.fog_color[2],
+            );
+        }
         default: { return vec3<f32>(0.0); }
     }
 }
 
-fn blend_factor_a(input: u32, combined: f32) -> f32 {
+fn blend_factor_a(input: u32, combined: f32, shade_alpha: f32) -> f32 {
     switch input {
         case BFA_COMBINED_ALPHA: { return combined; }
-        case BFA_FOG_ALPHA: { return 0.0; } // TODO
-        case BFA_SHADE_ALPHA: { return 0.0; } // TODO
-        case BFA_CONSTANT_0: { return 0.0; } // TODO
+        case BFA_FOG_ALPHA: { return constants.fog_color[3]; }
+        case BFA_SHADE_ALPHA: { return shade_alpha; }
+        case BFA_CONSTANT_0: { return 0.0; }
         default: { return 0.0; }
     }
 }
@@ -234,8 +262,8 @@ fn blend_factor_b(input: u32, factor_a: f32) -> f32 {
     switch input {
         case BFB_ONE_MINUS_A: { return 1.0 - factor_a; }
         case BFB_MEMORY_ALPHA: { return 0.0; } // TODO
-        case BFB_CONSTANT_1: { return 1.0; } // TODO
-        case BFB_CONSTANT_0: { return 0.0; } // TODO
+        case BFB_CONSTANT_1: { return 1.0; }
+        case BFB_CONSTANT_0: { return 0.0; }
         default: { return 0.0; }
     }
 }

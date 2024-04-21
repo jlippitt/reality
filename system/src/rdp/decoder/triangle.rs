@@ -76,7 +76,7 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("  = {:?}", colors);
         colors
     } else {
-        [ctx.renderer.blend_color(); 3]
+        [[0.0; 4]; 3]
     };
 
     let texture = if TEXTURE {

@@ -26,6 +26,15 @@ impl Vertex {
     }
 }
 
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FixedColor {
+    Fog = 0,
+    Blend = 1,
+    Primitive = 2,
+    Environment = 3,
+}
+
 #[pod_enum]
 #[repr(u32)]
 #[derive(Default, Eq)]
@@ -41,6 +50,7 @@ pub enum CycleType {
 pub struct Constants {
     combine_mode: CombineMode,
     blend_mode: BlendMode,
+    fixed_colors: [[f32; 4]; 4],
     cycle_type: CycleType,
 }
 
@@ -170,6 +180,26 @@ impl DisplayList {
         trace!("  Blend Cycle 1: {}", self.constants.blend_mode.mode[1]);
 
         if prev_value != self.constants.blend_mode {
+            self.push_constants();
+        }
+    }
+
+    pub fn set_fixed_color(&mut self, color: FixedColor, value: u32) {
+        let fixed_colors = &mut self.constants.fixed_colors;
+        let index = color as usize;
+
+        let normalised_value = [
+            (value >> 24) as f32 / 255.0,
+            ((value >> 16) & 0xff) as f32 / 255.0,
+            ((value >> 8) & 0xff) as f32 / 255.0,
+            (value & 0xff) as f32 / 255.0,
+        ];
+
+        let prev_value = fixed_colors[index];
+        fixed_colors[index] = normalised_value;
+        trace!("  {:?} Color: {:?}", color, fixed_colors[index]);
+
+        if prev_value != fixed_colors[index] {
             self.push_constants();
         }
     }

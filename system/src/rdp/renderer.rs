@@ -1,6 +1,6 @@
 pub use blender::{BlendModeRaw, BlendModeRawParams};
 pub use combiner::{CombineModeRaw, CombineModeRawParams};
-pub use display_list::CycleType;
+pub use display_list::{CycleType, FixedColor};
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
@@ -264,13 +264,8 @@ impl Renderer {
             .load_block(rdram, index, x_offset, x_size, y_offset, y_delta);
     }
 
-    pub fn blend_color(&self) -> [f32; 4] {
-        self.blend_color
-    }
-
-    pub fn set_blend_color(&mut self, color: u32) {
-        self.blend_color = decode_color(color);
-        trace!("  Blend Color: {:?}", self.blend_color);
+    pub fn set_fixed_color(&mut self, color: FixedColor, value: u32) {
+        self.display_list.set_fixed_color(color, value);
     }
 
     pub fn set_prim_depth(&mut self, prim_depth: f32) {
@@ -414,13 +409,4 @@ impl Rect {
     fn height(&self) -> f32 {
         self.bottom - self.top
     }
-}
-
-fn decode_color(color: u32) -> [f32; 4] {
-    [
-        (color >> 24) as f32 / 255.0,
-        ((color >> 16) & 0xff) as f32 / 255.0,
-        ((color >> 8) & 0xff) as f32 / 255.0,
-        (color & 0xff) as f32 / 255.0,
-    ]
 }

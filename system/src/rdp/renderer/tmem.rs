@@ -70,7 +70,7 @@ impl Tmem {
             tmem_data: vec![0; 512],
             tiles: Default::default(),
             texture_cache: HashMap::new(),
-            null_texture: Texture::new(gfx, &bind_group_layout, 1, 1, &[0; 4]),
+            null_texture: Texture::new(gfx, &bind_group_layout, 1, 1, &[0, 0, 0, 255]),
             bind_group_layout,
         }
     }
