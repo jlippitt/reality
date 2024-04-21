@@ -57,6 +57,14 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         let shade_dy = Color::from(decoder.commands.pop_front().unwrap());
         let shade_frac_de = Color::from(decoder.commands.pop_front().unwrap());
         let shade_frac_dy = Color::from(decoder.commands.pop_front().unwrap());
+        trace!("Shade: {:?}", shade);
+        trace!("Shade DX: {:?}", shade_dx);
+        trace!("Shade Frac: {:?}", shade_frac);
+        trace!("Shade Frac DY: {:?}", shade_frac_dx);
+        trace!("Shade DE: {:?}", shade_de);
+        trace!("Shade DX: {:?}", shade_dy);
+        trace!("Shade Frac DE: {:?}", shade_frac_de);
+        trace!("Shade Frac DY: {:?}", shade_frac_dy);
 
         let base_color = decode_color(shade, shade_frac);
         let color_dx = decode_color(shade_dx, shade_frac_dx);
