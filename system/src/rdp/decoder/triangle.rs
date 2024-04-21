@@ -88,6 +88,14 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         let coord_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
         let coord_frac_de = TexCoord::from(decoder.commands.pop_front().unwrap());
         let coord_frac_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
+        trace!("Texture: {:?}", coord);
+        trace!("Texture DX: {:?}", coord_dx);
+        trace!("Texture Frac: {:?}", coord_frac);
+        trace!("Texture Frac DY: {:?}", coord_frac_dx);
+        trace!("Texture DE: {:?}", coord_de);
+        trace!("Texture DX: {:?}", coord_dy);
+        trace!("Texture Frac DE: {:?}", coord_frac_de);
+        trace!("Texture Frac DY: {:?}", coord_frac_dy);
 
         let base_texel = decode_tex_coord(coord, coord_frac);
         let texel_dx = decode_tex_coord(coord_dx, coord_frac_dx);
