@@ -208,18 +208,19 @@ impl Tmem {
         let bits_per_pixel = 4 << self.texture_image.format.1;
 
         let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
-        let tmem_width = (x_size * bits_per_pixel + 63) / 64;
+        let tmem_start = tile.descriptor.tmem_addr as usize;
+        let tmem_end = tmem_start + (x_size * bits_per_pixel + 63) / 64;
 
         // TODO: Does y_offset ('tl') get used at all?
         let mut dram_addr = self.texture_image.dram_addr as usize + dram_line_offset;
-        let mut tmem_addr = tile.descriptor.tmem_addr as usize;
+        let mut tmem_addr = tmem_start;
 
         let mut y_pos = 0;
 
-        while tmem_addr < tmem_width {
+        while tmem_addr < tmem_end {
             let mut tmem_start = tmem_addr;
 
-            while (y_pos & 0x0800) == 0 && tmem_addr < tmem_width {
+            while (y_pos & 0x0800) == 0 && tmem_addr < tmem_end {
                 y_pos += y_delta;
                 tmem_addr += 1;
             }
@@ -228,13 +229,13 @@ impl Tmem {
             rdram.read_block(dram_addr, dst);
             dram_addr += (tmem_addr - tmem_start) << 3;
 
-            if tmem_addr >= tmem_width {
+            if tmem_addr >= tmem_end {
                 break;
             }
 
             tmem_start = tmem_addr;
 
-            while (y_pos & 0x0800) != 0 && tmem_addr < tmem_width {
+            while (y_pos & 0x0800) != 0 && tmem_addr < tmem_end {
                 y_pos += y_delta;
                 tmem_addr += 1;
             }
