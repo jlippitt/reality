@@ -1,5 +1,6 @@
 pub use blender::{BlendModeRaw, BlendModeRawParams};
 pub use combiner::{CombineModeRaw, CombineModeRawParams};
+pub use display_list::CycleType;
 pub use target::ColorImage;
 pub use tmem::{TextureImage, TileDescriptor};
 
@@ -41,16 +42,6 @@ pub type TextureFormat = (Format, u32);
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-pub enum CycleType {
-    #[default]
-    OneCycle = 0,
-    TwoCycle = 1,
-    Copy = 2,
-    Fill = 3,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum ZSource {
     #[default]
     PerPixel = 0,
@@ -65,20 +56,21 @@ pub struct ZBufferConfig {
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct RenderMode {
+pub struct OtherModes {
     pub cycle_type: CycleType,
     pub z_buffer: ZBufferConfig,
+    pub blend_mode: BlendModeRaw,
 }
 
 pub struct Renderer {
     target: Target,
     tmem: Tmem,
     display_list: DisplayList,
-    mode: RenderMode,
     render_pipeline: wgpu::RenderPipeline,
-    blend_color: [f32; 4],
-    fill_color: u32,
+    z_buffer: ZBufferConfig,
     prim_depth: f32,
+    fill_color: u32,
+    blend_color: [f32; 4],
 }
 
 impl Renderer {
@@ -153,11 +145,11 @@ impl Renderer {
             target,
             tmem,
             display_list,
-            mode: RenderMode::default(),
             render_pipeline,
+            z_buffer: ZBufferConfig::default(),
+            prim_depth: 0.0,
             blend_color: [0.0; 4],
             fill_color: 0,
-            prim_depth: 0.0,
         }
     }
 
@@ -191,23 +183,17 @@ impl Renderer {
         self.display_list.set_combine_mode(combine_mode);
     }
 
-    pub fn set_other_modes(
-        &mut self,
-        gfx: &GfxContext,
-        rdram: &mut Rdram,
-        mode: RenderMode,
-        blend_mode: BlendModeRaw,
-    ) {
-        if mode != self.mode {
+    pub fn set_other_modes(&mut self, gfx: &GfxContext, rdram: &mut Rdram, mode: OtherModes) {
+        if mode.z_buffer != self.z_buffer {
             self.flush(gfx, rdram);
         }
 
-        // TODO: Not all of the mode params need to be stored here as some are
-        // used by specific components, e.g. combiner
-        self.mode = mode;
-        trace!("  Mode: {:?}", self.mode);
+        self.z_buffer = mode.z_buffer;
+        trace!("  Z Buffer Config: {:?}", self.z_buffer);
 
-        let blend_mode = BlendMode::from_raw(blend_mode);
+        self.display_list.set_cycle_type(mode.cycle_type);
+
+        let blend_mode = BlendMode::from_raw(mode.blend_mode);
         self.display_list.set_blend_mode(blend_mode);
     }
 
@@ -298,7 +284,7 @@ impl Renderer {
         texture: Option<(usize, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
-        let (colors, texture) = if self.mode.cycle_type == CycleType::Fill {
+        let (colors, texture) = if self.display_list.cycle_type() == CycleType::Fill {
             ([self.fill_color(); 3], None)
         } else {
             (
@@ -310,7 +296,7 @@ impl Renderer {
             )
         };
 
-        let z_values = if self.mode.z_buffer.source == ZSource::Primitive {
+        let z_values = if self.z_buffer.source == ZSource::Primitive {
             [self.prim_depth; 3]
         } else {
             z_values
@@ -326,7 +312,7 @@ impl Renderer {
         rect: Rect,
         texture: Option<(usize, Rect, bool)>,
     ) {
-        let (color, texture) = if self.mode.cycle_type == CycleType::Fill {
+        let (color, texture) = if self.display_list.cycle_type() == CycleType::Fill {
             (self.fill_color(), None)
         } else {
             (
@@ -339,7 +325,7 @@ impl Renderer {
             )
         };
 
-        let z_value = if self.mode.z_buffer.source == ZSource::Primitive {
+        let z_value = if self.z_buffer.source == ZSource::Primitive {
             self.prim_depth
         } else {
             0.0
@@ -393,14 +379,14 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                // TODO: Only add the stencil if 'self.mode.z_buffer.enable' is set
+                // TODO: Only add the stencil if 'self.z_buffer.enable' is set
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &depth_texture_view,
                     depth_ops: Some(wgpu::Operations {
                         // TODO: This should be loaded from RDRAM. For now,
                         // clear it to the max depth value.
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: if self.mode.z_buffer.write_enable {
+                        store: if self.z_buffer.write_enable {
                             wgpu::StoreOp::Store
                         } else {
                             wgpu::StoreOp::Discard

@@ -1,5 +1,6 @@
 use super::{BlendMode, CombineMode, Rect, Tmem};
 use bytemuck::{Pod, Zeroable};
+use pod_enum::pod_enum;
 use std::mem;
 use std::ops::Range;
 use tracing::trace;
@@ -25,12 +26,22 @@ impl Vertex {
     }
 }
 
+#[pod_enum]
+#[repr(u32)]
+#[derive(Default, Eq)]
+pub enum CycleType {
+    OneCycle = 0,
+    TwoCycle = 1,
+    Copy = 2,
+    Fill = 3,
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
 pub struct Constants {
     combine_mode: CombineMode,
     blend_mode: BlendMode,
-    __: [u8; 8],
+    cycle_type: CycleType,
 }
 
 #[derive(Debug)]
@@ -135,6 +146,10 @@ impl DisplayList {
         &self.constant_bind_group_layout
     }
 
+    pub fn cycle_type(&self) -> CycleType {
+        self.constants.cycle_type
+    }
+
     pub fn is_empty(&self) -> bool {
         self.vertices.is_empty()
     }
@@ -145,6 +160,10 @@ impl DisplayList {
         }
 
         self.constants.combine_mode = combine_mode;
+        trace!("  RGB Cycle 0: {}", self.constants.combine_mode.rgb[0]);
+        trace!("  RGB Cycle 1: {}", self.constants.combine_mode.rgb[1]);
+        trace!("  Alpha Cycle 0: {}", self.constants.combine_mode.alpha[0]);
+        trace!("  Alpha Cycle 1: {}", self.constants.combine_mode.alpha[1]);
     }
 
     pub fn set_blend_mode(&mut self, blend_mode: BlendMode) {
@@ -153,6 +172,17 @@ impl DisplayList {
         }
 
         self.constants.blend_mode = blend_mode;
+        trace!("  Blend Cycle 0: {}", self.constants.blend_mode.mode[0]);
+        trace!("  Blend Cycle 1: {}", self.constants.blend_mode.mode[1]);
+    }
+
+    pub fn set_cycle_type(&mut self, cycle_type: CycleType) {
+        if cycle_type != self.constants.cycle_type {
+            self.push_constants();
+        }
+
+        self.constants.cycle_type = cycle_type;
+        trace!("  Cycle Type: {:?}", self.constants.cycle_type);
     }
 
     fn push_constants(&mut self) {

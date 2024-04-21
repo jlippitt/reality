@@ -1,9 +1,10 @@
 use super::renderer::{
-    BlendModeRaw, BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, RenderMode,
+    BlendModeRaw, BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, OtherModes,
     ZBufferConfig, ZSource,
 };
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
+use std::mem;
 use tracing::trace;
 
 pub fn set_combine_mode(_decoder: &mut Decoder, ctx: Context, word: u64) {
@@ -51,29 +52,29 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
     ctx.renderer.set_other_modes(
         ctx.gfx,
         ctx.rdram,
-        RenderMode {
+        OtherModes {
             cycle_type: cmd.cycle_type(),
             z_buffer: ZBufferConfig {
                 enable: cmd.z_compare_en(),
                 write_enable: cmd.z_update_en(),
                 source: cmd.z_source_sel(),
             },
-        },
-        BlendModeRaw {
-            mode: [
-                BlendModeRawParams {
-                    p: cmd.b_m1a_0(),
-                    a: cmd.b_m1b_0(),
-                    m: cmd.b_m2a_0(),
-                    b: cmd.b_m2b_0(),
-                },
-                BlendModeRawParams {
-                    p: cmd.b_m1a_1(),
-                    a: cmd.b_m1b_1(),
-                    m: cmd.b_m2a_1(),
-                    b: cmd.b_m2b_1(),
-                },
-            ],
+            blend_mode: BlendModeRaw {
+                mode: [
+                    BlendModeRawParams {
+                        p: cmd.b_m1a_0(),
+                        a: cmd.b_m1b_0(),
+                        m: cmd.b_m2a_0(),
+                        b: cmd.b_m2b_0(),
+                    },
+                    BlendModeRawParams {
+                        p: cmd.b_m1a_1(),
+                        a: cmd.b_m1b_1(),
+                        m: cmd.b_m2a_1(),
+                        b: cmd.b_m2b_1(),
+                    },
+                ],
+            },
         },
     );
 }
@@ -288,7 +289,7 @@ impl ZSource {
 
 impl CycleType {
     const fn into_bits(self) -> u32 {
-        self as u32
+        unsafe { mem::transmute(self) }
     }
 
     const fn from_bits(value: u32) -> Self {

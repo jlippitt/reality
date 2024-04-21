@@ -35,6 +35,11 @@ const BFB_MEMORY_ALPHA = 1;
 const BFB_CONSTANT_1 = 2;
 const BFB_CONSTANT_0 = 3;
 
+const CT_ONE_CYCLE = 0;
+const CT_TWO_CYCLE = 1;
+const CT_COPY = 2;
+const CT_FILL = 3;
+
 struct Combine {
     sub_a: u32,
     sub_b: u32,
@@ -56,6 +61,7 @@ struct Constants {
     combine_alpha_1: Combine,
     blend_0: Blend,
     blend_1: Blend,
+    cycle_type: u32,
 }
 
 struct VertexInput {

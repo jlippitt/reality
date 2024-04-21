@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use pod_enum::pod_enum;
 use std::fmt::{self, Display, Formatter};
-use tracing::trace;
 
 #[pod_enum]
 #[repr(u32)]
@@ -62,7 +61,7 @@ pub struct CombineMode {
 
 impl CombineMode {
     pub fn from_raw(raw: CombineModeRaw) -> Self {
-        let mode = CombineMode {
+        Self {
             rgb: raw.rgb.map(
                 |CombineModeRawParams {
                      sub_a,
@@ -172,14 +171,7 @@ impl CombineMode {
                     },
                 },
             ),
-        };
-
-        trace!("  RGB Cycle 0: {}", mode.rgb[0]);
-        trace!("  RGB Cycle 1: {}", mode.rgb[1]);
-        trace!("  Alpha Cycle 0: {}", mode.alpha[0]);
-        trace!("  Alpha Cycle 1: {}", mode.alpha[1]);
-
-        mode
+        }
     }
 }
 

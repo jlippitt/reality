@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use pod_enum::pod_enum;
 use std::fmt::{self, Display, Formatter};
-use tracing::trace;
 
 #[allow(clippy::enum_variant_names)]
 #[pod_enum]
@@ -118,14 +117,9 @@ impl Display for BlendModeParams {
 
 impl BlendMode {
     pub fn from_raw(raw: BlendModeRaw) -> Self {
-        let mode = Self {
+        Self {
             mode: raw.mode.map(BlendModeParams::from_raw),
-        };
-
-        trace!("  Blend Cycle 0: {}", mode.mode[0]);
-        trace!("  Blend Cycle 1: {}", mode.mode[1]);
-
-        mode
+        }
     }
 }
 
