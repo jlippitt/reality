@@ -20,6 +20,44 @@ const CI_CONVERT_K5 = 18;
 const CI_CONSTANT_1 = 19;
 const CI_CONSTANT_0 = 20;
 
+const BI_COMBINED_COLOR = 0;
+const BI_MEMORY_COLOR = 1;
+const BI_BLEND_COLOR = 2;
+const BI_FOG_COLOR = 3;
+
+const BFA_COMBINED_ALPHA = 0;
+const BFA_FOG_ALPHA = 1;
+const BFA_SHADE_ALPHA = 2;
+const BFA_CONSTANT_0 = 3;
+
+const BFB_ONE_MINUS_A = 0;
+const BFB_MEMORY_ALPHA = 1;
+const BFB_CONSTANT_1 = 2;
+const BFB_CONSTANT_0 = 3;
+
+struct Combine {
+    sub_a: u32,
+    sub_b: u32,
+    mul: u32,
+    add: u32,
+}
+
+struct Blend {
+    p: u32,
+    a: u32,
+    m: u32,
+    b: u32,
+}
+
+struct Constants {
+    combine_rgb_0: Combine,
+    combine_rgb_1: Combine,
+    combine_alpha_0: Combine,
+    combine_alpha_1: Combine,
+    blend_0: Blend,
+    blend_1: Blend,
+}
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec4<f32>,
@@ -45,33 +83,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.color = in.color;
     out.tex_coords = in.tex_coords;
     return out;
-}
-
-struct Constants {
-    combine_rgb_0_sub_a: u32,
-    combine_rgb_0_sub_b: u32,
-    combine_rgb_0_mul: u32,
-    combine_rgb_0_add: u32,
-    combine_rgb_1_sub_a: u32,
-    combine_rgb_1_sub_b: u32,
-    combine_rgb_1_mul: u32,
-    combine_rgb_1_add: u32,
-    combine_alpha_0_sub_a: u32,
-    combine_alpha_0_sub_b: u32,
-    combine_alpha_0_mul: u32,
-    combine_alpha_0_add: u32,
-    combine_alpha_1_sub_a: u32,
-    combine_alpha_1_sub_b: u32,
-    combine_alpha_1_mul: u32,
-    combine_alpha_1_add: u32,
-    blend_0_p: u32,
-    blend_0_a: u32,
-    blend_0_m: u32,
-    blend_0_b: u32,
-    blend_1_p: u32,
-    blend_1_a: u32,
-    blend_1_m: u32,
-    blend_1_b: u32,
 }
 
 @group(1) @binding(0)
