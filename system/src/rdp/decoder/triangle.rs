@@ -167,9 +167,9 @@ fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
 
 fn decode_tex_coord(integer: TexCoord, fraction: TexCoord) -> [f32; 3] {
     [
-        ((integer.s() << 16) | fraction.s()) as f32 / 65536.0 / 32.0,
-        ((integer.t() << 16) | fraction.t()) as f32 / 65536.0 / 32.0,
-        ((integer.w() << 16) | fraction.w()) as f32 / 65536.0 / 32.0,
+        ((integer.s() << 16) | fraction.s()) as i32 as f32 / 65536.0 / 32.0,
+        ((integer.t() << 16) | fraction.t()) as i32 as f32 / 65536.0 / 32.0,
+        ((integer.w() << 16) | fraction.w()) as i32 as f32 / 65536.0 / 32.0,
     ]
 }
 #[bitfield(u64)]
@@ -223,11 +223,11 @@ struct Color {
 #[bitfield(u64)]
 struct TexCoord {
     #[bits(16)]
-    __: i32,
+    __: u32,
     #[bits(16)]
-    w: i32,
+    w: u32,
     #[bits(16)]
-    t: i32,
+    t: u32,
     #[bits(16)]
-    s: i32,
+    s: u32,
 }
