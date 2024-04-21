@@ -50,6 +50,7 @@ pub struct DisplayList {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     constant_buffer: wgpu::Buffer,
+    constant_buffer_stride: u32,
     constant_bind_group_layout: wgpu::BindGroupLayout,
     constant_bind_group: wgpu::BindGroup,
     current_texture_handle: Option<u128>,
@@ -71,6 +72,11 @@ impl DisplayList {
             mapped_at_creation: false,
         });
 
+        let alignment = device.limits().min_storage_buffer_offset_alignment;
+        let constant_buffer_stride =
+            (mem::size_of::<Constants>() as u32).next_multiple_of(alignment);
+        let binding_size = wgpu::BufferSize::new(constant_buffer_stride as u64);
+
         let constant_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("RDP Constant Bind Group Layout"),
@@ -80,7 +86,7 @@ impl DisplayList {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: true,
-                        min_binding_size: wgpu::BufferSize::new(256),
+                        min_binding_size: binding_size,
                     },
                     count: None,
                 }],
@@ -88,7 +94,7 @@ impl DisplayList {
 
         let constant_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("RDP Constant Buffer"),
-            size: 65536,
+            size: device.limits().max_uniform_buffer_binding_size as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -101,7 +107,7 @@ impl DisplayList {
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                     buffer: &constant_buffer,
                     offset: 0,
-                    size: wgpu::BufferSize::new(256),
+                    size: binding_size,
                 }),
             }],
         });
@@ -115,12 +121,13 @@ impl DisplayList {
             vertex_buffer,
             index_buffer,
             constant_buffer,
+            constant_buffer_stride,
             constant_bind_group_layout,
             constant_bind_group,
             current_texture_handle: None,
         };
 
-        display_list.push_constants();
+        display_list.reset();
         display_list
     }
 
@@ -162,12 +169,15 @@ impl DisplayList {
 
                 self.constant_data.extend_from_slice(constants);
 
-                // Pad to 256 bytes
-                self.constant_data
-                    .resize(self.constant_data.len() + 256 - size, 0);
+                // Pad to uniform buffer alignment required by hardware drivers
+                self.constant_data.resize(
+                    self.constant_data.len() + self.constant_buffer_stride as usize - size,
+                    0,
+                );
 
-                self.commands
-                    .push(Command::SetConstants(start..(start + 256)));
+                self.commands.push(Command::SetConstants(
+                    start..(start + self.constant_buffer_stride),
+                ));
             }
         }
     }
