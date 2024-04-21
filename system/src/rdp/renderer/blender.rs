@@ -5,7 +5,7 @@ use tracing::trace;
 
 #[allow(clippy::enum_variant_names)]
 #[pod_enum]
-#[repr(u8)]
+#[repr(u32)]
 #[derive(Eq)]
 pub enum BlenderInput {
     CombinedColor = 0,
@@ -15,7 +15,7 @@ pub enum BlenderInput {
 }
 
 #[pod_enum]
-#[repr(u8)]
+#[repr(u32)]
 #[derive(Eq)]
 pub enum BlendFactorA {
     CombinedAlpha = 0,
@@ -25,7 +25,7 @@ pub enum BlendFactorA {
 }
 
 #[pod_enum]
-#[repr(u8)]
+#[repr(u32)]
 #[derive(Eq)]
 pub enum BlendFactorB {
     OneMinusA = 0,

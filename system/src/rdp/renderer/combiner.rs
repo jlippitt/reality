@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use tracing::trace;
 
 #[pod_enum]
-#[repr(u8)]
+#[repr(u32)]
 #[derive(Eq)]
 pub enum CombinerInput {
     CombinedColor = 0,

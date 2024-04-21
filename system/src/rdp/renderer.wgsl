@@ -48,12 +48,30 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 }
 
 struct Constants {
-    combine_rgb_0: u32,
-    combine_rgb_1: u32,
-    combine_alpha_0: u32,
-    combine_alpha_1: u32,
-    blend_0: u32,
-    blend_1: u32,
+    combine_rgb_0_sub_a: u32,
+    combine_rgb_0_sub_b: u32,
+    combine_rgb_0_mul: u32,
+    combine_rgb_0_add: u32,
+    combine_rgb_1_sub_a: u32,
+    combine_rgb_1_sub_b: u32,
+    combine_rgb_1_mul: u32,
+    combine_rgb_1_add: u32,
+    combine_alpha_0_sub_a: u32,
+    combine_alpha_0_sub_b: u32,
+    combine_alpha_0_mul: u32,
+    combine_alpha_0_add: u32,
+    combine_alpha_1_sub_a: u32,
+    combine_alpha_1_sub_b: u32,
+    combine_alpha_1_mul: u32,
+    combine_alpha_1_add: u32,
+    blend_0_p: u32,
+    blend_0_a: u32,
+    blend_0_m: u32,
+    blend_0_b: u32,
+    blend_1_p: u32,
+    blend_1_a: u32,
+    blend_1_m: u32,
+    blend_1_b: u32,
 }
 
 @group(1) @binding(0)
