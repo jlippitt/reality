@@ -40,6 +40,13 @@ pub fn set_color_image(_decoder: &mut Decoder, ctx: Context, word: u64) {
     );
 }
 
+pub fn set_fill_color(_decoder: &mut Decoder, ctx: Context, word: u64) {
+    let cmd = SetFillColor::from(word);
+    trace!("{:?}", cmd);
+    ctx.renderer
+        .set_fill_color(ctx.gfx, ctx.rdram, cmd.packed_color());
+}
+
 #[bitfield(u64)]
 struct SetScissor {
     #[bits(12)]
@@ -74,4 +81,10 @@ struct SetColorImage {
     format: Format,
     #[bits(8)]
     __: u64,
+}
+
+#[bitfield(u64)]
+struct SetFillColor {
+    packed_color: u32,
+    __: u32,
 }

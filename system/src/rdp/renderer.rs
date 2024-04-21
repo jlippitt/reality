@@ -69,13 +69,12 @@ pub struct Renderer {
     render_pipeline: wgpu::RenderPipeline,
     z_buffer: ZBufferConfig,
     prim_depth: f32,
-    fill_color: u32,
     blend_color: [f32; 4],
 }
 
 impl Renderer {
     pub fn new(gfx: &GfxContext) -> Self {
-        let target = Target::new(gfx.device());
+        let target = Target::new(gfx);
         let tmem = Tmem::new(gfx);
         let display_list = DisplayList::new(gfx.device());
 
@@ -92,6 +91,7 @@ impl Renderer {
                     label: Some("RDP Render Pipeline Layout"),
                     bind_group_layouts: &[
                         target.scissor_bind_group_layout(),
+                        target.fill_color_bind_group_layout(),
                         tmem.bind_group_layout(),
                         display_list.constant_bind_group_layout(),
                     ],
@@ -149,7 +149,6 @@ impl Renderer {
             z_buffer: ZBufferConfig::default(),
             prim_depth: 0.0,
             blend_color: [0.0; 4],
-            fill_color: 0,
         }
     }
 
@@ -176,6 +175,14 @@ impl Renderer {
         if self.target.is_dirty() {
             self.target.upload_buffers(gfx.queue());
         }
+    }
+
+    pub fn set_fill_color(&mut self, gfx: &GfxContext, rdram: &mut Rdram, value: u32) {
+        if value != self.target.fill_color() {
+            self.flush(gfx, rdram);
+        }
+
+        self.target.set_fill_color(gfx.queue(), value);
     }
 
     pub fn set_combine_mode(&mut self, combine_mode: CombineModeRaw) {
@@ -266,11 +273,6 @@ impl Renderer {
         trace!("  Blend Color: {:?}", self.blend_color);
     }
 
-    pub fn set_fill_color(&mut self, packed_color: u32) {
-        self.fill_color = packed_color;
-        trace!("  Fill Color: {:08X}", self.fill_color);
-    }
-
     pub fn set_prim_depth(&mut self, prim_depth: f32) {
         self.prim_depth = prim_depth;
         trace!("  Prim Depth: {}", self.prim_depth);
@@ -284,17 +286,10 @@ impl Renderer {
         texture: Option<(usize, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
-        let (colors, texture) = if self.display_list.cycle_type() == CycleType::Fill {
-            ([self.fill_color(); 3], None)
-        } else {
-            (
-                colors,
-                texture.map(|(tile_id, rect)| {
-                    let handle = self.tmem.get_texture_handle(gfx, tile_id);
-                    (handle, rect)
-                }),
-            )
-        };
+        let texture = texture.map(|(tile_id, rect)| {
+            let handle = self.tmem.get_texture_handle(gfx, tile_id);
+            (handle, rect)
+        });
 
         let z_values = if self.z_buffer.source == ZSource::Primitive {
             [self.prim_depth; 3]
@@ -312,18 +307,13 @@ impl Renderer {
         rect: Rect,
         texture: Option<(usize, Rect, bool)>,
     ) {
-        let (color, texture) = if self.display_list.cycle_type() == CycleType::Fill {
-            (self.fill_color(), None)
-        } else {
-            (
-                // TODO: Proper blending
-                self.blend_color,
-                texture.map(|(tile_id, rect, flip)| {
-                    let handle = self.tmem.get_texture_handle(gfx, tile_id);
-                    (handle, rect, flip)
-                }),
-            )
-        };
+        // TODO: Proper blending
+        let color = self.blend_color;
+
+        let texture = texture.map(|(tile_id, rect, flip)| {
+            let handle = self.tmem.get_texture_handle(gfx, tile_id);
+            (handle, rect, flip)
+        });
 
         let z_value = if self.z_buffer.source == ZSource::Primitive {
             self.prim_depth
@@ -400,7 +390,8 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, self.target.scissor_bind_group(), &[]);
-            render_pass.set_bind_group(1, self.tmem.bind_group(None), &[]);
+            render_pass.set_bind_group(1, self.target.fill_color_bind_group(), &[]);
+            render_pass.set_bind_group(2, self.tmem.bind_group(None), &[]);
 
             let scissor = self.target.scissor();
             render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 1.0);
@@ -412,21 +403,6 @@ impl Renderer {
 
         self.display_list.reset();
         self.target.request_sync();
-    }
-
-    fn fill_color(&self) -> [f32; 4] {
-        match self.target.color_image().format {
-            (Format::Rgba, 3) => decode_color(self.fill_color),
-            (Format::Rgba, 2) => [
-                // This isn't correct, but it'll do for now
-                (((self.fill_color >> 11) & 0x1f) << 3) as f32 / 255.0,
-                (((self.fill_color >> 6) & 0x1f) << 3) as f32 / 255.0,
-                (((self.fill_color >> 1) & 0x1f) << 3) as f32 / 255.0,
-                (self.fill_color & 0x01) as f32,
-            ],
-            (Format::ClrIndex, 1) => todo!("Index8 format"),
-            _ => panic!("Unsupported Color Image format"),
-        }
     }
 }
 

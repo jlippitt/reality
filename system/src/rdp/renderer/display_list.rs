@@ -146,43 +146,42 @@ impl DisplayList {
         &self.constant_bind_group_layout
     }
 
-    pub fn cycle_type(&self) -> CycleType {
-        self.constants.cycle_type
-    }
-
     pub fn is_empty(&self) -> bool {
         self.vertices.is_empty()
     }
 
     pub fn set_combine_mode(&mut self, combine_mode: CombineMode) {
-        if combine_mode != self.constants.combine_mode {
-            self.push_constants();
-        }
-
+        let prev_value = self.constants.combine_mode;
         self.constants.combine_mode = combine_mode;
         trace!("  RGB Cycle 0: {}", self.constants.combine_mode.rgb[0]);
         trace!("  RGB Cycle 1: {}", self.constants.combine_mode.rgb[1]);
         trace!("  Alpha Cycle 0: {}", self.constants.combine_mode.alpha[0]);
         trace!("  Alpha Cycle 1: {}", self.constants.combine_mode.alpha[1]);
+
+        if prev_value != self.constants.combine_mode {
+            self.push_constants();
+        }
     }
 
     pub fn set_blend_mode(&mut self, blend_mode: BlendMode) {
-        if blend_mode != self.constants.blend_mode {
-            self.push_constants();
-        }
-
+        let prev_value = self.constants.blend_mode;
         self.constants.blend_mode = blend_mode;
         trace!("  Blend Cycle 0: {}", self.constants.blend_mode.mode[0]);
         trace!("  Blend Cycle 1: {}", self.constants.blend_mode.mode[1]);
+
+        if prev_value != self.constants.blend_mode {
+            self.push_constants();
+        }
     }
 
     pub fn set_cycle_type(&mut self, cycle_type: CycleType) {
-        if cycle_type != self.constants.cycle_type {
-            self.push_constants();
-        }
-
+        let prev_value = self.constants.cycle_type;
         self.constants.cycle_type = cycle_type;
         trace!("  Cycle Type: {:?}", self.constants.cycle_type);
+
+        if prev_value != self.constants.cycle_type {
+            self.push_constants();
+        }
     }
 
     fn push_constants(&mut self) {
@@ -377,10 +376,10 @@ impl DisplayList {
                 Command::Triangles(range) => render_pass.draw(range.clone(), 0..1),
                 Command::Rectangles(range) => render_pass.draw_indexed(range.clone(), 0, 0..1),
                 Command::SetTexture(handle) => {
-                    render_pass.set_bind_group(1, tmem.bind_group(handle), &[])
+                    render_pass.set_bind_group(2, tmem.bind_group(handle), &[])
                 }
                 Command::SetConstants(range) => {
-                    render_pass.set_bind_group(2, &self.constant_bind_group, &[range.start])
+                    render_pass.set_bind_group(3, &self.constant_bind_group, &[range.start])
                 }
             }
         }

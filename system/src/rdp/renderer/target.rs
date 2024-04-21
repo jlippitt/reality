@@ -1,8 +1,11 @@
 use super::{Format, Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
+use fill_color::FillColor;
 use std::mem;
 use tracing::{debug, trace};
+
+mod fill_color;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ColorImage {
@@ -23,36 +26,38 @@ pub struct Target {
     scissor_buffer: wgpu::Buffer,
     scissor_bind_group_layout: wgpu::BindGroupLayout,
     scissor_bind_group: wgpu::BindGroup,
+    fill_color: FillColor,
     output: Option<TargetOutput>,
     dirty: bool,
     synced: bool,
 }
 
 impl Target {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(gfx: &GfxContext) -> Self {
         let scissor_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("RDP Scissor Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+            gfx.device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("RDP Scissor Bind Group Layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
-        let scissor_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let scissor_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("RDP Scissor Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             size: mem::size_of::<[f32; 4]>() as u64,
             mapped_at_creation: false,
         });
 
-        let scissor_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let scissor_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("RDP Scissor Bind Group"),
             layout: &scissor_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
@@ -67,6 +72,7 @@ impl Target {
             scissor_buffer,
             scissor_bind_group_layout,
             scissor_bind_group,
+            fill_color: FillColor::new(gfx),
             output: None,
             dirty: true,
             synced: false,
@@ -89,6 +95,18 @@ impl Target {
         &self.scissor_bind_group
     }
 
+    pub fn fill_color(&self) -> u32 {
+        self.fill_color.value()
+    }
+
+    pub fn fill_color_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        self.fill_color.bind_group_layout()
+    }
+
+    pub fn fill_color_bind_group(&self) -> &wgpu::BindGroup {
+        self.fill_color.bind_group()
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
@@ -109,6 +127,11 @@ impl Target {
         self.scissor = scissor;
         trace!("  Scissor: {:?}", self.scissor);
         trace!("  Dirty: {}", self.dirty);
+    }
+
+    pub fn set_fill_color(&mut self, queue: &wgpu::Queue, value: u32) {
+        self.fill_color.set_value(value);
+        self.fill_color.upload(queue, self.color_image.format.1);
     }
 
     pub fn output(&self) -> Option<&TargetOutput> {
@@ -185,6 +208,10 @@ impl Target {
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+
+        // BPP may have changed, so update fill color
+        self.fill_color
+            .upload(gfx.queue(), self.color_image.format.1);
 
         // TODO: Upload pixels from existing Color Image
 

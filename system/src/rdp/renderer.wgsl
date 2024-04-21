@@ -1,44 +1,44 @@
-const CI_COMBINED_COLOR = 0;
-const CI_TEXEL0_COLOR = 1;
-const CI_TEXEL1_COLOR = 2;
-const CI_PRIM_COLOR = 3;
-const CI_SHADE_COLOR = 4;
-const CI_ENV_COLOR = 5;
-const CI_KEY_CENTER = 6;
-const CI_KEY_SCALE = 7;
-const CI_COMBINED_ALPHA = 8;
-const CI_TEXEL0_ALPHA = 9;
-const CI_TEXEL1_ALPHA = 10;
-const CI_PRIM_ALPHA = 11;
-const CI_SHADE_ALPHA = 12;
-const CI_ENV_ALPHA = 13;
-const CI_LOD_FRACTION = 14;
-const CI_PRIM_LOD_FRACTION = 15;
-const CI_NOISE = 16;
-const CI_CONVERT_K4 = 17;
-const CI_CONVERT_K5 = 18;
-const CI_CONSTANT_1 = 19;
-const CI_CONSTANT_0 = 20;
+const CI_COMBINED_COLOR: u32 = 0;
+const CI_TEXEL0_COLOR: u32 = 1;
+const CI_TEXEL1_COLOR: u32 = 2;
+const CI_PRIM_COLOR: u32 = 3;
+const CI_SHADE_COLOR: u32 = 4;
+const CI_ENV_COLOR: u32 = 5;
+const CI_KEY_CENTER: u32 = 6;
+const CI_KEY_SCALE: u32 = 7;
+const CI_COMBINED_ALPHA: u32 = 8;
+const CI_TEXEL0_ALPHA: u32 = 9;
+const CI_TEXEL1_ALPHA: u32 = 10;
+const CI_PRIM_ALPHA: u32 = 11;
+const CI_SHADE_ALPHA: u32 = 12;
+const CI_ENV_ALPHA: u32 = 13;
+const CI_LOD_FRACTION: u32 = 14;
+const CI_PRIM_LOD_FRACTION: u32 = 15;
+const CI_NOISE: u32 = 16;
+const CI_CONVERT_K4: u32 = 17;
+const CI_CONVERT_K5: u32 = 18;
+const CI_CONSTANT_1: u32 = 19;
+const CI_CONSTANT_0: u32 = 20;
 
-const BI_COMBINED_COLOR = 0;
-const BI_MEMORY_COLOR = 1;
-const BI_BLEND_COLOR = 2;
-const BI_FOG_COLOR = 3;
+const BI_COMBINED_COLOR: u32 = 0;
+const BI_MEMORY_COLOR: u32 = 1;
+const BI_BLEND_COLOR: u32 = 2;
+const BI_FOG_COLOR: u32 = 3;
 
-const BFA_COMBINED_ALPHA = 0;
-const BFA_FOG_ALPHA = 1;
-const BFA_SHADE_ALPHA = 2;
-const BFA_CONSTANT_0 = 3;
+const BFA_COMBINED_ALPHA: u32 = 0;
+const BFA_FOG_ALPHA: u32 = 1;
+const BFA_SHADE_ALPHA: u32 = 2;
+const BFA_CONSTANT_0: u32 = 3;
 
-const BFB_ONE_MINUS_A = 0;
-const BFB_MEMORY_ALPHA = 1;
-const BFB_CONSTANT_1 = 2;
-const BFB_CONSTANT_0 = 3;
+const BFB_ONE_MINUS_A: u32 = 0;
+const BFB_MEMORY_ALPHA: u32 = 1;
+const BFB_CONSTANT_1: u32 = 2;
+const BFB_CONSTANT_0: u32 = 3;
 
-const CT_ONE_CYCLE = 0;
-const CT_TWO_CYCLE = 1;
-const CT_COPY = 2;
-const CT_FILL = 3;
+const CT_ONE_CYCLE: u32 = 0;
+const CT_TWO_CYCLE: u32 = 1;
+const CT_COPY: u32 = 2;
+const CT_FILL: u32 = 3;
 
 struct Combine {
     sub_a: u32,
@@ -74,6 +74,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) tex_coords: vec3<f32>,
+    @location(2) fill_select: f32,
 };
 
 @group(0) @binding(0)
@@ -88,19 +89,29 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.clip_position = vec4<f32>(x, y, z, 1.0);
     out.color = in.color;
     out.tex_coords = in.tex_coords;
+    out.fill_select = in.position[0];
     return out;
 }
 
 @group(1) @binding(0)
-var t_diffuse: texture_2d<f32>;
+var t_fill_color: texture_2d<f32>;
 @group(1) @binding(1)
-var s_diffuse: sampler;
+var s_fill_color: sampler;
 
 @group(2) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(2) @binding(1)
+var s_diffuse: sampler;
+
+@group(3) @binding(0)
 var<uniform> constants: Constants;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    if constants.cycle_type == CT_FILL {
+        return textureSample(t_fill_color, s_fill_color, vec2<f32>(in.fill_select / 4.0, 0.0));
+    }
+
     // TODO: Handle W coordinate
     let size = textureDimensions(t_diffuse);
     let s = in.tex_coords[0] / f32(size[0]);

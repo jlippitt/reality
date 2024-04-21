@@ -76,7 +76,7 @@ impl Decoder {
             0x34 => tmem::load_tile(self, bus, word),
             0x35 => tmem::set_tile(self, bus, word),
             0x36 => rect::rectangle::<false, false>(self, bus, word),
-            0x37 => param::set_fill_color(self, bus, word),
+            0x37 => target::set_fill_color(self, bus, word),
             0x39 => param::set_blend_color(self, bus, word),
             0x3c => mode::set_combine_mode(self, bus, word),
             0x3d => tmem::set_texture_image(self, bus, word),
