@@ -126,36 +126,51 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return sample;
     }
 
-    // TODO: Two cycle mode
-    let combined = vec4<f32>(
-        combine_rgb(constants.combine_rgb_1, sample, in.color),
-        combine_alpha(constants.combine_alpha_1, sample[3], in.color[3]),
+    if constants.cycle_type == CT_ONE_CYCLE {
+        let combined = vec4<f32>(
+            combine_rgb(constants.combine_rgb_1, sample, in.color, vec4<f32>()),
+            combine_alpha(constants.combine_alpha_1, sample[3], in.color[3], 0.0),
+        );
+
+        return blend(constants.blend_0, in.color[3], combined);
+    }
+
+    let combined_0 = vec4<f32>(
+        combine_rgb(constants.combine_rgb_0, sample, in.color, vec4<f32>()),
+        combine_alpha(constants.combine_alpha_0, sample[3], in.color[3], 0.0),
     );
 
-    return blend(constants.blend_0, combined, in.color[3]);
+    let combined_1 = vec4<f32>(
+        combine_rgb(constants.combine_rgb_1, sample, in.color, combined_0),
+        combine_alpha(constants.combine_alpha_1, sample[3], in.color[3], combined_0[3]),
+    );
+
+    let blended_0 = blend(constants.blend_0, in.color[3], combined_1);
+
+    return blend(constants.blend_1, in.color[3], blended_0);
 }
 
-fn combine_rgb(combine: Combine, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32> {
-    let sub_a = combine_rgb_input(combine.sub_a, tex0, shade);
-    let sub_b = combine_rgb_input(combine.sub_b, tex0, shade);
-    let mul = combine_rgb_input(combine.mul, tex0, shade);
-    let add = combine_rgb_input(combine.add, tex0, shade);
+fn combine_rgb(combine: Combine, tex0: vec4<f32>, shade: vec4<f32>, combined: vec4<f32>) -> vec3<f32> {
+    let sub_a = combine_rgb_input(combine.sub_a, tex0, shade, combined);
+    let sub_b = combine_rgb_input(combine.sub_b, tex0, shade, combined);
+    let mul = combine_rgb_input(combine.mul, tex0, shade, combined);
+    let add = combine_rgb_input(combine.add, tex0, shade, combined);
     return (sub_a - sub_b) * mul + add;
 }
 
-fn combine_alpha(combine: Combine, tex0: f32, shade: f32) -> f32 {
-    let sub_a = combine_alpha_input(combine.sub_a, tex0, shade);
-    let sub_b = combine_alpha_input(combine.sub_b, tex0, shade);
-    let mul = combine_alpha_input(combine.mul, tex0, shade);
-    let add = combine_alpha_input(combine.add, tex0, shade);
+fn combine_alpha(combine: Combine, tex0: f32, shade: f32, combined: f32) -> f32 {
+    let sub_a = combine_alpha_input(combine.sub_a, tex0, shade, combined);
+    let sub_b = combine_alpha_input(combine.sub_b, tex0, shade, combined);
+    let mul = combine_alpha_input(combine.mul, tex0, shade, combined);
+    let add = combine_alpha_input(combine.add, tex0, shade, combined);
     return (sub_a - sub_b) * mul + add;
 }
 
-fn blend(blend: Blend, combined: vec4<f32>, shade_alpha: f32) -> vec4<f32> {
+fn blend(blend: Blend, shade_alpha: f32, combined: vec4<f32>) -> vec4<f32> {
     let color = vec3<f32>(combined[0], combined[1], combined[2]);
 
     let p = blend_input(blend.p, vec3<f32>(color));
-    let a = blend_factor_a(blend.a, combined[3], shade_alpha);
+    let a = blend_factor_a(blend.a, shade_alpha, combined[3]);
 
     if blend.m == BI_MEMORY_COLOR {
         // Alpha blending
@@ -171,9 +186,9 @@ fn blend(blend: Blend, combined: vec4<f32>, shade_alpha: f32) -> vec4<f32> {
     return vec4<f32>(p * a + m * b, 1.0);
 }
 
-fn combine_rgb_input(input: u32, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32> {
+fn combine_rgb_input(input: u32, tex0: vec4<f32>, shade: vec4<f32>, combined: vec4<f32>) -> vec3<f32> {
     switch input {
-        case CI_COMBINED_COLOR: { return vec3<f32>(0.0); } // TODO
+        case CI_COMBINED_COLOR: { return vec3<f32>(combined[0], combined[1], combined[2]); }
         case CI_TEXEL0_COLOR: { return vec3<f32>(tex0[0], tex0[1], tex0[2]); }
         case CI_TEXEL1_COLOR: { return vec3<f32>(0.0); } // TODO
         case CI_PRIM_COLOR: {
@@ -193,7 +208,7 @@ fn combine_rgb_input(input: u32, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32>
         }
         case CI_KEY_CENTER: { return vec3<f32>(0.0); } // TODO
         case CI_KEY_SCALE: { return vec3<f32>(0.0); } // TODO
-        case CI_COMBINED_ALPHA: { return vec3<f32>(0.0); } // TODO
+        case CI_COMBINED_ALPHA: { return vec3<f32>(combined[3]); }
         case CI_TEXEL0_ALPHA: { return vec3<f32>(tex0[3]); }
         case CI_TEXEL1_ALPHA: { return vec3<f32>(0.0); } // TODO
         case CI_PRIM_ALPHA: { return vec3<f32>(constants.prim_color[3]); }
@@ -210,9 +225,9 @@ fn combine_rgb_input(input: u32, tex0: vec4<f32>, shade: vec4<f32>) -> vec3<f32>
     }
 }
 
-fn combine_alpha_input(input: u32, tex0: f32, shade: f32) -> f32 {
+fn combine_alpha_input(input: u32, tex0: f32, shade: f32, combined: f32) -> f32 {
     switch input {
-        case CI_COMBINED_ALPHA: { return 0.0; } // TODO
+        case CI_COMBINED_ALPHA: { return combined; }
         case CI_TEXEL0_ALPHA: { return tex0; }
         case CI_TEXEL1_ALPHA: { return 0.0; } // TODO
         case CI_PRIM_ALPHA: { return constants.prim_color[3]; }
@@ -248,7 +263,7 @@ fn blend_input(input: u32, combined: vec3<f32>) -> vec3<f32> {
     }
 }
 
-fn blend_factor_a(input: u32, combined: f32, shade_alpha: f32) -> f32 {
+fn blend_factor_a(input: u32, shade_alpha: f32, combined: f32) -> f32 {
     switch input {
         case BFA_COMBINED_ALPHA: { return combined; }
         case BFA_FOG_ALPHA: { return constants.fog_color[3]; }
