@@ -218,31 +218,31 @@ impl Tmem {
         let mut y_pos = 0;
 
         while tmem_addr < tmem_end {
-            let mut tmem_start = tmem_addr;
+            let mut tmem_line_start = tmem_addr;
 
             while (y_pos & 0x0800) == 0 && tmem_addr < tmem_end {
                 y_pos += y_delta;
                 tmem_addr += 1;
             }
 
-            let dst = &mut self.tmem_data[tmem_start..tmem_addr];
+            let dst = &mut self.tmem_data[tmem_line_start..tmem_addr];
             rdram.read_block(dram_addr, dst);
-            dram_addr += (tmem_addr - tmem_start) << 3;
+            dram_addr += (tmem_addr - tmem_line_start) << 3;
 
             if tmem_addr >= tmem_end {
                 break;
             }
 
-            tmem_start = tmem_addr;
+            tmem_line_start = tmem_addr;
 
             while (y_pos & 0x0800) != 0 && tmem_addr < tmem_end {
                 y_pos += y_delta;
                 tmem_addr += 1;
             }
 
-            let dst = &mut self.tmem_data[tmem_start..tmem_addr];
+            let dst = &mut self.tmem_data[tmem_line_start..tmem_addr];
             rdram.read_block(dram_addr, dst);
-            dram_addr += (tmem_addr - tmem_start) << 3;
+            dram_addr += (tmem_addr - tmem_line_start) << 3;
 
             for word in dst {
                 *word = (*word << 32) | (*word >> 32);
