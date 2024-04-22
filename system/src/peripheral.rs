@@ -44,25 +44,39 @@ impl PeripheralInterface {
     pub fn step(&mut self, rdram: &mut Rdram) {
         if let Some(dma) = &mut self.dma {
             let dram_addr = self.regs.dram_addr as usize & 0x00ff_fffe;
-            let cart_addr = self.regs.cart_addr as usize & 0x0fff_fffe;
+            let cart_addr = self.regs.cart_addr as usize & 0x1fff_fffe;
             let block_len = dma.len.min(128);
 
-            if dma.write {
-                rdram.write_block(
-                    dram_addr,
-                    &self.rom[cart_addr..(cart_addr + block_len as usize)],
-                );
+            if cart_addr >= 0x1000_0000 {
+                // DMA to/from cartridge ROM
+                let cart_addr = cart_addr - 0x1000_0000;
 
+                if dma.write {
+                    rdram.write_block(
+                        dram_addr,
+                        &self.rom[cart_addr..(cart_addr + block_len as usize)],
+                    );
+                } else {
+                    rdram.read_block(
+                        dram_addr,
+                        &mut self.rom[cart_addr..(cart_addr + block_len as usize)],
+                    );
+                }
+            } else {
+                // DMA to/from 64DD area or Flash RAM
+                // Just write zeroes and ignore reads
+                if dma.write {
+                    let buf: [u8; 128] = [0; 128];
+                    rdram.write_block(dram_addr, &buf[0..block_len as usize]);
+                }
+            }
+
+            if dma.write {
                 debug!(
                     "PI DMA: {} bytes written from {:08X} to {:08X}",
                     block_len, self.regs.cart_addr, self.regs.dram_addr,
                 );
             } else {
-                rdram.read_block(
-                    dram_addr,
-                    &mut self.rom[cart_addr..(cart_addr + block_len as usize)],
-                );
-
                 debug!(
                     "PI DMA: {} bytes read from {:08X} to {:08X}",
                     block_len, self.regs.dram_addr, self.regs.cart_addr,
