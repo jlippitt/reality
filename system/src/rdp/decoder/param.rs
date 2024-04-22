@@ -33,7 +33,8 @@ pub fn set_env_color(_decoder: &mut Decoder, ctx: Context, word: u64) {
 pub fn set_prim_depth(_decoder: &mut Decoder, ctx: Context, word: u64) {
     let cmd = SetPrimDepth::from(word);
     trace!("{:?}", cmd);
-    ctx.renderer.set_prim_depth(cmd.z() as f32);
+    ctx.renderer
+        .set_prim_depth(0.5 + cmd.z() as i32 as f32 / 65536.0);
 }
 
 #[bitfield(u64)]

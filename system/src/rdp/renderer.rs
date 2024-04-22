@@ -341,7 +341,7 @@ impl Renderer {
         let z_value = if self.z_buffer.source == ZSource::Primitive {
             self.prim_depth
         } else {
-            0.0
+            0.5
         };
 
         self.display_list

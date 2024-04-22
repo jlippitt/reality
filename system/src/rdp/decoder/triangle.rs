@@ -128,7 +128,6 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         None
     };
 
-    // TODO: If z_source_sel is '1', do we ignore all this?
     let z_values: [f32; 3] = if Z_BUFFER {
         let z_dzdx_word = decoder.commands.pop_front().unwrap();
         let dzde_dzdy_word = decoder.commands.pop_front().unwrap();
@@ -140,16 +139,15 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("Z: {}, DZDX: {}, DZDE: {}, DZDY: {}", z, dzdx, dzde, dzdy);
 
         let z_values = [
-            z + high_y * dzde,
-            z + mid_y * dzde + mid_x * dzdx,
-            z + low_y * dzde,
+            0.5 + (z + high_y * dzde) / 65536.0,
+            0.5 + (z + mid_y * dzde + mid_x * dzdx) / 65536.0,
+            0.5 + (z + low_y * dzde) / 65536.0,
         ];
 
         trace!("  = {:?}", z_values);
         z_values
     } else {
-        // Assume we don't use prim_depth here?
-        [0.0; 3]
+        [0.5; 3]
     };
 
     ctx.renderer
