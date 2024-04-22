@@ -211,9 +211,14 @@ impl Tmem {
         let tmem_start = tile.descriptor.tmem_addr as usize;
         let tmem_end = tmem_start + tmem_width;
 
-        let mut dram_addr = self.texture_image.dram_addr as usize
-            + y_offset * 2048usize.div_ceil(y_delta) * 8
-            + (x_offset * bits_per_pixel + 7) / 8;
+        let mut dram_addr =
+            self.texture_image.dram_addr as usize + (x_offset * bits_per_pixel + 7) / 8;
+
+        if y_delta > 0 {
+            dram_addr += y_offset * 2048usize.div_ceil(y_delta) * 8;
+        } else if y_offset > 0 {
+            panic!("LoadBlock: y_delta of 0 with y_offset {} (greater than 0) would result in infinite DRAM address", y_offset);
+        }
 
         let mut tmem_addr = tmem_start;
         let mut y_pos = 0;
