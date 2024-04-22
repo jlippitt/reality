@@ -84,54 +84,22 @@ impl Framebuffer {
         match display_mode {
             DisplayMode::Blank => self.pixel_buf.fill(0),
             DisplayMode::Reserved => panic!("Use of reserved display mode"),
-            DisplayMode::Color16 => {
-                let src_pitch = buffer_width as usize * 2;
-                let dst_pitch = video_width as usize * 4;
-                let dst_display = dst_pitch.min(buffer_width as usize * 4);
-
-                let mut src = origin as usize;
-                let mut dst = 0;
-
-                for _ in 0..video_height {
-                    let draw_area: &mut [u16] =
-                        bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
-
-                    let read_start = draw_area.len() / 2;
-
-                    rdram.read_block(src, &mut draw_area[read_start..]);
-
-                    for index in 0..(draw_area.len() / 2) {
-                        let word = draw_area[read_start + index].swap_bytes();
-                        let color = gfx::decode_rgba16(word);
-                        bytemuck::cast_slice_mut::<u16, u32>(draw_area)[index] = color;
-                    }
-
-                    self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
-
-                    src += src_pitch;
-                    dst += dst_pitch;
-                }
-            }
-            DisplayMode::Color32 => {
-                let src_pitch = buffer_width as usize * 4;
-                let dst_pitch = video_width as usize * 4;
-                let dst_display = dst_pitch.min(src_pitch);
-
-                let mut src = origin as usize;
-                let mut dst = 0;
-
-                for _ in 0..video_height {
-                    let draw_area: &mut [u32] =
-                        bytemuck::cast_slice_mut(&mut self.pixel_buf[dst..(dst + dst_display)]);
-
-                    rdram.read_block(src, draw_area);
-
-                    self.pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
-
-                    src += src_pitch;
-                    dst += dst_pitch;
-                }
-            }
+            DisplayMode::Color16 => gfx::copy_image_rgba16(
+                rdram,
+                &mut self.pixel_buf,
+                origin,
+                buffer_width,
+                video_width,
+                video_height,
+            ),
+            DisplayMode::Color32 => gfx::copy_image_rgba32(
+                rdram,
+                &mut self.pixel_buf,
+                origin,
+                buffer_width,
+                video_width,
+                video_height,
+            ),
         }
 
         queue.write_texture(

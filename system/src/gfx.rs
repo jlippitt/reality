@@ -1,3 +1,4 @@
+use crate::rdram::Rdram;
 use std::error::Error;
 
 pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
@@ -103,4 +104,68 @@ pub fn decode_rgba16(word: u16) -> u32 {
     let blue = ((word >> 1) as u8 & 31) << 3;
     let alpha = (word as u8 & 1) * 255;
     u32::from_le_bytes([red, green, blue, alpha])
+}
+
+pub fn copy_image_rgba16(
+    rdram: &Rdram,
+    pixel_buf: &mut [u8],
+    dram_addr: u32,
+    dram_width: u32,
+    image_width: u32,
+    image_height: u32,
+) {
+    let src_pitch = dram_width as usize * 2;
+    let dst_pitch = image_width as usize * 4;
+    let dst_display = dst_pitch.min(dram_width as usize * 4);
+
+    let mut src = dram_addr as usize;
+    let mut dst = 0;
+
+    for _ in 0..image_height {
+        let draw_area: &mut [u16] =
+            bytemuck::cast_slice_mut(&mut pixel_buf[dst..(dst + dst_display)]);
+
+        let read_start = draw_area.len() / 2;
+
+        rdram.read_block(src, &mut draw_area[read_start..]);
+
+        for index in 0..(draw_area.len() / 2) {
+            let word = draw_area[read_start + index].swap_bytes();
+            let color = decode_rgba16(word);
+            bytemuck::cast_slice_mut::<u16, u32>(draw_area)[index] = color;
+        }
+
+        pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
+
+        src += src_pitch;
+        dst += dst_pitch;
+    }
+}
+
+pub fn copy_image_rgba32(
+    rdram: &Rdram,
+    pixel_buf: &mut [u8],
+    dram_addr: u32,
+    dram_width: u32,
+    image_width: u32,
+    image_height: u32,
+) {
+    let src_pitch = dram_width as usize * 4;
+    let dst_pitch = image_width as usize * 4;
+    let dst_display = dst_pitch.min(src_pitch);
+
+    let mut src = dram_addr as usize;
+    let mut dst = 0;
+
+    for _ in 0..image_height {
+        let draw_area: &mut [u32] =
+            bytemuck::cast_slice_mut(&mut pixel_buf[dst..(dst + dst_display)]);
+
+        rdram.read_block(src, draw_area);
+
+        pixel_buf[(dst + dst_display)..(dst + dst_pitch)].fill(0);
+
+        src += src_pitch;
+        dst += dst_pitch;
+    }
 }

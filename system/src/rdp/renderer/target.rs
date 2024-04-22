@@ -1,9 +1,10 @@
 use super::{Format, Rect, TextureFormat};
-use crate::gfx::GfxContext;
+use crate::gfx::{self, GfxContext};
 use crate::rdram::Rdram;
 use fill_color::FillColor;
 use std::mem;
 use tracing::{debug, trace};
+use wgpu::util::DeviceExt;
 
 mod fill_color;
 
@@ -15,6 +16,7 @@ pub struct ColorImage {
 }
 
 pub struct TargetOutput {
+    pub color_image: ColorImage,
     pub color_texture: wgpu::Texture,
     pub depth_texture: wgpu::Texture,
     pub sync_buffer: wgpu::Buffer,
@@ -28,6 +30,7 @@ pub struct Target {
     scissor_bind_group: wgpu::BindGroup,
     fill_color: FillColor,
     output: Option<TargetOutput>,
+    pixel_buf: Vec<u8>,
     dirty: bool,
     synced: bool,
 }
@@ -74,6 +77,7 @@ impl Target {
             scissor_bind_group,
             fill_color: FillColor::new(gfx),
             output: None,
+            pixel_buf: vec![],
             dirty: true,
             synced: false,
         }
@@ -155,11 +159,10 @@ impl Target {
         if self.output.is_some() {
             if !self.dirty {
                 return;
-            }
+            };
 
-            // Make sure contents of previous image are written to RDRAM
             self.sync(gfx, rdram);
-        };
+        }
 
         // Width must be padded to a 64-byte boundary for 'copy to buffer' to work
         // TODO: Width is exclusive in 1-Cycle/2-Cycle mode
@@ -176,18 +179,46 @@ impl Target {
             depth_or_array_layers: 1,
         };
 
-        let color_texture = gfx.device().create_texture(&wgpu::TextureDescriptor {
-            label: Some("RDP Target Color Texture"),
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        self.pixel_buf.resize((width * height * 4) as usize, 0);
+
+        match self.color_image.format {
+            (Format::Rgba, 3) => gfx::copy_image_rgba32(
+                rdram,
+                &mut self.pixel_buf,
+                self.color_image.dram_addr,
+                self.color_image.width,
+                width,
+                height,
+            ),
+            (Format::Rgba, 2) => gfx::copy_image_rgba16(
+                rdram,
+                &mut self.pixel_buf,
+                self.color_image.dram_addr,
+                self.color_image.width,
+                width,
+                height,
+            ),
+            (Format::ClrIndex, 1) => todo!("Index8 output format"),
+            _ => panic!("Unsupported Color Image format"),
+        };
+
+        let color_texture = gfx.device().create_texture_with_data(
+            gfx.queue(),
+            &wgpu::TextureDescriptor {
+                label: Some("RDP Target Color Texture"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &self.pixel_buf,
+        );
 
         let depth_texture = gfx.device().create_texture(&wgpu::TextureDescriptor {
             label: Some("RDP Target Depth Texture"),
@@ -216,6 +247,7 @@ impl Target {
         // TODO: Upload pixels from existing Color Image
 
         self.output = Some(TargetOutput {
+            color_image: self.color_image.clone(),
             color_texture,
             depth_texture,
             sync_buffer,
@@ -229,16 +261,15 @@ impl Target {
             return;
         }
 
-        if self.color_image.width == 0 {
-            debug!("  Attempting to sync target output with zero-width color image");
-        };
-
         let Some(output) = &mut self.output else {
-            debug!("  Attempting to sync target output with no output texture set");
+            trace!("  Attempting to sync target output with no output texture set");
             return;
         };
 
-        debug!("  Writing output texture to RDRAM");
+        debug!(
+            "  Writing output texture to RDRAM {:08X}",
+            output.color_image.dram_addr
+        );
 
         let mut encoder = gfx
             .device()
@@ -274,10 +305,10 @@ impl Target {
             let pixel_data = &output.sync_buffer.slice(..).get_mapped_range();
 
             let mut buf_addr = 0;
-            let mut ram_addr = self.color_image.dram_addr as usize;
+            let mut ram_addr = output.color_image.dram_addr as usize;
 
             // TODO: What happens when color image width is not the same as texture width?
-            match self.color_image.format {
+            match output.color_image.format {
                 (Format::Rgba, 3) => {
                     for _ in 0..output.color_texture.height() {
                         rdram.write_block(
@@ -286,7 +317,7 @@ impl Target {
                                 [buf_addr..(buf_addr + output.color_texture.width() as usize * 4)],
                         );
                         buf_addr += output.color_texture.width() as usize * 4;
-                        ram_addr += self.color_image.width as usize * 4;
+                        ram_addr += output.color_image.width as usize * 4;
                     }
                 }
                 (Format::Rgba, 2) => {
@@ -307,7 +338,7 @@ impl Target {
 
                         rdram.write_block(ram_addr, &pixels);
                         buf_addr += output.color_texture.width() as usize * 4;
-                        ram_addr += self.color_image.width as usize * 2;
+                        ram_addr += output.color_image.width as usize * 2;
                     }
                 }
                 (Format::ClrIndex, 1) => todo!("Index8 output format"),
