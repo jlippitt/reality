@@ -1,6 +1,6 @@
 use super::renderer::{
     BlendModeRaw, BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, OtherModes,
-    ZBufferConfig, ZSource,
+    SampleType, ZBufferConfig, ZSource,
 };
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
@@ -54,6 +54,7 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
         ctx.rdram,
         OtherModes {
             cycle_type: cmd.cycle_type(),
+            sample_type: cmd.sample_type(),
             z_buffer: ZBufferConfig {
                 enable: cmd.z_compare_en(),
                 write_enable: cmd.z_update_en(),
@@ -163,7 +164,8 @@ struct SetOtherModes {
     bi_lerp_0: bool,
     bi_lerp_1: bool,
     mid_texel: bool,
-    sample_type: bool,
+    #[bits(1)]
+    sample_type: SampleType,
     tlut_type: bool,
     en_tlut: bool,
     tex_lod_en: bool,
@@ -274,19 +276,6 @@ impl RgbDitherSelect {
     }
 }
 
-impl ZSource {
-    const fn into_bits(self) -> u32 {
-        self as u32
-    }
-
-    const fn from_bits(value: u32) -> Self {
-        match value & 1 {
-            0 => Self::PerPixel,
-            _ => Self::Primitive,
-        }
-    }
-}
-
 impl CycleType {
     const fn into_bits(self) -> u32 {
         unsafe { mem::transmute(self) }
@@ -298,6 +287,32 @@ impl CycleType {
             1 => Self::TwoCycle,
             2 => Self::Copy,
             _ => Self::Fill,
+        }
+    }
+}
+
+impl SampleType {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value & 1 {
+            0 => Self::Point,
+            _ => Self::Bilinear,
+        }
+    }
+}
+
+impl ZSource {
+    const fn into_bits(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_bits(value: u32) -> Self {
+        match value & 1 {
+            0 => Self::PerPixel,
+            _ => Self::Primitive,
         }
     }
 }

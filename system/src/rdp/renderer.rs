@@ -55,9 +55,18 @@ pub struct ZBufferConfig {
     pub source: ZSource,
 }
 
+#[repr(u32)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum SampleType {
+    #[default]
+    Point = 0,
+    Bilinear = 1,
+}
+
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct OtherModes {
     pub cycle_type: CycleType,
+    pub sample_type: SampleType,
     pub z_buffer: ZBufferConfig,
     pub blend_mode: BlendModeRaw,
 }
@@ -67,6 +76,7 @@ pub struct Renderer {
     tmem: Tmem,
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
+    sample_type: SampleType,
     z_buffer: ZBufferConfig,
     prim_depth: f32,
     blend_color: [f32; 4],
@@ -146,6 +156,7 @@ impl Renderer {
             tmem,
             display_list,
             render_pipeline,
+            sample_type: SampleType::default(),
             z_buffer: ZBufferConfig::default(),
             prim_depth: 0.0,
             blend_color: [0.0; 4],
@@ -194,6 +205,9 @@ impl Renderer {
         if mode.z_buffer != self.z_buffer {
             self.flush(gfx, rdram);
         }
+
+        self.sample_type = mode.sample_type;
+        trace!("  Sample Type: {:?}", self.sample_type);
 
         self.z_buffer = mode.z_buffer;
         trace!("  Z Buffer Config: {:?}", self.z_buffer);
@@ -305,8 +319,16 @@ impl Renderer {
         // TODO: Proper blending
         let color = self.blend_color;
 
-        let texture = texture.map(|(tile_id, rect, flip)| {
+        let texture = texture.map(|(tile_id, mut rect, flip)| {
             let handle = self.tmem.get_texture_handle(gfx, tile_id);
+
+            if self.sample_type == SampleType::Bilinear {
+                rect.left += 0.5;
+                rect.right += 0.5;
+                rect.top += 0.5;
+                rect.bottom += 0.5;
+            }
+
             (handle, rect, flip)
         });
 
