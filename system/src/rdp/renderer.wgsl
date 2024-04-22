@@ -123,7 +123,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sample = textureSample(t_diffuse, s_diffuse, vec2<f32>(s, t));
 
     if constants.cycle_type == CT_COPY {
-        return sample;
+        return vec4(sample[0], sample[1], sample[2], 1.0);
     }
 
     if constants.cycle_type == CT_ONE_CYCLE {

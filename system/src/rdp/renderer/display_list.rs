@@ -160,6 +160,10 @@ impl DisplayList {
         self.vertices.is_empty()
     }
 
+    pub fn cycle_type(&self) -> CycleType {
+        self.constants.cycle_type
+    }
+
     pub fn set_combine_mode(&mut self, combine_mode: CombineMode) {
         let prev_value = self.constants.combine_mode;
         self.constants.combine_mode = combine_mode;
