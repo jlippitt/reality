@@ -91,14 +91,16 @@ impl Texture {
         let height = tile.size.height() as u32;
         let format = tile.descriptor.format;
 
+        let tmem_line_len = ((width as usize * (4 << format.1)) + 63) / 64;
+        let tmem_line_count = (height as usize).min(tmem_data.len() / tmem_line_len);
+
         let mut buf: [u64; 4096] = [0; 4096];
 
         let buf_start = deinterleave_tmem_data(
             &mut buf,
             &tmem_data[tile.descriptor.tmem_addr as usize..],
-            width,
-            height,
-            4 << format.1,
+            tmem_line_len,
+            tmem_line_count,
         );
 
         let output = decode_texture(
@@ -113,8 +115,8 @@ impl Texture {
             gfx,
             bind_group_layout,
             width,
-            height,
-            &output[0..(width * height * 4) as usize],
+            tmem_line_count as u32,
+            &output[0..(width as usize * tmem_line_count * 4)],
         )
     }
 
@@ -126,17 +128,15 @@ impl Texture {
 fn deinterleave_tmem_data(
     buf: &mut [u64],
     tmem_data: &[u64],
-    width: u32,
-    height: u32,
-    bits_per_pixel: usize,
+    tmem_line_len: usize,
+    tmem_line_count: usize,
 ) -> usize {
-    let tmem_line_len = ((width as usize * bits_per_pixel) + 63) / 64;
-    let buf_start = buf.len() - tmem_line_len * height as usize;
+    let buf_start = buf.len() - tmem_line_len * tmem_line_count;
 
     let mut buf_index = buf_start;
     let mut tmem_index = 0;
 
-    for line in 0..(height as usize).min(tmem_data.len() / tmem_line_len) {
+    for line in 0..tmem_line_count {
         let tmem_line = &tmem_data[tmem_index..(tmem_index + tmem_line_len)];
         let buf_line = &mut buf[buf_index..(buf_index + tmem_line_len)];
 
