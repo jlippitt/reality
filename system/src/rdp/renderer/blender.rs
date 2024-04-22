@@ -2,6 +2,8 @@ use bytemuck::{Pod, Zeroable};
 use pod_enum::pod_enum;
 use std::fmt::{self, Display, Formatter};
 
+use super::CycleType;
+
 #[allow(clippy::enum_variant_names)]
 #[pod_enum]
 #[repr(u32)]
@@ -116,7 +118,61 @@ impl Display for BlendModeParams {
 }
 
 impl BlendMode {
-    pub fn from_raw(raw: BlendModeRaw) -> Self {
+    pub fn from_raw_with_blend_state(
+        raw: BlendModeRaw,
+        cycle_type: CycleType,
+    ) -> (Self, wgpu::BlendState) {
+        let mode = Self::from_raw(raw);
+
+        let final_blend = if cycle_type == CycleType::TwoCycle {
+            &mode.mode[1]
+        } else {
+            &mode.mode[0]
+        };
+
+        let blend_state = if cycle_type != CycleType::Fill
+            && cycle_type != CycleType::Copy
+            && final_blend.m == BlenderInput::MemoryColor
+        {
+            // pod_enum and match statements don't like each other
+            if final_blend.b == BlendFactorB::OneMinusA {
+                wgpu::BlendState::ALPHA_BLENDING
+            } else if final_blend.b == BlendFactorB::MemoryAlpha {
+                wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::DstAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }
+            } else if final_blend.b == BlendFactorB::Constant1 {
+                wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }
+            } else {
+                wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::Zero,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }
+            }
+        } else {
+            wgpu::BlendState::REPLACE
+        };
+
+        (mode, blend_state)
+    }
+
+    fn from_raw(raw: BlendModeRaw) -> Self {
         Self {
             mode: raw.mode.map(BlendModeParams::from_raw),
         }
@@ -125,6 +181,6 @@ impl BlendMode {
 
 impl Default for BlendMode {
     fn default() -> Self {
-        Self::from_raw(BlendModeRaw::default())
+        Self::from_raw(Default::default())
     }
 }
