@@ -22,16 +22,19 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(
     trace!("  = {:?}", rect);
 
     let texture = if TEXTURE {
-        let Some(coords) = decoder.commands.pop_front() else {
+        let Some(arg) = decoder.commands.pop_front() else {
             decoder.commands.push_front(word);
             decoder.running = false;
             return;
         };
 
-        let sh = (coords >> 48) as i16 as f32 / 32.0;
-        let th = (coords >> 32) as i16 as f32 / 32.0;
-        let dsdx = (coords >> 16) as i16 as f32 / 1024.0;
-        let dtdy = coords as i16 as f32 / 1024.0;
+        let coords = TexCoords::from(arg);
+        trace!("{:?}", coords);
+
+        let sh = coords.s() as i16 as f32 / 32.0;
+        let th = coords.t() as i16 as f32 / 32.0;
+        let dsdx = coords.dsdx() as i16 as f32 / 1024.0;
+        let dtdy = coords.dtdy() as f32 / 1024.0;
 
         trace!(
             "SH = {}, TH = {}, DSDX = {}, DTDY={}, FLIP={}",
@@ -77,4 +80,12 @@ struct Rectangle {
     xl: u32,
     #[bits(8)]
     __: u64,
+}
+
+#[bitfield(u64)]
+struct TexCoords {
+    dtdy: u16,
+    dsdx: u16,
+    t: u16,
+    s: u16,
 }
