@@ -132,10 +132,10 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         let z_dzdx_word = decoder.commands.pop_front().unwrap();
         let dzde_dzdy_word = decoder.commands.pop_front().unwrap();
 
-        let z = ((z_dzdx_word >> 32) as i32) as f32 / 65536.0;
-        let dzdx = (z_dzdx_word as i32) as f32 / 65536.0;
-        let dzde = ((dzde_dzdy_word >> 32) as i32) as f32 / 65536.0;
-        let dzdy = (dzde_dzdy_word as i32) as f32 / 65536.0;
+        let z = ((z_dzdx_word >> 32) as u32 as i32) as f32 / 65536.0;
+        let dzdx = (z_dzdx_word as u32 as i32) as f32 / 65536.0;
+        let dzde = ((dzde_dzdy_word >> 32) as u32 as i32) as f32 / 65536.0;
+        let dzdy = (dzde_dzdy_word as u32 as i32) as f32 / 65536.0;
         trace!("Z: {}, DZDX: {}, DZDE: {}, DZDY: {}", z, dzdx, dzde, dzdy);
 
         let z_values = [
