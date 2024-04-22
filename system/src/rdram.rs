@@ -34,17 +34,11 @@ pub struct Rdram {
 
 impl Rdram {
     pub fn new() -> Self {
-        let mut mem = Memory::with_byte_len(8 * BANK_SIZE);
-
-        // TODO: Remove these default values if/when we eventually get RAM detection working
-        mem.write(0x318, 0x0080_0000u32);
-        mem.write(0x3f0, 0x0080_0000u32);
-
         Self {
             // Default bank configuration (to support ROMs that use simplified
             // booting sequences)
             banks: array::from_fn(|index| (index * BANK_SIZE)),
-            mem,
+            mem: Memory::with_byte_len(8 * BANK_SIZE),
             modules: (0..4)
                 .map(|_| Module {
                     device_id: 0xffff,

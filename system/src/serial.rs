@@ -3,10 +3,11 @@ pub use joybus::JoypadState;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
+use crc::Crc;
 use joybus::Joybus;
 use pif::Pif;
 use regs::Regs;
-use tracing::debug;
+use tracing::{debug, error};
 
 mod joybus;
 mod pif;
@@ -15,6 +16,12 @@ mod regs;
 struct Dma {
     pif_addr: u32,
     write: bool,
+}
+
+struct Cic {
+    variant: u32,
+    seed: u32,
+    rdram_size_addr: Option<u32>,
 }
 
 pub struct SerialInterface {
@@ -137,5 +144,55 @@ impl SerialInterface {
         }
 
         self.rcp_int.raise(RcpIntType::SI);
+    }
+
+    pub fn cic_detect(&mut self, rom_data: &[u8], rdram: &mut Rdram) {
+        let ipl3_checksum = Crc::<u32>::new(&crc::CRC_32_CKSUM).checksum(&rom_data[0x0040..0x1000]);
+        debug!("IPL3 Checksum: {:08X}", ipl3_checksum);
+
+        // This data is written by PIF upon startup
+        // (byte 1 is the seed for the IPL3 CRC check)
+        let cic_result = match ipl3_checksum {
+            0x0013579c => Some(Cic {
+                variant: 6101,
+                seed: 0x0004_3f3f,
+                rdram_size_addr: Some(0x0318),
+            }),
+            0xd1f2d592 => Some(Cic {
+                variant: 6102,
+                seed: 0x0000_3f3f,
+                rdram_size_addr: Some(0x0318),
+            }),
+            0x27df61e2 => Some(Cic {
+                variant: 6103,
+                seed: 0x0000_783f,
+                rdram_size_addr: None,
+            }),
+            0x229f516c => Some(Cic {
+                variant: 6105,
+                seed: 0x0000_913f,
+                rdram_size_addr: Some(0x03f0),
+            }),
+            0xa0dd69f7 => Some(Cic {
+                variant: 6106,
+                seed: 0x0000_853f,
+                rdram_size_addr: None,
+            }),
+            _ => None,
+        };
+
+        if let Some(cic) = cic_result {
+            debug!("CIC Type: NUS-{}", cic.variant);
+            self.pif.write(0x07e4, cic.seed);
+
+            if let Some(address) = cic.rdram_size_addr {
+                rdram.write_single(address as usize, 0x0080_0000u32);
+            }
+        } else {
+            error!(
+                "IPL3 checksum {:08X} not matched. Could not detect CIC type.",
+                ipl3_checksum
+            );
+        }
     }
 }
