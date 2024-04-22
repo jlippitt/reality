@@ -22,6 +22,7 @@ pub enum Mapping {
     PeripheralInterface,
     RdramInterface,
     SerialInterface,
+    DDRegisters,
     CartridgeRom,
     Pif,
 }

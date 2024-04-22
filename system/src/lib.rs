@@ -77,6 +77,7 @@ impl Device {
         memory_map[0x046] = Mapping::PeripheralInterface;
         memory_map[0x047] = Mapping::RdramInterface;
         memory_map[0x048] = Mapping::SerialInterface;
+        memory_map[0x050..=0x05f].fill(Mapping::DDRegisters);
         memory_map[0x100..=0x1fb].fill(Mapping::CartridgeRom);
         memory_map[0x1fc] = Mapping::Pif;
 
@@ -171,6 +172,7 @@ impl cpu::Bus for Bus {
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
             Mapping::RdramInterface => self.rdram.read_interface(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
+            Mapping::DDRegisters => T::max_value(),
             Mapping::CartridgeRom => self.pi.read_rom(address & 0x0fff_ffff),
             Mapping::Pif => self.si.read_pif(address & 0x000f_ffff),
             Mapping::None => {
@@ -200,6 +202,7 @@ impl cpu::Bus for Bus {
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
             Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
+            Mapping::DDRegisters => (), // Ignore
             Mapping::CartridgeRom => match address {
                 0x13ff_0020..=0x13ff_0220 => {
                     self.systest_buffer
