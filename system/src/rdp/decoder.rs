@@ -53,6 +53,7 @@ impl Decoder {
         let opcode = (word >> 56) & 0x3f;
 
         match opcode {
+            0x00 => (), // NOP
             0x08 => triangle::triangle::<false, false, false>(self, bus, word),
             0x09 => triangle::triangle::<false, false, true>(self, bus, word),
             0x0a => triangle::triangle::<false, true, false>(self, bus, word),
