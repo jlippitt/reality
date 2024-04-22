@@ -198,7 +198,7 @@ impl Tmem {
         tile_id: usize,
         x_offset: usize,
         x_size: usize,
-        _y_offset: usize,
+        y_offset: usize,
         y_delta: usize,
     ) {
         // TODO: Finer-grained cache invalidation
@@ -207,14 +207,15 @@ impl Tmem {
         let tile = &self.tiles[tile_id];
         let bits_per_pixel = 4 << self.texture_image.format.1;
 
-        let dram_line_offset = (x_offset * bits_per_pixel + 7) / 8;
+        let tmem_width = (x_size * bits_per_pixel + 63) / 64;
         let tmem_start = tile.descriptor.tmem_addr as usize;
-        let tmem_end = tmem_start + (x_size * bits_per_pixel + 63) / 64;
+        let tmem_end = tmem_start + tmem_width;
 
-        // TODO: Does y_offset ('tl') get used at all?
-        let mut dram_addr = self.texture_image.dram_addr as usize + dram_line_offset;
+        let mut dram_addr = self.texture_image.dram_addr as usize
+            + y_offset * 2048usize.div_ceil(y_delta) * 8
+            + (x_offset * bits_per_pixel + 7) / 8;
+
         let mut tmem_addr = tmem_start;
-
         let mut y_pos = 0;
 
         while tmem_addr < tmem_end {
