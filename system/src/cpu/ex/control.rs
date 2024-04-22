@@ -51,7 +51,7 @@ pub fn jalr(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
 
     DcOperation::RegWrite {
         reg: rd,
-        value: cpu.rf.pc.wrapping_add(4) as i64,
+        value: cpu.rf.pc.wrapping_add(4) as i32 as i64,
     }
 }
 
@@ -169,7 +169,7 @@ fn link<const LINK: bool>(cpu: &Cpu) -> DcOperation {
     if LINK {
         DcOperation::RegWrite {
             reg: 31,
-            value: cpu.rf.pc.wrapping_add(4) as i64,
+            value: cpu.rf.pc.wrapping_add(4) as i32 as i64,
         }
     } else {
         DcOperation::Nop
