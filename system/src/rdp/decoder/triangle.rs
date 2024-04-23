@@ -139,15 +139,15 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("Z: {}, DZDX: {}, DZDE: {}, DZDY: {}", z, dzdx, dzde, dzdy);
 
         let z_values = [
-            0.5 + (z + high_y * dzde) / 65536.0,
-            0.5 + (z + mid_y * dzde + mid_x * dzdx) / 65536.0,
-            0.5 + (z + low_y * dzde) / 65536.0,
+            (z + high_y * dzde) / 32768.0,
+            (z + mid_y * dzde + mid_x * dzdx) / 32768.0,
+            (z + low_y * dzde) / 32768.0,
         ];
 
         trace!("  = {:?}", z_values);
         z_values
     } else {
-        [0.5; 3]
+        [0.0; 3]
     };
 
     ctx.renderer
