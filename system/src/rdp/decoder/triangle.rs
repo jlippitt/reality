@@ -24,9 +24,9 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     let edge_low = Edge::from(decoder.commands.pop_front().unwrap());
     let edge_high = Edge::from(decoder.commands.pop_front().unwrap());
     let edge_mid = Edge::from(decoder.commands.pop_front().unwrap());
-    trace!("{:?}", edge_low);
-    trace!("{:?}", edge_high);
-    trace!("{:?}", edge_mid);
+    trace!("L {:?}", edge_low);
+    trace!("H {:?}", edge_high);
+    trace!("M {:?}", edge_mid);
 
     let yh = cmd.yh() as f32 / 4.0;
     let ym = cmd.ym() as f32 / 4.0;
