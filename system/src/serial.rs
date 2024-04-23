@@ -19,7 +19,7 @@ struct Dma {
 }
 
 struct Cic {
-    variant: u32,
+    variant: &'static str,
     seed: u32,
     rdram_size_addr: Option<u32>,
 }
@@ -154,35 +154,40 @@ impl SerialInterface {
         // (byte 1 is the seed for the IPL3 CRC check)
         let cic_result = match ipl3_checksum {
             0x0013579c => Some(Cic {
-                variant: 6101,
+                variant: "NUS-6101",
                 seed: 0x0004_3f3f,
                 rdram_size_addr: Some(0x0318),
             }),
             0xd1f2d592 => Some(Cic {
-                variant: 6102,
+                variant: "NUS-6102",
                 seed: 0x0000_3f3f,
                 rdram_size_addr: Some(0x0318),
             }),
             0x27df61e2 => Some(Cic {
-                variant: 6103,
+                variant: "NUS-6103",
                 seed: 0x0000_783f,
                 rdram_size_addr: None,
             }),
             0x229f516c => Some(Cic {
-                variant: 6105,
+                variant: "NUS-6105",
                 seed: 0x0000_913f,
                 rdram_size_addr: Some(0x03f0),
             }),
             0xa0dd69f7 => Some(Cic {
-                variant: 6106,
+                variant: "NUS-6106",
                 seed: 0x0000_853f,
                 rdram_size_addr: None,
+            }),
+            0x522fd8eb => Some(Cic {
+                variant: "MiniIPL",
+                seed: 0x0000_3f3f,
+                rdram_size_addr: Some(0x0318),
             }),
             _ => None,
         };
 
         if let Some(cic) = cic_result {
-            debug!("CIC Type: NUS-{}", cic.variant);
+            debug!("CIC Type: {}", cic.variant);
             self.pif.write(0x07e4, cic.seed);
 
             if let Some(address) = cic.rdram_size_addr {
