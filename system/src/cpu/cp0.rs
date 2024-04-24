@@ -11,6 +11,8 @@ use tracing::{debug, trace, warn};
 const TIMER_INT: u8 = 0x80;
 const SOFTWARE_INT: u8 = 0x03;
 
+const EXCEPTION_DELAY: u64 = 2;
+
 mod error;
 mod ex;
 mod regs;
@@ -303,4 +305,6 @@ pub fn except(cpu: &mut Cpu, ex: Exception, stage: ExceptionStage) {
             trace!("  EPC: {:08X}", regs.epc);
         }
     };
+
+    cpu.stall += EXCEPTION_DELAY;
 }

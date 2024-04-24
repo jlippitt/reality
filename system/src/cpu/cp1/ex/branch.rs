@@ -11,6 +11,8 @@ pub fn bc1f<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperatio
         offset
     );
 
+    cpu.stall += 1;
+
     cpu.branch::<LIKELY>(!cpu.cp1.status.c(), offset);
     DcOperation::Nop
 }
@@ -24,6 +26,8 @@ pub fn bc1t<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperatio
         if LIKELY { "L" } else { "" },
         offset
     );
+
+    cpu.stall += 1;
 
     cpu.branch::<LIKELY>(cpu.cp1.status.c(), offset);
     DcOperation::Nop

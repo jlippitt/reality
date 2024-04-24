@@ -6,6 +6,7 @@ pub fn add<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let fs = ((word >> 11) & 31) as usize;
     let fd = ((word >> 6) & 31) as usize;
     trace!("{:08X}: ADD.{} F{}, F{}", pc, F::NAME, fd, fs);
+    cpu.stall += 2;
     F::set_cp1_reg(cpu, fd, F::cp1_reg(cpu, fs) + F::cp1_reg(cpu, ft)).into()
 }
 
@@ -14,6 +15,7 @@ pub fn sub<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let fs = ((word >> 11) & 31) as usize;
     let fd = ((word >> 6) & 31) as usize;
     trace!("{:08X}: SUB.{} F{}, F{}", pc, F::NAME, fd, fs);
+    cpu.stall += 2;
     F::set_cp1_reg(cpu, fd, F::cp1_reg(cpu, fs) - F::cp1_reg(cpu, ft)).into()
 }
 
@@ -22,6 +24,8 @@ pub fn mul<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let fs = ((word >> 11) & 31) as usize;
     let fd = ((word >> 6) & 31) as usize;
     trace!("{:08X}: MUL.{} F{}, F{}", pc, F::NAME, fd, fs);
+    // TODO: Double this if using 'D' format
+    cpu.stall += 5;
     F::set_cp1_reg(cpu, fd, F::cp1_reg(cpu, fs) * F::cp1_reg(cpu, ft)).into()
 }
 
@@ -30,6 +34,8 @@ pub fn div<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let fs = ((word >> 11) & 31) as usize;
     let fd = ((word >> 6) & 31) as usize;
     trace!("{:08X}: DIV.{} F{}, F{}", pc, F::NAME, fd, fs);
+    // TODO: Double this if using 'D' format
+    cpu.stall += 29;
     F::set_cp1_reg(cpu, fd, F::cp1_reg(cpu, fs) / F::cp1_reg(cpu, ft)).into()
 }
 
@@ -37,6 +43,7 @@ pub fn sqrt<F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
     let fs = ((word >> 11) & 31) as usize;
     let fd = ((word >> 6) & 31) as usize;
     trace!("{:08X}: SQRT.{} F{}, F{}", pc, F::NAME, fd, fs);
+    cpu.stall += 29;
     F::set_cp1_reg(cpu, fd, F::cp1_reg(cpu, fs).sqrt()).into()
 }
 

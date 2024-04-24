@@ -3,6 +3,7 @@ use tracing::trace;
 
 pub trait MulDivOperator {
     const NAME: &'static str;
+    const STALL: u64;
     fn apply(lhs: i64, rhs: i64) -> (i64, i64);
 }
 
@@ -17,6 +18,7 @@ pub struct Ddivu;
 
 impl MulDivOperator for Mult {
     const NAME: &'static str = "MULT";
+    const STALL: u64 = 5;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         let result = lhs as i32 as i64 * rhs as i32 as i64;
@@ -26,6 +28,7 @@ impl MulDivOperator for Mult {
 
 impl MulDivOperator for Dmult {
     const NAME: &'static str = "DMULT";
+    const STALL: u64 = 8;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         let result = lhs as i128 * rhs as i128;
@@ -35,6 +38,7 @@ impl MulDivOperator for Dmult {
 
 impl MulDivOperator for Multu {
     const NAME: &'static str = "MULTU";
+    const STALL: u64 = 5;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         let result = lhs as u32 as u64 * rhs as u32 as u64;
@@ -44,6 +48,7 @@ impl MulDivOperator for Multu {
 
 impl MulDivOperator for Dmultu {
     const NAME: &'static str = "DMULTU";
+    const STALL: u64 = 8;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         let result = lhs as u64 as u128 * rhs as u64 as u128;
@@ -53,6 +58,7 @@ impl MulDivOperator for Dmultu {
 
 impl MulDivOperator for Div {
     const NAME: &'static str = "DIV";
+    const STALL: u64 = 37;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         if rhs != 0 {
@@ -71,6 +77,7 @@ impl MulDivOperator for Div {
 
 impl MulDivOperator for Ddiv {
     const NAME: &'static str = "DDIV";
+    const STALL: u64 = 69;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         if rhs != 0 {
@@ -83,6 +90,7 @@ impl MulDivOperator for Ddiv {
 
 impl MulDivOperator for Divu {
     const NAME: &'static str = "DIVU";
+    const STALL: u64 = 37;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         if rhs != 0 {
@@ -98,6 +106,7 @@ impl MulDivOperator for Divu {
 
 impl MulDivOperator for Ddivu {
     const NAME: &'static str = "DDIVU";
+    const STALL: u64 = 69;
 
     fn apply(lhs: i64, rhs: i64) -> (i64, i64) {
         if rhs != 0 {
@@ -127,6 +136,8 @@ pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOpera
 
     trace!("  HI: {:016X}", cpu.hi);
     trace!("  LO: {:016X}", cpu.lo);
+
+    cpu.stall += Op::STALL;
 
     DcOperation::Nop
 }

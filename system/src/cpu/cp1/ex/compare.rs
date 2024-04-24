@@ -41,6 +41,8 @@ pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperati
     cpu.cp1.status.set_c(C::test(result));
     trace!("  C: {}", cpu.cp1.status.c());
 
+    cpu.stall += 1;
+
     DcOperation::Nop
 }
 

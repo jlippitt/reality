@@ -17,6 +17,18 @@ mod ex;
 const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 const IPL3_START: u32 = 0xA4000040;
 
+// Fixed values taken from Cen64
+// TODO: One day these will be dynamic
+const RW_SINGLE_WORD_DELAY: u64 = 38;
+const REFRESH_ICACHE_DELAY: u64 = 48;
+
+#[cfg(feature = "dcache")]
+const REFRESH_DCACHE_DELAY: u64 = 44;
+
+// Try to guess average DCache hit rate
+#[cfg(not(feature = "dcache"))]
+const RW_SINGLE_WORD_DCACHE_DELAY: u64 = 4;
+
 enum WbOperation {
     Cp0RegWrite { reg: usize, value: i64 },
     Cp1ControlRegWrite { reg: usize, value: u32 },
@@ -59,6 +71,7 @@ pub trait Bus {
 }
 
 pub struct Cpu {
+    stall: u64,
     wb: WbState,
     dc: DcState,
     ex: ExState,
@@ -95,6 +108,7 @@ impl Cpu {
         };
 
         Self {
+            stall: 0,
             wb: WbState::default(),
             dc: DcState::default(),
             ex: ExState::default(),
@@ -113,6 +127,11 @@ impl Cpu {
     }
 
     pub fn step(&mut self, bus: &mut impl Bus) {
+        if self.stall > 0 {
+            self.stall -= 1;
+            return;
+        }
+
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;
@@ -228,6 +247,12 @@ impl Cpu {
             });
         }
 
+        self.stall += if result.cached {
+            RW_SINGLE_WORD_DCACHE_DELAY
+        } else {
+            RW_SINGLE_WORD_DELAY
+        };
+
         Some(bus.read_single(result.paddr))
     }
 
@@ -268,6 +293,12 @@ impl Cpu {
                 });
         }
 
+        self.stall += if result.cached {
+            RW_SINGLE_WORD_DCACHE_DELAY
+        } else {
+            RW_SINGLE_WORD_DELAY
+        };
+
         bus.write_single(result.paddr, value);
     }
 
@@ -293,9 +324,11 @@ impl Cpu {
         if result.cached {
             return self.icache.read(vaddr, result.paddr, |line| {
                 bus.read_block(result.paddr & !0x1f, line.bytes_mut());
+                self.stall += REFRESH_ICACHE_DELAY;
             });
         }
 
+        self.stall += RW_SINGLE_WORD_DELAY;
         bus.read_single(result.paddr)
     }
 
@@ -307,6 +340,7 @@ impl Cpu {
                 ((line.ptag() & !1) << 12) | (address & 0x1ff0),
                 line.bytes(),
             );
+            self.stall += REFRESH_DCACHE_DELAY;
         }
 
         bus.read_block(address & 0x1fff_fff0, line.bytes_mut());
