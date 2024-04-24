@@ -126,12 +126,17 @@ impl Cpu {
         }
     }
 
+    #[inline(always)]
     pub fn step(&mut self, bus: &mut impl Bus) {
         if self.stall > 0 {
             self.stall -= 1;
             return;
         }
 
+        self.step_cycle(bus);
+    }
+
+    fn step_cycle(&mut self, bus: &mut impl Bus) {
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;
