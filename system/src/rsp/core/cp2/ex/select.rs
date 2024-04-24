@@ -189,6 +189,7 @@ impl ComputeOperator for VCr {
         };
 
         *acc = (*acc & !0xffff) | result as u64;
+        flags.remove(Flags::CARRY | Flags::NOT_EQUAL | Flags::COMPARE_EXTENSION);
         result
     }
 }
