@@ -126,7 +126,10 @@ impl Target {
         trace!("  Dirty: {}", self.dirty);
     }
 
-    pub fn set_scissor(&mut self, scissor: Rect) {
+    pub fn set_scissor(&mut self, mut scissor: Rect) {
+        // Zero-size scissor causes bad things to happen
+        scissor.right = scissor.right.max(scissor.left + 1.0);
+        scissor.bottom = scissor.bottom.max(scissor.top + 1.0);
         self.dirty |= scissor != self.scissor;
         self.scissor = scissor;
         trace!("  Scissor: {:?}", self.scissor);

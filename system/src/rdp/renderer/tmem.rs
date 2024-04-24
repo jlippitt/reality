@@ -288,9 +288,13 @@ impl Tmem {
 
     pub fn bind_group(&self, handle: Option<u128>) -> &wgpu::BindGroup {
         if let Some(hash_value) = handle {
-            self.texture_cache.get(&hash_value).unwrap().bind_group()
-        } else {
-            self.null_texture.bind_group()
+            if let Some(texture) = self.texture_cache.get(&hash_value) {
+                return texture.bind_group();
+            }
+
+            panic!("Texture with handle {:032X} should be in cache", hash_value);
         }
+
+        self.null_texture.bind_group()
     }
 }
