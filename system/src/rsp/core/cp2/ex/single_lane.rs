@@ -3,6 +3,7 @@ use tracing::trace;
 
 pub trait SingleLaneOperator {
     const NAME: &'static str;
+    const VT_EL_MAGIC: bool;
     fn apply(cp2: &mut Cp2, input: u16) -> u16;
 }
 
@@ -24,6 +25,7 @@ struct Rsq;
 
 impl SingleLaneOperator for VMov {
     const NAME: &'static str = "VMOV";
+    const VT_EL_MAGIC: bool = true;
 
     fn apply(_cp2: &mut Cp2, input: u16) -> u16 {
         input
@@ -40,6 +42,7 @@ impl ReciprocalOperator for Rcp {
 
 impl SingleLaneOperator for VRcp {
     const NAME: &'static str = "VRCP";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = input as i16 as i32;
@@ -49,6 +52,7 @@ impl SingleLaneOperator for VRcp {
 
 impl SingleLaneOperator for VRcpl {
     const NAME: &'static str = "VRCPL";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = if cp2.rcp_high {
@@ -63,6 +67,7 @@ impl SingleLaneOperator for VRcpl {
 
 impl SingleLaneOperator for VRcph {
     const NAME: &'static str = "VRCPH";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         cp2.rcp_high = true;
@@ -81,6 +86,7 @@ impl ReciprocalOperator for Rsq {
 
 impl SingleLaneOperator for VRsq {
     const NAME: &'static str = "VRSQ";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = input as i16 as i32;
@@ -90,6 +96,7 @@ impl SingleLaneOperator for VRsq {
 
 impl SingleLaneOperator for VRsql {
     const NAME: &'static str = "VRSQL";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         let rcp_input = if cp2.rcp_high {
@@ -104,6 +111,7 @@ impl SingleLaneOperator for VRsql {
 
 impl SingleLaneOperator for VRsqh {
     const NAME: &'static str = "VRSQH";
+    const VT_EL_MAGIC: bool = false;
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
         cp2.rcp_high = true;
@@ -128,11 +136,15 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
         vt_el_raw,
     );
 
-    let vt_el = match vt_el_raw {
-        0..=1 => vd_el_raw & 0b111,
-        2..=3 => (vd_el_raw & 0b110) | (vt_el_raw & 0b001),
-        4..=7 => (vd_el_raw & 0b100) | (vt_el_raw & 0b011),
-        _ => vt_el_raw & 0b111,
+    let vt_el = if Op::VT_EL_MAGIC {
+        match vt_el_raw {
+            0..=1 => vd_el_raw & 0b111,
+            2..=3 => (vd_el_raw & 0b110) | (vt_el_raw & 0b001),
+            4..=7 => (vd_el_raw & 0b100) | (vt_el_raw & 0b011),
+            _ => vt_el_raw & 0b111,
+        }
+    } else {
+        vt_el_raw & 7
     };
 
     let vd_el = vd_el_raw & 0b111;
