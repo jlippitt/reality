@@ -113,7 +113,7 @@ impl ComputeOperator for VCl {
             }
         };
 
-        *acc = result as u64;
+        *acc = (*acc & !0xffff) | result as u64;
         flags.remove(Flags::CARRY | Flags::NOT_EQUAL | Flags::COMPARE_EXTENSION);
         result
     }
@@ -156,7 +156,7 @@ impl ComputeOperator for VCh {
             }
         };
 
-        *acc = result as u64;
+        *acc = (*acc & !0xffff) | result as u64;
         result
     }
 }
@@ -188,7 +188,7 @@ impl ComputeOperator for VCr {
             }
         };
 
-        *acc = result as u64;
+        *acc = (*acc & !0xffff) | result as u64;
         result
     }
 }
