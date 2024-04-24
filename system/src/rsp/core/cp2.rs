@@ -15,8 +15,9 @@ pub struct Cp2 {
     regs: [Vector; 32],
     acc: Accumulator,
     flags: FlagVector,
-    div_in: u32,
-    div_out: u32,
+    rcp_in: u32,
+    rcp_out: u32,
+    rcp_high: bool,
     reciprocal: [u16; LOOKUP_TABLE_SIZE],
     inv_sqrt: [u16; LOOKUP_TABLE_SIZE],
 }
@@ -33,8 +34,9 @@ impl Cp2 {
             regs: Default::default(),
             acc: Accumulator::default(),
             flags: FlagVector::default(),
-            div_in: 0,
-            div_out: 0,
+            rcp_in: 0,
+            rcp_out: 0,
+            rcp_high: false,
             reciprocal: array::from_fn(reciprocal),
             inv_sqrt: array::from_fn(inv_sqrt),
         }

@@ -51,7 +51,12 @@ impl SingleLaneOperator for VRcpl {
     const NAME: &'static str = "VRCPL";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
+        let rcp_input = if cp2.rcp_high {
+            (cp2.rcp_in | input as u32) as i32
+        } else {
+            input as i16 as i32
+        };
+
         calc_reciprocal::<Rcp>(cp2, rcp_input)
     }
 }
@@ -60,8 +65,9 @@ impl SingleLaneOperator for VRcph {
     const NAME: &'static str = "VRCPH";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        cp2.div_in = (input as u32) << 16;
-        (cp2.div_out >> 16) as u16
+        cp2.rcp_high = true;
+        cp2.rcp_in = (input as u32) << 16;
+        (cp2.rcp_out >> 16) as u16
     }
 }
 
@@ -83,20 +89,26 @@ impl SingleLaneOperator for VRsq {
 }
 
 impl SingleLaneOperator for VRsql {
-    const NAME: &'static str = "VRsql";
+    const NAME: &'static str = "VRSQL";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        let rcp_input = ((cp2.div_in & 0xffff_0000) as i32) | input as i16 as i32;
+        let rcp_input = if cp2.rcp_high {
+            (cp2.rcp_in | input as u32) as i32
+        } else {
+            input as i16 as i32
+        };
+
         calc_reciprocal::<Rsq>(cp2, rcp_input)
     }
 }
 
 impl SingleLaneOperator for VRsqh {
-    const NAME: &'static str = "VRsqh";
+    const NAME: &'static str = "VRSQH";
 
     fn apply(cp2: &mut Cp2, input: u16) -> u16 {
-        cp2.div_in = (input as u32) << 16;
-        (cp2.div_out >> 16) as u16
+        cp2.rcp_high = true;
+        cp2.rcp_in = (input as u32) << 16;
+        (cp2.rcp_out >> 16) as u16
     }
 }
 
@@ -151,22 +163,25 @@ pub fn vnull(_core: &mut Core, pc: u32) -> DfOperation {
 
 fn calc_reciprocal<Op: ReciprocalOperator>(cp2: &mut Cp2, input: i32) -> u16 {
     let mask = input >> 31;
-    let div_in = input.wrapping_abs();
+    let mut data = input ^ mask;
 
-    let result = match div_in as u32 {
-        0 => 0x7fff_ffff,
-        0xffff_8000 => 0xffff_0000,
-        _ => {
-            let shift = div_in.leading_zeros();
-            let index = ((div_in << shift) & 0x7fc0_0000) >> 22;
-            let value = Op::apply(cp2, index as usize, shift as usize);
-            ((((0x10000 | value as u32 as i32) << 14) >> ((31 - shift) >> Op::MOD_SHIFT)) ^ mask)
-                as u32
-        }
+    if input > -32768 {
+        data -= mask;
+    }
+
+    let result = if data == 0 {
+        0x7fff_ffff
+    } else if input as u32 == 0xffff_8000 {
+        0xffff_0000
+    } else {
+        let shift = data.leading_zeros();
+        let index = ((data << shift) & 0x7fc0_0000) >> 22;
+        let value = Op::apply(cp2, index as usize, shift as usize);
+        ((((0x10000 | value as u32 as i32) << 14) >> ((31 - shift) >> Op::MOD_SHIFT)) ^ mask) as u32
     };
 
-    cp2.div_in = div_in as u32;
-    cp2.div_out = result;
+    cp2.rcp_high = false;
+    cp2.rcp_out = result;
 
     result as u16
 }
