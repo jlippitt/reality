@@ -72,17 +72,6 @@ impl Tlb {
     }
 
     pub fn translate(&self, asid: u64, vaddr: u32) -> Option<TlbResult> {
-        let region = vaddr >> 29;
-
-        if (region & 6) == 4 {
-            return Some(TlbResult {
-                paddr: vaddr & 0x1fff_ffff,
-                valid: true,
-                cached: region == 4,
-                writable: true,
-            });
-        }
-
         // Mapped area
         for entry in &self.entries {
             let page_mask = u32::from(entry.page_mask) | 0x1fff;

@@ -138,14 +138,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         }
         DcOperation::LoadByte { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u8>(bus, addr)?;
+            let value = cpu.read_data::<u8>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i8 as i64;
             trace!("  [{:08X} => {:02X}]", addr, value);
         }
         DcOperation::LoadByteUnsigned { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u8>(bus, addr)?;
+            let value = cpu.read_data::<u8>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:02X}]", addr, value);
@@ -153,7 +153,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadHalfword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
-            let value = cpu.read::<u16>(bus, addr)? as i16 as i64;
+            let value = cpu.read_data::<u16>(bus, addr)? as i16 as i64;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i16 as i64;
             trace!("  [{:08X} => {:04X}]", addr, value);
@@ -161,7 +161,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadHalfwordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
-            let value = cpu.read::<u16>(bus, addr)?;
+            let value = cpu.read_data::<u16>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:04X}]", addr, value);
@@ -169,14 +169,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadWord { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr)?;
+            let value = cpu.read_data::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32 as i64;
             trace!("  [{:08X} => {:08X}]", addr, value);
         }
         DcOperation::LoadWordLeft { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u32>(bus, addr & !3)?;
+            let value = cpu.read_data::<u32>(bus, addr & !3)?;
             let shift = (addr & 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
@@ -185,7 +185,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         }
         DcOperation::LoadWordRight { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u32>(bus, addr & !3)?;
+            let value = cpu.read_data::<u32>(bus, addr & !3)?;
             let shift = (addr & 3 ^ 3) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value =
@@ -195,7 +195,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadWordUnsigned { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr)?;
+            let value = cpu.read_data::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:08X}]", addr, value);
@@ -203,14 +203,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr)?;
+            let value = cpu.read_data::<u64>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::LoadDoublewordLeft { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u64>(bus, addr & !7)?;
+            let value = cpu.read_data::<u64>(bus, addr & !7)?;
             let shift = (addr & 7) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX << shift) | (value << shift)) as i64;
@@ -218,7 +218,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         }
         DcOperation::LoadDoublewordRight { reg, addr } => {
             // TODO: Stall cycles
-            let value = cpu.read::<u64>(bus, addr & !7)?;
+            let value = cpu.read_data::<u64>(bus, addr & !7)?;
             let shift = (addr & 7 ^ 7) << 3;
             cpu.wb.reg = reg;
             cpu.wb.value = (cpu.regs[reg] as u64 & !(u64::MAX >> shift) | (value >> shift)) as i64;
@@ -227,7 +227,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadLinked { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr)?;
+            let value = cpu.read_data::<u32>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i32 as i64;
             trace!("  [{:08X} => {:08X}]", addr, value);
@@ -243,7 +243,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::LoadLinkedDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr)?;
+            let value = cpu.read_data::<u64>(bus, addr)?;
             cpu.wb.reg = reg;
             cpu.wb.value = value as i64;
             trace!("  [{:08X} => {:016X}]", addr, value);
@@ -259,32 +259,32 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::StoreByte { value, addr } => {
             // TODO: Stall cycles
             trace!("  [{:08X} <= {:02X}]", addr, value);
-            cpu.write(bus, addr, value);
+            cpu.write_data(bus, addr, value);
         }
         DcOperation::StoreHalfword { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 1) == 0);
             trace!("  [{:08X} <= {:04X}]", addr, value);
-            cpu.write(bus, addr, value);
+            cpu.write_data(bus, addr, value);
         }
         DcOperation::StoreWord { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
             trace!("  [{:08X} <= {:08X}]", addr, value);
-            cpu.write(bus, addr, value);
+            cpu.write_data(bus, addr, value);
         }
         DcOperation::StoreWordLeft { value, addr } => {
             // TODO: Stall cycles
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 3 {
-                0 => cpu.write(bus, addr & !3, value),
+                0 => cpu.write_data(bus, addr & !3, value),
                 1 => {
-                    cpu.write(bus, addr & !3 | 1, (value >> 24) as u8);
-                    cpu.write(bus, addr & !3 | 2, (value >> 8) as u16);
+                    cpu.write_data(bus, addr & !3 | 1, (value >> 24) as u8);
+                    cpu.write_data(bus, addr & !3 | 2, (value >> 8) as u16);
                 }
-                2 => cpu.write(bus, addr & !3 | 2, (value >> 16) as u16),
-                _ => cpu.write(bus, addr & !3 | 3, (value >> 24) as u8),
+                2 => cpu.write_data(bus, addr & !3 | 2, (value >> 16) as u16),
+                _ => cpu.write_data(bus, addr & !3 | 3, (value >> 24) as u8),
             }
         }
         DcOperation::StoreWordRight { value, addr } => {
@@ -292,47 +292,47 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 3 {
-                0 => cpu.write(bus, addr & !3, value as u8),
-                1 => cpu.write(bus, addr & !3, value as u16),
+                0 => cpu.write_data(bus, addr & !3, value as u8),
+                1 => cpu.write_data(bus, addr & !3, value as u16),
                 2 => {
-                    cpu.write(bus, addr & !3, (value >> 8) as u16);
-                    cpu.write(bus, addr & !3 | 2, value as u8);
+                    cpu.write_data(bus, addr & !3, (value >> 8) as u16);
+                    cpu.write_data(bus, addr & !3 | 2, value as u8);
                 }
-                _ => cpu.write(bus, addr & !3, value),
+                _ => cpu.write_data(bus, addr & !3, value),
             }
         }
         DcOperation::StoreDoubleword { value, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
             trace!("  [{:08X} <= {:016X}]", addr, value);
-            cpu.write(bus, addr, value);
+            cpu.write_data(bus, addr, value);
         }
         DcOperation::StoreDoublewordLeft { value, addr } => {
             // TODO: Stall cycles
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 7 {
-                0 => cpu.write(bus, addr & !7, value),
+                0 => cpu.write_data(bus, addr & !7, value),
                 1 => {
-                    cpu.write(bus, addr & !7 | 1, (value >> 56) as u8);
-                    cpu.write(bus, addr & !7 | 2, (value >> 40) as u16);
-                    cpu.write(bus, addr & !7 | 4, (value >> 8) as u32);
+                    cpu.write_data(bus, addr & !7 | 1, (value >> 56) as u8);
+                    cpu.write_data(bus, addr & !7 | 2, (value >> 40) as u16);
+                    cpu.write_data(bus, addr & !7 | 4, (value >> 8) as u32);
                 }
                 2 => {
-                    cpu.write(bus, addr & !7 | 2, (value >> 48) as u16);
-                    cpu.write(bus, addr & !7 | 4, (value >> 16) as u32);
+                    cpu.write_data(bus, addr & !7 | 2, (value >> 48) as u16);
+                    cpu.write_data(bus, addr & !7 | 4, (value >> 16) as u32);
                 }
                 3 => {
-                    cpu.write(bus, addr & !7 | 3, (value >> 56) as u8);
-                    cpu.write(bus, addr & !7 | 4, (value >> 24) as u32);
+                    cpu.write_data(bus, addr & !7 | 3, (value >> 56) as u8);
+                    cpu.write_data(bus, addr & !7 | 4, (value >> 24) as u32);
                 }
-                4 => cpu.write(bus, addr & !7 | 4, (value >> 32) as u32),
+                4 => cpu.write_data(bus, addr & !7 | 4, (value >> 32) as u32),
                 5 => {
-                    cpu.write(bus, addr & !7 | 5, (value >> 56) as u8);
-                    cpu.write(bus, addr & !7 | 6, (value >> 40) as u16);
+                    cpu.write_data(bus, addr & !7 | 5, (value >> 56) as u8);
+                    cpu.write_data(bus, addr & !7 | 6, (value >> 40) as u16);
                 }
-                6 => cpu.write(bus, addr & !7 | 6, (value >> 48) as u16),
-                _ => cpu.write(bus, addr & !7 | 7, (value >> 56) as u8),
+                6 => cpu.write_data(bus, addr & !7 | 6, (value >> 48) as u16),
+                _ => cpu.write_data(bus, addr & !7 | 7, (value >> 56) as u8),
             }
         }
         DcOperation::StoreDoublewordRight { value, addr } => {
@@ -340,27 +340,27 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
             trace!("  [{:08X} <= {:08X}]", addr, value);
 
             match addr & 7 {
-                0 => cpu.write(bus, addr & !7, value as u8),
-                1 => cpu.write(bus, addr & !7, value as u16),
+                0 => cpu.write_data(bus, addr & !7, value as u8),
+                1 => cpu.write_data(bus, addr & !7, value as u16),
                 2 => {
-                    cpu.write(bus, addr & !7, (value >> 8) as u16);
-                    cpu.write(bus, addr & !7 | 2, value as u8);
+                    cpu.write_data(bus, addr & !7, (value >> 8) as u16);
+                    cpu.write_data(bus, addr & !7 | 2, value as u8);
                 }
-                3 => cpu.write(bus, addr & !7, value as u32),
+                3 => cpu.write_data(bus, addr & !7, value as u32),
                 4 => {
-                    cpu.write(bus, addr & !7, (value >> 8) as u32);
-                    cpu.write(bus, addr & !7 | 4, value as u8);
+                    cpu.write_data(bus, addr & !7, (value >> 8) as u32);
+                    cpu.write_data(bus, addr & !7 | 4, value as u8);
                 }
                 5 => {
-                    cpu.write(bus, addr & !7, (value >> 16) as u32);
-                    cpu.write(bus, addr & !7 | 4, value as u16);
+                    cpu.write_data(bus, addr & !7, (value >> 16) as u32);
+                    cpu.write_data(bus, addr & !7 | 4, value as u16);
                 }
                 6 => {
-                    cpu.write(bus, addr & !7, (value >> 24) as u32);
-                    cpu.write(bus, addr & !7 | 4, (value >> 8) as u16);
-                    cpu.write(bus, addr & !7 | 6, value as u8);
+                    cpu.write_data(bus, addr & !7, (value >> 24) as u32);
+                    cpu.write_data(bus, addr & !7 | 4, (value >> 8) as u16);
+                    cpu.write_data(bus, addr & !7 | 6, value as u8);
                 }
-                _ => cpu.write(bus, addr & !7, value),
+                _ => cpu.write_data(bus, addr & !7, value),
             }
         }
         DcOperation::StoreConditional { reg, value, addr } => {
@@ -372,7 +372,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
 
             if ll_bit {
                 trace!("  [{:08X} <= {:08X}]", addr, value);
-                cpu.write(bus, addr, value);
+                cpu.write_data(bus, addr, value);
             }
         }
         DcOperation::StoreConditionalDoubleword { reg, value, addr } => {
@@ -384,7 +384,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
 
             if ll_bit {
                 trace!("  [{:08X} <= {:016X}]", addr, value);
-                cpu.write(bus, addr, value);
+                cpu.write_data(bus, addr, value);
             }
         }
         DcOperation::Cp0RegWrite { reg, value } => {
@@ -396,7 +396,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::Cp1LoadWord { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 3) == 0);
-            let value = cpu.read::<u32>(bus, addr)?;
+            let value = cpu.read_data::<u32>(bus, addr)?;
             let reg_write = i32::set_cp1_reg(cpu, reg, value as i32);
             cpu.wb.reg = reg_write.reg;
             cpu.wb.value = reg_write.value;
@@ -405,14 +405,19 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
         DcOperation::Cp1LoadDoubleword { reg, addr } => {
             // TODO: Stall cycles
             assert!((addr & 7) == 0);
-            let value = cpu.read::<u64>(bus, addr)?;
+            let value = cpu.read_data::<u64>(bus, addr)?;
             let reg_write = i64::set_cp1_reg(cpu, reg, value as i64);
             cpu.wb.reg = reg_write.reg;
             cpu.wb.value = reg_write.value;
             trace!("  [{:08X} => {:016X}]", addr, value);
         }
         DcOperation::CacheOperation { op, vaddr } => {
-            let result = cpu.cp0.translate(vaddr)?;
+            let paddr = if vaddr >> 30 == 2 {
+                vaddr & 0x1fff_ffff
+            } else {
+                let result = cpu.cp0.translate(vaddr)?;
+                result.paddr
+            };
 
             match op {
                 0b00000 => {
@@ -457,7 +462,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
                     }
                 }
                 0b10000 => {
-                    if let Some(line) = cpu.icache.find_mut(vaddr, result.paddr) {
+                    if let Some(line) = cpu.icache.find_mut(vaddr, paddr) {
                         line.clear_valid_flag();
                         trace!("ICache Line at {:08X} invalidated", vaddr);
                     }

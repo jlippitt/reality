@@ -226,7 +226,34 @@ impl Cpu {
         }
     }
 
-    fn read<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
+    fn read_data<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
+        let region = vaddr >> 29;
+
+        if region == 4 {
+            let paddr = vaddr & 0x1fff_ffff;
+
+            #[cfg(feature = "dcache")]
+            return Some(self.dcache.read(paddr & 0x1fff_ffff, |line| {
+                Self::dcache_reload(bus, line, paddr)
+            }));
+
+            #[cfg(not(feature = "dcache"))]
+            {
+                self.stall += RW_SINGLE_WORD_DCACHE_DELAY;
+                return Some(bus.read_single(paddr));
+            }
+        }
+
+        if region == 5 {
+            let paddr = vaddr & 0x1fff_ffff;
+            self.stall += RW_SINGLE_WORD_DELAY;
+            return Some(bus.read_single(paddr));
+        }
+
+        self.read_data_tlb(bus, vaddr)
+    }
+
+    fn read_data_tlb<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
         let Some(result) = self.cp0.translate(vaddr) else {
             cp0::except(
                 self,
@@ -245,23 +272,55 @@ impl Cpu {
             return None;
         }
 
-        #[cfg(feature = "dcache")]
         if result.cached {
+            #[cfg(feature = "dcache")]
             return self.dcache.read(result.paddr & 0x1fff_ffff, |line| {
                 Self::dcache_reload(bus, line, result.paddr)
             });
+
+            #[cfg(not(feature = "dcache"))]
+            {
+                self.stall += RW_SINGLE_WORD_DCACHE_DELAY;
+                return Some(bus.read_single(result.paddr));
+            }
         }
 
-        self.stall += if result.cached {
-            RW_SINGLE_WORD_DCACHE_DELAY
-        } else {
-            RW_SINGLE_WORD_DELAY
-        };
-
+        self.stall += RW_SINGLE_WORD_DELAY;
         Some(bus.read_single(result.paddr))
     }
 
-    fn write<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
+    fn write_data<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
+        let region = vaddr >> 29;
+
+        if region == 4 {
+            let paddr = vaddr & 0x1fff_ffff;
+
+            #[cfg(feature = "dcache")]
+            return self
+                .dcache
+                .write(result.paddr & 0x1fff_ffff, value, |line| {
+                    Self::dcache_reload(bus, line, paddr)
+                });
+
+            #[cfg(not(feature = "dcache"))]
+            {
+                self.stall += RW_SINGLE_WORD_DCACHE_DELAY;
+                bus.write_single(paddr, value);
+                return;
+            }
+        }
+
+        if region == 5 {
+            let paddr = vaddr & 0x1fff_ffff;
+            self.stall += RW_SINGLE_WORD_DELAY;
+            bus.write_single(paddr, value);
+            return;
+        }
+
+        self.write_data_tlb(bus, vaddr, value);
+    }
+
+    fn write_data_tlb<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
         let Some(result) = self.cp0.translate(vaddr) else {
             cp0::except(
                 self,
@@ -289,25 +348,48 @@ impl Cpu {
             return;
         }
 
-        #[cfg(feature = "dcache")]
         if result.cached {
+            #[cfg(feature = "dcache")]
             return self
                 .dcache
                 .write(result.paddr & 0x1fff_ffff, value, |line| {
                     Self::dcache_reload(bus, line, result.paddr)
                 });
+
+            #[cfg(not(feature = "dcache"))]
+            {
+                self.stall = RW_SINGLE_WORD_DCACHE_DELAY;
+                bus.write_single(result.paddr, value);
+                return;
+            }
         }
 
-        self.stall += if result.cached {
-            RW_SINGLE_WORD_DCACHE_DELAY
-        } else {
-            RW_SINGLE_WORD_DELAY
-        };
-
+        self.stall += RW_SINGLE_WORD_DELAY;
         bus.write_single(result.paddr, value);
     }
 
     fn read_opcode(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
+        let region = vaddr >> 29;
+
+        if region == 4 {
+            let paddr = vaddr & 0x1fff_ffff;
+
+            return self.icache.read(vaddr, paddr, |line| {
+                self.stall += REFRESH_ICACHE_DELAY;
+                bus.read_block(paddr & !0x1f, line.bytes_mut());
+            });
+        }
+
+        if region == 5 {
+            let paddr = vaddr & 0x1fff_ffff;
+            self.stall += RW_SINGLE_WORD_DELAY;
+            return bus.read_single(paddr);
+        }
+
+        self.read_opcode_tlb(bus, vaddr)
+    }
+
+    fn read_opcode_tlb(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
         let Some(result) = self.cp0.translate(vaddr) else {
             cp0::except(
                 self,
@@ -328,8 +410,8 @@ impl Cpu {
 
         if result.cached {
             return self.icache.read(vaddr, result.paddr, |line| {
-                bus.read_block(result.paddr & !0x1f, line.bytes_mut());
                 self.stall += REFRESH_ICACHE_DELAY;
+                bus.read_block(result.paddr & !0x1f, line.bytes_mut());
             });
         }
 
@@ -341,11 +423,11 @@ impl Cpu {
     fn dcache_reload(bus: &mut impl Bus, line: &mut DCacheLine, address: u32) {
         // TODO: Timing
         if line.is_dirty() {
+            self.stall += REFRESH_DCACHE_DELAY;
             bus.write_block(
                 ((line.ptag() & !1) << 12) | (address & 0x1ff0),
                 line.bytes(),
             );
-            self.stall += REFRESH_DCACHE_DELAY;
         }
 
         bus.read_block(address & 0x1fff_fff0, line.bytes_mut());
