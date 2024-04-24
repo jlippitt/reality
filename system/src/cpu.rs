@@ -66,6 +66,7 @@ pub trait Bus {
 
 pub struct Cpu {
     stall: u64,
+    busy_wait: bool,
     wb: WbState,
     dc: DcState,
     ex: ExState,
@@ -103,6 +104,7 @@ impl Cpu {
 
         Self {
             stall: 0,
+            busy_wait: false,
             wb: WbState::default(),
             dc: DcState::default(),
             ex: ExState::default(),
@@ -120,6 +122,7 @@ impl Cpu {
         }
     }
 
+    // 1. Always inlined
     #[inline(always)]
     pub fn step(&mut self, bus: &mut impl Bus) {
         if self.stall > 0 {
@@ -130,7 +133,18 @@ impl Cpu {
         self.step_inner(bus);
     }
 
+    // 2. Let the compiler decide whether to inline
     fn step_inner(&mut self, bus: &mut impl Bus) {
+        if self.busy_wait {
+            cp0::step(self, bus);
+            return;
+        }
+
+        self.step_cycle(bus);
+    }
+
+    // 3. Probably won't be inlined
+    fn step_cycle(&mut self, bus: &mut impl Bus) {
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;

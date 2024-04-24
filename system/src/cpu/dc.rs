@@ -6,6 +6,7 @@ use tracing::trace;
 pub enum DcOperation {
     #[default]
     Nop,
+    BusyWait,
     RegWrite {
         reg: usize,
         value: i64,
@@ -123,6 +124,10 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
 
     match cpu.dc.op {
         DcOperation::Nop => (),
+        DcOperation::BusyWait => {
+            cpu.busy_wait = true;
+            trace!("Entering Busy Wait mode");
+        }
         DcOperation::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;

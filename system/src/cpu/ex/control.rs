@@ -70,6 +70,11 @@ pub fn beq<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] == cpu.regs[rt], offset);
+
+    if rs == 0 && rt == 0 && offset == -4 {
+        return DcOperation::BusyWait;
+    }
+
     DcOperation::Nop
 }
 
@@ -104,6 +109,11 @@ pub fn blez<const LIKELY: bool>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperatio
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] <= 0, offset);
+
+    if rs == 0 && offset == -4 {
+        return DcOperation::BusyWait;
+    }
+
     DcOperation::Nop
 }
 
@@ -162,6 +172,11 @@ pub fn bgez<const LINK: bool, const LIKELY: bool>(
     );
 
     cpu.branch::<LIKELY>(cpu.regs[rs] >= 0, offset);
+
+    if !LINK && rs == 0 && offset == -4 {
+        return DcOperation::BusyWait;
+    }
+
     link::<LINK>(cpu)
 }
 

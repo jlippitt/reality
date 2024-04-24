@@ -230,6 +230,11 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         return;
     }
 
+    if cpu.busy_wait {
+        trace!("Leaving Busy Wait mode");
+        cpu.busy_wait = false;
+    }
+
     except(cpu, Exception::Interrupt, ExceptionStage::DC);
 }
 
