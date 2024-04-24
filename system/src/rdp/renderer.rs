@@ -290,6 +290,7 @@ impl Renderer {
     pub fn draw_triangle(
         &mut self,
         gfx: &GfxContext,
+        rdram: &mut Rdram,
         edges: [[f32; 2]; 3],
         colors: [[f32; 4]; 3],
         texture: Option<(usize, [[f32; 3]; 3])>,
@@ -306,13 +307,18 @@ impl Renderer {
             z_values
         };
 
-        self.display_list
-            .push_triangle(edges, colors, texture, z_values);
+        if self
+            .display_list
+            .push_triangle(edges, colors, texture, z_values)
+        {
+            self.flush(gfx, rdram);
+        }
     }
 
     pub fn draw_rectangle(
         &mut self,
         gfx: &GfxContext,
+        rdram: &mut Rdram,
         rect: Rect,
         texture: Option<(usize, Rect, bool)>,
     ) {
@@ -344,8 +350,12 @@ impl Renderer {
             0.0
         };
 
-        self.display_list
-            .push_rectangle(rect, color, texture, z_value);
+        if self
+            .display_list
+            .push_rectangle(rect, color, texture, z_value)
+        {
+            self.flush(gfx, rdram);
+        }
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {

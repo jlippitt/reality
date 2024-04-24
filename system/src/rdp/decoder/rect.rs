@@ -61,7 +61,8 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(
         None
     };
 
-    ctx.renderer.draw_rectangle(ctx.gfx, rect, texture);
+    ctx.renderer
+        .draw_rectangle(ctx.gfx, ctx.rdram, rect, texture);
 }
 
 #[bitfield(u64)]

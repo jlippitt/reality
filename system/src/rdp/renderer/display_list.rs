@@ -251,7 +251,7 @@ impl DisplayList {
         colors: [[f32; 4]; 3],
         texture: Option<(u128, [[f32; 3]; 3])>,
         z_values: [f32; 3],
-    ) {
+    ) -> bool {
         let (handle, tex_coords) = if let Some((handle, tex_coords)) = texture {
             (Some(handle), tex_coords)
         } else {
@@ -293,6 +293,10 @@ impl DisplayList {
                 self.commands.push(Command::Triangles((end - 3)..end));
             }
         }
+
+        let vertex_size = mem::size_of::<Vertex>();
+
+        (self.vertices.len() * vertex_size) >= (self.vertex_buffer.size() as usize - vertex_size)
     }
 
     pub fn push_rectangle(
@@ -301,7 +305,7 @@ impl DisplayList {
         fill_color: [f32; 4],
         texture: Option<(u128, Rect, bool)>,
         z_value: f32,
-    ) {
+    ) -> bool {
         let (handle, tex_coords) = if let Some((handle, tex_rect, flip)) = texture {
             (
                 Some(handle),
@@ -376,6 +380,12 @@ impl DisplayList {
                 self.commands.push(Command::Rectangles((end - 6)..end));
             }
         }
+
+        let vertex_size = mem::size_of::<Vertex>();
+        let index_size = mem::size_of::<u32>();
+
+        (self.vertices.len() * vertex_size) >= (self.vertex_buffer.size() as usize - vertex_size)
+            || (self.indices.len() * index_size) >= (self.index_buffer.size() as usize - index_size)
     }
 
     pub fn reset(&mut self) {

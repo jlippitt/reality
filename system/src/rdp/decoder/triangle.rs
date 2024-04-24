@@ -151,7 +151,7 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     };
 
     ctx.renderer
-        .draw_triangle(ctx.gfx, edges, colors, texture, z_values);
+        .draw_triangle(ctx.gfx, ctx.rdram, edges, colors, texture, z_values);
 }
 
 fn decode_color(integer: Color, fraction: Color) -> [f32; 4] {
