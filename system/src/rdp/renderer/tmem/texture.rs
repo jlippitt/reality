@@ -201,6 +201,13 @@ fn decode_texture<'a>(
                 },
             )
         }),
+        (Format::I, 2) => decode_color16(buf, buf_start, |word| {
+            // Unofficial
+            let red = (word >> 8) as u8;
+            let green = word as u8;
+            let alpha = (word & 1) as u8 * 255;
+            u32::from_le_bytes([red, green, red, alpha])
+        }),
         (Format::I, 1) => decode_color8(buf, buf_start, |word| u32::from_le_bytes([word; 4])),
         (Format::I, 0) => decode_color4(buf, buf_start, |word| {
             (
@@ -214,7 +221,7 @@ fn decode_texture<'a>(
                 },
             )
         }),
-        _ => panic!("Unsupported TMEM texture format"),
+        _ => panic!("Unsupported TMEM texture format: {:?}", format),
     };
 
     bytemuck::must_cast_slice(&buf[output_start..])
