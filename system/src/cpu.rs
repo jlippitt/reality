@@ -29,11 +29,6 @@ const REFRESH_DCACHE_DELAY: u64 = 44;
 #[cfg(not(feature = "dcache"))]
 const RW_SINGLE_WORD_DCACHE_DELAY: u64 = 4;
 
-enum WbOperation {
-    Cp0RegWrite { reg: usize, value: i64 },
-    Cp1ControlRegWrite { reg: usize, value: u32 },
-}
-
 #[derive(Default)]
 struct RfState {
     pc: u32,
@@ -59,7 +54,6 @@ struct DcState {
 struct WbState {
     reg: usize,
     value: i64,
-    op: Option<WbOperation>,
 }
 
 pub trait Bus {
@@ -150,17 +144,6 @@ impl Cpu {
                     self.wb.reg - Cp1::REG_OFFSET,
                     self.wb.value
                 );
-            }
-        }
-
-        if let Some(op) = &self.wb.op {
-            match *op {
-                WbOperation::Cp0RegWrite { reg, value } => {
-                    self.cp0.write_reg(reg, value);
-                }
-                WbOperation::Cp1ControlRegWrite { reg, value } => {
-                    self.cp1.write_control_reg(reg, value);
-                }
             }
         }
 

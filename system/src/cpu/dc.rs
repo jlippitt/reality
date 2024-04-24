@@ -1,5 +1,5 @@
 use super::cp1::Format;
-use super::{Bus, Cp0, Cpu, WbOperation};
+use super::{Bus, Cp0, Cpu};
 use tracing::trace;
 
 #[derive(Debug, Default)]
@@ -104,14 +104,6 @@ pub enum DcOperation {
         value: u64,
         addr: u32,
     },
-    Cp0RegWrite {
-        reg: usize,
-        value: i64,
-    },
-    Cp1ControlRegWrite {
-        reg: usize,
-        value: u32,
-    },
     Cp1LoadWord {
         reg: usize,
         addr: u32,
@@ -128,7 +120,6 @@ pub enum DcOperation {
 
 pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
     cpu.wb.reg = 0;
-    cpu.wb.op = None;
 
     match cpu.dc.op {
         DcOperation::Nop => (),
@@ -234,10 +225,8 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
 
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
-            cpu.wb.op = Some(WbOperation::Cp0RegWrite {
-                reg: Cp0::LL_ADDR,
-                value: ((addr & 0x1fff_ffff) >> 4) as i64,
-            });
+            cpu.cp0
+                .write_reg(Cp0::LL_ADDR, ((addr & 0x1fff_ffff) >> 4) as i64);
             cpu.ll_bit = true;
         }
         DcOperation::LoadLinkedDoubleword { reg, addr } => {
@@ -250,10 +239,8 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
 
             // LLAddr is set to physical address
             // TODO: Remove this hack when TLB support is implemented
-            cpu.wb.op = Some(WbOperation::Cp0RegWrite {
-                reg: Cp0::LL_ADDR,
-                value: ((addr & 0x1fff_ffff) >> 4) as i64,
-            });
+            cpu.cp0
+                .write_reg(Cp0::LL_ADDR, ((addr & 0x1fff_ffff) >> 4) as i64);
             cpu.ll_bit = true;
         }
         DcOperation::StoreByte { value, addr } => {
@@ -386,12 +373,6 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus) -> Option<()> {
                 trace!("  [{:08X} <= {:016X}]", addr, value);
                 cpu.write_data(bus, addr, value);
             }
-        }
-        DcOperation::Cp0RegWrite { reg, value } => {
-            cpu.wb.op = Some(WbOperation::Cp0RegWrite { reg, value });
-        }
-        DcOperation::Cp1ControlRegWrite { reg, value } => {
-            cpu.wb.op = Some(WbOperation::Cp1ControlRegWrite { reg, value });
         }
         DcOperation::Cp1LoadWord { reg, addr } => {
             // TODO: Stall cycles

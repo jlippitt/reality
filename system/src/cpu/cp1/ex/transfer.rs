@@ -72,10 +72,8 @@ pub fn ctc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         Cp1::CONTROL_REG_NAMES[rd]
     );
 
-    DcOperation::Cp1ControlRegWrite {
-        reg: rd,
-        value: cpu.regs[rt] as u32,
-    }
+    cpu.cp1.write_control_reg(rd, cpu.regs[rt] as u32);
+    DcOperation::Nop
 }
 
 pub fn lwc1(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {

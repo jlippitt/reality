@@ -47,10 +47,9 @@ pub fn mtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         Cp0::REG_NAMES[rd]
     );
 
-    DcOperation::Cp0RegWrite {
-        reg: rd,
-        value: cpu.regs[rt],
-    }
+    cpu.cp0.write_reg(rd, cpu.regs[rt] as i32 as i64);
+
+    DcOperation::Nop
 }
 
 pub fn dmtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
@@ -64,8 +63,7 @@ pub fn dmtc0(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
         Cp0::REG_NAMES[rd]
     );
 
-    DcOperation::Cp0RegWrite {
-        reg: rd,
-        value: cpu.regs[rt],
-    }
+    cpu.cp0.write_reg(rd, cpu.regs[rt]);
+
+    DcOperation::Nop
 }
