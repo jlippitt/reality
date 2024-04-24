@@ -296,9 +296,10 @@ impl Renderer {
         texture: Option<(usize, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
-        let texture = texture.map(|(tile_id, rect)| {
-            let handle = self.tmem.get_texture_handle(gfx, tile_id);
-            (handle, rect)
+        let texture = texture.and_then(|(tile_id, rect)| {
+            self.tmem
+                .get_texture_handle(gfx, tile_id)
+                .map(|handle| (handle, rect))
         });
 
         let z_values = if self.z_buffer.source == ZSource::Primitive {
@@ -325,23 +326,23 @@ impl Renderer {
         // TODO: Proper blending
         let color = self.blend_color;
 
-        let texture = texture.map(|(tile_id, mut tex_rect, flip)| {
-            let handle = self.tmem.get_texture_handle(gfx, tile_id);
+        let texture = texture.and_then(|(tile_id, mut tex_rect, flip)| {
+            self.tmem.get_texture_handle(gfx, tile_id).map(|handle| {
+                if self.display_list.cycle_type() == CycleType::Copy {
+                    // In copy mode, every 4 S steps is one pixel
+                    tex_rect.right = (tex_rect.left * 3.0 + tex_rect.right) / 4.0;
+                    tex_rect.right += (tex_rect.width() + 1.0) / rect.width();
+                    tex_rect.bottom += (tex_rect.height() + 1.0) / rect.height();
+                    trace!("  = {:?}", tex_rect);
+                } else if self.sample_type == SampleType::Bilinear {
+                    tex_rect.left += 0.5;
+                    tex_rect.right += 0.5;
+                    tex_rect.top += 0.5;
+                    tex_rect.bottom += 0.5;
+                }
 
-            if self.display_list.cycle_type() == CycleType::Copy {
-                // In copy mode, every 4 S steps is one pixel
-                tex_rect.right = (tex_rect.left * 3.0 + tex_rect.right) / 4.0;
-                tex_rect.right += (tex_rect.width() + 1.0) / rect.width();
-                tex_rect.bottom += (tex_rect.height() + 1.0) / rect.height();
-                trace!("  = {:?}", tex_rect);
-            } else if self.sample_type == SampleType::Bilinear {
-                tex_rect.left += 0.5;
-                tex_rect.right += 0.5;
-                tex_rect.top += 0.5;
-                tex_rect.bottom += 0.5;
-            }
-
-            (handle, tex_rect, flip)
+                (handle, tex_rect, flip)
+            })
         });
 
         let z_value = if self.z_buffer.source == ZSource::Primitive {

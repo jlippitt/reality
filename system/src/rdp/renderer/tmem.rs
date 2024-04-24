@@ -266,8 +266,12 @@ impl Tmem {
         );
     }
 
-    pub fn get_texture_handle(&mut self, gfx: &GfxContext, tile_id: usize) -> u128 {
+    pub fn get_texture_handle(&mut self, gfx: &GfxContext, tile_id: usize) -> Option<u128> {
         let tile = &self.tiles[tile_id];
+
+        if tile.size.width() < 1.0 || tile.size.height() < 1.0 {
+            return None;
+        }
 
         self.texture_cache
             .entry(tile.hash_value)
@@ -275,7 +279,7 @@ impl Tmem {
                 Texture::from_tmem_data(gfx, &self.bind_group_layout, tile, &self.tmem_data)
             });
 
-        tile.hash_value
+        Some(tile.hash_value)
     }
 
     pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
