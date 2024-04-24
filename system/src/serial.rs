@@ -47,58 +47,67 @@ impl SerialInterface {
         self.joybus.update_joypads(joypads);
     }
 
+    #[inline(always)]
     pub fn step(&mut self, rdram: &mut Rdram) {
-        if let Some(dma) = &self.dma {
-            let dram_addr = self.regs.dram_addr.dram_addr();
-            let mut buf = [0u8; 64];
+        if self.dma.is_none() {
+            return;
+        }
 
-            if dma.write {
-                rdram.read_block(dram_addr as usize, &mut buf);
+        self.step_inner(rdram);
+    }
 
-                let mut pif_addr = dma.pif_addr;
+    fn step_inner(&mut self, rdram: &mut Rdram) {
+        let dma = self.dma.as_ref().unwrap();
 
-                let mut joybus_configure = false;
+        let dram_addr = self.regs.dram_addr.dram_addr();
+        let mut buf = [0u8; 64];
 
-                for byte in buf {
-                    joybus_configure |= self.pif.write(pif_addr, byte);
-                    // TODO: Can this wrap?
-                    pif_addr += 1;
-                }
+        if dma.write {
+            rdram.read_block(dram_addr as usize, &mut buf);
 
-                debug!(
-                    "SI DMA: {} bytes written from {:08X} to {:04X}",
-                    buf.len() * 4,
-                    dram_addr,
-                    dma.pif_addr,
-                );
+            let mut pif_addr = dma.pif_addr;
 
-                if joybus_configure {
-                    self.joybus.configure(self.pif.ram());
-                }
-            } else {
-                self.joybus.execute(self.pif.ram_mut());
+            let mut joybus_configure = false;
 
-                let mut pif_addr = dma.pif_addr;
-
-                for byte in &mut buf {
-                    *byte = self.pif.read(pif_addr);
-                    // TODO: Can this wrap?
-                    pif_addr += 1;
-                }
-
-                rdram.write_block(dram_addr as usize, &buf);
-
-                debug!(
-                    "SI DMA: {} bytes read from {:04X} to {:08X}",
-                    buf.len() * 4,
-                    dma.pif_addr,
-                    dram_addr
-                );
+            for byte in buf {
+                joybus_configure |= self.pif.write(pif_addr, byte);
+                // TODO: Can this wrap?
+                pif_addr += 1;
             }
 
-            self.dma = None;
-            self.rcp_int.raise(RcpIntType::SI);
+            debug!(
+                "SI DMA: {} bytes written from {:08X} to {:04X}",
+                buf.len() * 4,
+                dram_addr,
+                dma.pif_addr,
+            );
+
+            if joybus_configure {
+                self.joybus.configure(self.pif.ram());
+            }
+        } else {
+            self.joybus.execute(self.pif.ram_mut());
+
+            let mut pif_addr = dma.pif_addr;
+
+            for byte in &mut buf {
+                *byte = self.pif.read(pif_addr);
+                // TODO: Can this wrap?
+                pif_addr += 1;
+            }
+
+            rdram.write_block(dram_addr as usize, &buf);
+
+            debug!(
+                "SI DMA: {} bytes read from {:04X} to {:08X}",
+                buf.len() * 4,
+                dma.pif_addr,
+                dram_addr
+            );
         }
+
+        self.dma = None;
+        self.rcp_int.raise(RcpIntType::SI);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {

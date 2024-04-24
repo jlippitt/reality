@@ -53,11 +53,16 @@ impl Rdp {
         self.renderer.sync(gfx, rdram);
     }
 
+    #[inline(always)]
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
         if !self.decoder.running() || self.shared.regs.status.freeze() {
             return;
         }
 
+        self.step_core_inner(rdram, gfx);
+    }
+
+    fn step_core_inner(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
         let sync_full = {
             let _span = error_span!("rdp").entered();
 
@@ -79,12 +84,17 @@ impl Rdp {
         }
     }
 
+    #[inline(always)]
     pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
-        let dma = &mut self.shared.dma_active;
-
-        if dma.start >= dma.end {
+        if self.shared.dma_active.start >= self.shared.dma_active.end {
             return;
         }
+
+        self.step_dma_inner(rdram, rsp_mem);
+    }
+
+    fn step_dma_inner(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
+        let dma = &mut self.shared.dma_active;
 
         assert!((dma.start & 7) == 0);
         assert!((dma.end & 7) == 0);

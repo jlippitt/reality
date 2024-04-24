@@ -66,11 +66,16 @@ impl Rsp {
         &self.shared.mem
     }
 
+    #[inline(always)]
     pub fn step_core(&mut self, rdp_shared: &mut RdpShared) {
         if self.shared.regs.status.halted() {
             return;
         }
 
+        self.step_core_inner(rdp_shared);
+    }
+
+    fn step_core_inner(&mut self, rdp_shared: &mut RdpShared) {
         {
             let _span = debug_span!("rsp").entered();
 
@@ -84,11 +89,16 @@ impl Rsp {
         status.set_halted(status.halted() | status.sstep());
     }
 
+    #[inline(always)]
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
         if !self.shared.dma_in_progress {
             return;
         }
 
+        self.step_dma_inner(rdram);
+    }
+
+    fn step_dma_inner(&mut self, rdram: &mut Rdram) {
         let dma = &mut self.shared.dma_active;
 
         let bank_offset = (dma.sp_addr.mem_bank() as u32) << 12;

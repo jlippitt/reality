@@ -94,31 +94,37 @@ impl VideoInterface {
         Ok(())
     }
 
+    #[inline(always)]
     pub fn step(&mut self) -> bool {
-        let mut frame_done = false;
-
         self.cycles_remaining -= 1;
 
-        if self.cycles_remaining == 0 {
-            self.cycles_remaining = self.cycles_per_line;
-
-            let mut half_line = self.regs.v_current.half_line() + 2;
-
-            if half_line > self.regs.v_sync.v_sync() {
-                let serrate = self.regs.ctrl.serrate() as u32;
-                half_line = (half_line & serrate) ^ serrate;
-                self.frame_counter += 1;
-                debug!("Frame {} (Field={})", self.frame_counter, half_line & 1);
-                frame_done = true;
-            }
-
-            if half_line == self.regs.v_intr.half_line() {
-                self.rcp_int.raise(RcpIntType::VI);
-            }
-
-            self.regs.v_current.set_half_line(half_line);
-            trace!("VI_V_CURRENT: {:?}", self.regs.v_current);
+        if self.cycles_remaining > 0 {
+            return false;
         }
+
+        self.step_inner()
+    }
+
+    fn step_inner(&mut self) -> bool {
+        self.cycles_remaining = self.cycles_per_line;
+
+        let mut half_line = self.regs.v_current.half_line() + 2;
+        let mut frame_done = false;
+
+        if half_line > self.regs.v_sync.v_sync() {
+            let serrate = self.regs.ctrl.serrate() as u32;
+            half_line = (half_line & serrate) ^ serrate;
+            self.frame_counter += 1;
+            debug!("Frame {} (Field={})", self.frame_counter, half_line & 1);
+            frame_done = true;
+        }
+
+        if half_line == self.regs.v_intr.half_line() {
+            self.rcp_int.raise(RcpIntType::VI);
+        }
+
+        self.regs.v_current.set_half_line(half_line);
+        trace!("VI_V_CURRENT: {:?}", self.regs.v_current);
 
         frame_done
     }

@@ -48,6 +48,7 @@ impl AudioInterface {
         self.sample_rate
     }
 
+    #[inline(always)]
     pub fn step(&mut self, rdram: &Rdram, receiver: &mut impl AudioReceiver) {
         self.cycles_remaining -= 1;
 
@@ -55,6 +56,10 @@ impl AudioInterface {
             return;
         }
 
+        self.step_inner(rdram, receiver);
+    }
+
+    fn step_inner(&mut self, rdram: &Rdram, receiver: &mut impl AudioReceiver) {
         self.cycles_remaining = self.cycles_per_sample;
 
         if let Some(dma_active) = &mut self.dma_active {

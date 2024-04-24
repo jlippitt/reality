@@ -133,10 +133,10 @@ impl Cpu {
             return;
         }
 
-        self.step_cycle(bus);
+        self.step_inner(bus);
     }
 
-    fn step_cycle(&mut self, bus: &mut impl Bus) {
+    fn step_inner(&mut self, bus: &mut impl Bus) {
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;

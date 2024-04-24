@@ -41,57 +41,66 @@ impl PeripheralInterface {
         }
     }
 
+    #[inline(always)]
     pub fn step(&mut self, rdram: &mut Rdram) {
-        if let Some(dma) = &mut self.dma {
-            let dram_addr = self.regs.dram_addr as usize & 0x00ff_fffe;
-            let cart_addr = self.regs.cart_addr as usize & 0x1fff_fffe;
-            let block_len = dma.len.min(128);
+        if self.dma.is_none() {
+            return;
+        }
 
-            if cart_addr >= 0x1000_0000 {
-                // DMA to/from cartridge ROM
-                let cart_addr = cart_addr - 0x1000_0000;
+        self.step_inner(rdram);
+    }
 
-                if dma.write {
-                    rdram.write_block(
-                        dram_addr,
-                        &self.rom[cart_addr..(cart_addr + block_len as usize)],
-                    );
-                } else {
-                    rdram.read_block(
-                        dram_addr,
-                        &mut self.rom[cart_addr..(cart_addr + block_len as usize)],
-                    );
-                }
-            } else {
-                // DMA to/from 64DD area or Flash RAM
-                // Just write zeroes and ignore reads
-                if dma.write {
-                    let buf: [u8; 128] = [0; 128];
-                    rdram.write_block(dram_addr, &buf[0..block_len as usize]);
-                }
-            }
+    fn step_inner(&mut self, rdram: &mut Rdram) {
+        let dma = self.dma.as_mut().unwrap();
+
+        let dram_addr = self.regs.dram_addr as usize & 0x00ff_fffe;
+        let cart_addr = self.regs.cart_addr as usize & 0x1fff_fffe;
+        let block_len = dma.len.min(128);
+
+        if cart_addr >= 0x1000_0000 {
+            // DMA to/from cartridge ROM
+            let cart_addr = cart_addr - 0x1000_0000;
 
             if dma.write {
-                debug!(
-                    "PI DMA: {} bytes written from {:08X} to {:08X}",
-                    block_len, self.regs.cart_addr, self.regs.dram_addr,
+                rdram.write_block(
+                    dram_addr,
+                    &self.rom[cart_addr..(cart_addr + block_len as usize)],
                 );
             } else {
-                debug!(
-                    "PI DMA: {} bytes read from {:08X} to {:08X}",
-                    block_len, self.regs.dram_addr, self.regs.cart_addr,
+                rdram.read_block(
+                    dram_addr,
+                    &mut self.rom[cart_addr..(cart_addr + block_len as usize)],
                 );
             }
-
-            // TODO: Can these wrap?
-            self.regs.dram_addr += block_len;
-            self.regs.cart_addr += block_len;
-            dma.len -= block_len;
-
-            if dma.len == 0 {
-                self.dma = None;
-                self.rcp_int.raise(RcpIntType::PI);
+        } else {
+            // DMA to/from 64DD area or Flash RAM
+            // Just write zeroes and ignore reads
+            if dma.write {
+                let buf: [u8; 128] = [0; 128];
+                rdram.write_block(dram_addr, &buf[0..block_len as usize]);
             }
+        }
+
+        if dma.write {
+            debug!(
+                "PI DMA: {} bytes written from {:08X} to {:08X}",
+                block_len, self.regs.cart_addr, self.regs.dram_addr,
+            );
+        } else {
+            debug!(
+                "PI DMA: {} bytes read from {:08X} to {:08X}",
+                block_len, self.regs.dram_addr, self.regs.cart_addr,
+            );
+        }
+
+        // TODO: Can these wrap?
+        self.regs.dram_addr += block_len;
+        self.regs.cart_addr += block_len;
+        dma.len -= block_len;
+
+        if dma.len == 0 {
+            self.dma = None;
+            self.rcp_int.raise(RcpIntType::PI);
         }
     }
 
