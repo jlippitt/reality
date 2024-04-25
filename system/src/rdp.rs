@@ -1,13 +1,14 @@
 use crate::gfx::GfxContext;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
-use crate::memory::{Memory, Size, WriteMask};
+use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
+use crate::rsp::RspInterface;
 use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, error_span, warn};
 
 mod decoder;
@@ -23,7 +24,6 @@ struct Dma {
 pub struct RdpCore {
     decoder: Decoder,
     renderer: Renderer,
-    iface: Arc<Mutex<RdpInterface>>,
     rcp_int: Arc<Mutex<RcpInterrupt>>,
 }
 
@@ -39,33 +39,41 @@ impl RdpCore {
     pub fn new(
         rcp_int: Arc<Mutex<RcpInterrupt>>,
         gfx: &GfxContext,
-        iface: Arc<Mutex<RdpInterface>>,
         receiver: Receiver<u64>,
         running: Arc<AtomicBool>,
     ) -> Self {
         Self {
             decoder: Decoder::new(receiver, running),
             renderer: Renderer::new(gfx),
-            iface,
             rcp_int,
         }
     }
 
-    pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
-        let _span = error_span!("rdp").entered();
-        self.renderer.sync(gfx, rdram);
-    }
-
     #[inline(always)]
-    pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
-        if !self.decoder.running() || self.iface.lock().unwrap().regs.status.freeze() {
+    pub fn step_core(
+        &mut self,
+        iface: &Mutex<RdpInterface>,
+        rsp_iface: &Mutex<RspInterface>,
+        rdram: &RwLock<Rdram>,
+        gfx: &GfxContext,
+    ) {
+        let mut iface_lock = iface.lock().unwrap();
+
+        iface_lock.step_dma(rdram, rsp_iface);
+
+        if !self.decoder.running() || iface_lock.regs.status.freeze() {
             return;
         }
 
-        self.step_core_inner(rdram, gfx);
+        self.step_core_inner(iface, rdram, gfx);
     }
 
-    fn step_core_inner(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
+    fn step_core_inner(
+        &mut self,
+        iface: &Mutex<RdpInterface>,
+        rdram: &RwLock<Rdram>,
+        gfx: &GfxContext,
+    ) {
         let sync_full = {
             let _span = error_span!("rdp").entered();
 
@@ -77,10 +85,14 @@ impl RdpCore {
         };
 
         if sync_full {
-            self.sync(gfx, rdram);
+            {
+                let _span = error_span!("rdp").entered();
+                self.renderer.sync(gfx, rdram);
+            }
+
             self.rcp_int.lock().unwrap().raise(RcpIntType::DP);
 
-            let status = &mut self.iface.lock().unwrap().regs.status;
+            let status = &mut iface.lock().unwrap().regs.status;
             status.set_pipe_busy(false);
             status.set_start_gclk(false);
             debug!("DPC_STATUS: {:?}", status);
@@ -100,15 +112,15 @@ impl RdpInterface {
     }
 
     #[inline(always)]
-    pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
+    pub fn step_dma(&mut self, rdram: &RwLock<Rdram>, rsp_iface: &Mutex<RspInterface>) {
         if self.dma_active.start >= self.dma_active.end {
             return;
         }
 
-        self.step_dma_inner(rdram, rsp_mem);
+        self.step_dma_inner(rdram, rsp_iface);
     }
 
-    fn step_dma_inner(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
+    fn step_dma_inner(&mut self, rdram: &RwLock<Rdram>, rsp_iface: &Mutex<RspInterface>) {
         let dma = &mut self.dma_active;
 
         assert!((dma.start & 7) == 0);
@@ -118,6 +130,9 @@ impl RdpInterface {
         let mut current = dma.start;
 
         if self.regs.status.xbus() {
+            let rsp_lock = rsp_iface.lock().unwrap();
+            let rsp_mem = rsp_lock.mem();
+
             for _ in 0..block_len {
                 let command: u64 = rsp_mem.read(current as usize & 0xfff);
                 self.sender.send(command).unwrap();
@@ -130,8 +145,10 @@ impl RdpInterface {
                 dma.start
             );
         } else {
+            let reader = rdram.read().unwrap();
+
             for _ in 0..block_len {
-                let command: u64 = rdram.read_single(current as usize);
+                let command: u64 = reader.read_single(current as usize);
                 self.sender.send(command).unwrap();
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }

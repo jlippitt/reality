@@ -6,7 +6,7 @@ use crate::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, trace};
 use upscaler::Upscaler;
 
@@ -74,7 +74,7 @@ impl VideoInterface {
     }
 
     #[inline(always)]
-    pub fn step(&mut self, rdram: &Rdram, gfx: &GfxContext) -> bool {
+    pub fn step(&mut self, rdram: &RwLock<Rdram>, gfx: &GfxContext) -> bool {
         self.cycles_remaining -= 1;
 
         if self.cycles_remaining > 0 {
@@ -84,7 +84,7 @@ impl VideoInterface {
         self.step_inner(rdram, gfx)
     }
 
-    fn step_inner(&mut self, rdram: &Rdram, gfx: &GfxContext) -> bool {
+    fn step_inner(&mut self, rdram: &RwLock<Rdram>, gfx: &GfxContext) -> bool {
         self.cycles_remaining = self.cycles_per_line;
 
         let mut half_line = self.regs.v_current.half_line() + 2;
@@ -109,7 +109,7 @@ impl VideoInterface {
         frame_done
     }
 
-    fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) {
+    fn render(&mut self, rdram: &RwLock<Rdram>, gfx: &GfxContext) {
         let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
 
         let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;

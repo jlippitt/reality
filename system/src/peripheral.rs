@@ -2,7 +2,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
 use regs::Regs;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, warn};
 
 mod regs;
@@ -47,7 +47,7 @@ impl PeripheralInterface {
     }
 
     #[inline(always)]
-    pub fn step(&mut self, rdram: &mut Rdram) {
+    pub fn step(&mut self, rdram: &RwLock<Rdram>) {
         if self.dma.is_none() {
             return;
         }
@@ -55,7 +55,7 @@ impl PeripheralInterface {
         self.step_inner(rdram);
     }
 
-    fn step_inner(&mut self, rdram: &mut Rdram) {
+    fn step_inner(&mut self, rdram: &RwLock<Rdram>) {
         let dma = self.dma.as_mut().unwrap();
 
         let dram_addr = self.regs.dram_addr as usize & 0x00ff_fffe;
@@ -67,12 +67,12 @@ impl PeripheralInterface {
             let cart_addr = cart_addr - 0x1000_0000;
 
             if dma.write {
-                rdram.write_block(
+                rdram.write().unwrap().write_block(
                     dram_addr,
                     &self.rom[cart_addr..(cart_addr + block_len as usize)],
                 );
             } else {
-                rdram.read_block(
+                rdram.read().unwrap().read_block(
                     dram_addr,
                     &mut self.rom[cart_addr..(cart_addr + block_len as usize)],
                 );
@@ -82,7 +82,10 @@ impl PeripheralInterface {
             // Just write zeroes and ignore reads
             if dma.write {
                 let buf: [u8; 128] = [0; 128];
-                rdram.write_block(dram_addr, &buf[0..block_len as usize]);
+                rdram
+                    .write()
+                    .unwrap()
+                    .write_block(dram_addr, &buf[0..block_len as usize]);
             }
         }
 

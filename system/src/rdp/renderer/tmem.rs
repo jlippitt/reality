@@ -3,6 +3,7 @@ use super::{Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::HashMap;
+use std::sync::RwLock;
 use texture::Texture;
 use tracing::trace;
 
@@ -98,7 +99,7 @@ impl Tmem {
 
     pub fn load_tile(
         &mut self,
-        rdram: &Rdram,
+        rdram: &RwLock<Rdram>,
         tile_id: usize,
         x_offset: usize,
         x_size: usize,
@@ -118,9 +119,11 @@ impl Tmem {
         let mut dram_addr = self.texture_image.dram_addr as usize + dram_width * y_offset;
         let mut tmem_addr = tile.descriptor.tmem_addr as usize;
 
+        let reader = rdram.read().unwrap();
+
         for line in 0..y_size {
             let dst = &mut self.tmem_data[tmem_addr..(tmem_addr + tmem_width)];
-            rdram.read_block(dram_addr + dram_line_offset, dst);
+            reader.read_block(dram_addr + dram_line_offset, dst);
 
             if (line & 1) != 0 {
                 for word in dst {
@@ -146,7 +149,7 @@ impl Tmem {
 
     pub fn load_tlut(
         &mut self,
-        rdram: &Rdram,
+        rdram: &RwLock<Rdram>,
         tile_id: usize,
         x_offset: usize,
         x_size: usize,
@@ -167,8 +170,10 @@ impl Tmem {
             self.texture_image.dram_addr as usize + y_offset * dram_width + dram_line_offset;
         let mut tmem_addr = tile.descriptor.tmem_addr as usize;
 
+        let reader = rdram.read().unwrap();
+
         for _ in 0..(x_size * y_size) {
-            let color = rdram.read_single::<u16>(dram_addr).swap_bytes();
+            let color = reader.read_single::<u16>(dram_addr).swap_bytes();
 
             let word = ((color as u64) << 48)
                 | ((color as u64) << 32)
@@ -194,7 +199,7 @@ impl Tmem {
 
     pub fn load_block(
         &mut self,
-        rdram: &Rdram,
+        rdram: &RwLock<Rdram>,
         tile_id: usize,
         x_offset: usize,
         x_size: usize,
@@ -223,6 +228,8 @@ impl Tmem {
         let mut tmem_addr = tmem_start;
         let mut y_pos = 0;
 
+        let reader = rdram.read().unwrap();
+
         while tmem_addr < tmem_end {
             let mut tmem_line_start = tmem_addr;
 
@@ -232,7 +239,7 @@ impl Tmem {
             }
 
             let dst = &mut self.tmem_data[tmem_line_start..tmem_addr];
-            rdram.read_block(dram_addr, dst);
+            reader.read_block(dram_addr, dst);
             dram_addr += (tmem_addr - tmem_line_start) << 3;
 
             if tmem_addr >= tmem_end {
@@ -247,7 +254,7 @@ impl Tmem {
             }
 
             let dst = &mut self.tmem_data[tmem_line_start..tmem_addr];
-            rdram.read_block(dram_addr, dst);
+            reader.read_block(dram_addr, dst);
             dram_addr += (tmem_addr - tmem_line_start) << 3;
 
             for word in dst {

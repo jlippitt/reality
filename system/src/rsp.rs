@@ -4,7 +4,7 @@ use crate::rdp::RdpInterface;
 use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, debug_span, trace};
 
 mod core;
@@ -29,14 +29,12 @@ pub struct Stats {
 }
 
 struct Bus<'a> {
-    rsp: &'a Arc<Mutex<RspInterface>>,
-    rdp: &'a Arc<Mutex<RdpInterface>>,
+    rsp: &'a mut RspInterface,
+    rdp: &'a Mutex<RdpInterface>,
 }
 
 pub struct RspCore {
     core: Core,
-    iface: Arc<Mutex<RspInterface>>,
-    rdp_iface: Arc<Mutex<RdpInterface>>,
 }
 
 pub struct RspInterface {
@@ -52,57 +50,51 @@ pub struct RspInterface {
 }
 
 impl RspCore {
-    pub fn new(iface: Arc<Mutex<RspInterface>>, rdp_iface: Arc<Mutex<RdpInterface>>) -> Self {
-        Self {
-            core: Core::new(),
-            iface,
-            rdp_iface,
-        }
+    pub fn new() -> Self {
+        Self { core: Core::new() }
     }
 
     #[inline(always)]
-    pub fn step(&mut self) {
-        let pc = {
-            #[cfg(feature = "profiling")]
-            let mut iface = self.iface.lock().unwrap();
+    pub fn step(
+        &mut self,
+        iface: &Mutex<RspInterface>,
+        rdp_iface: &Mutex<RdpInterface>,
+        rdram: &RwLock<Rdram>,
+    ) {
+        let mut iface = iface.lock().unwrap();
 
-            #[cfg(not(feature = "profiling"))]
-            let iface = self.iface.lock().unwrap();
+        iface.step_dma(rdram);
 
-            if iface.regs.status.halted() {
-                #[cfg(feature = "profiling")]
-                {
-                    iface.stats.halt_cycles += 1;
-                }
-
-                return;
-            }
-
+        if iface.regs.status.halted() {
             #[cfg(feature = "profiling")]
             {
-                iface.stats.instruction_cycles += 1;
+                iface.stats.halt_cycles += 1;
             }
 
-            iface.pc
-        };
+            return;
+        }
 
-        self.step_inner(pc);
+        #[cfg(feature = "profiling")]
+        {
+            iface.stats.instruction_cycles += 1;
+        }
+
+        Self::step_inner(&mut self.core, &mut iface, rdp_iface);
     }
 
-    fn step_inner(&mut self, pc: u32) {
+    fn step_inner(core: &mut Core, iface: &mut RspInterface, rdp_iface: &Mutex<RdpInterface>) {
         let pc = {
             let _span = debug_span!("rsp").entered();
 
-            self.core.step(
-                pc,
+            core.step(
+                iface.pc,
                 &mut Bus {
-                    rsp: &self.iface,
-                    rdp: &self.rdp_iface,
+                    rsp: iface,
+                    rdp: rdp_iface,
                 },
             )
         };
 
-        let mut iface = self.iface.lock().unwrap();
         iface.pc = pc;
         let status = &mut iface.regs.status;
         status.set_halted(status.halted() | status.sstep());
@@ -137,7 +129,7 @@ impl RspInterface {
     }
 
     #[inline(always)]
-    pub fn step_dma(&mut self, rdram: &mut Rdram) {
+    fn step_dma(&mut self, rdram: &RwLock<Rdram>) {
         if !self.dma_in_progress {
             return;
         }
@@ -145,7 +137,7 @@ impl RspInterface {
         self.step_dma_inner(rdram);
     }
 
-    fn step_dma_inner(&mut self, rdram: &mut Rdram) {
+    fn step_dma_inner(&mut self, rdram: &RwLock<Rdram>) {
         let dma = &mut self.dma_active;
 
         let bank_offset = (dma.sp_addr.mem_bank() as u32) << 12;
@@ -165,7 +157,7 @@ impl RspInterface {
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
-            rdram.write_block(dram_addr as usize, data);
+            rdram.write().unwrap().write_block(dram_addr as usize, data);
 
             debug!(
                 "RSP DMA: {} bytes written from {:08X} to {:08X}",
@@ -174,7 +166,7 @@ impl RspInterface {
                 dram_addr,
             );
         } else {
-            rdram.read_block(dram_addr as usize, data);
+            rdram.read().unwrap().read_block(dram_addr as usize, data);
 
             let mut byte_addr = mem_addr as usize;
 
@@ -361,28 +353,22 @@ impl<'a> core::Bus for Bus<'a> {
         let address = address as usize;
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & 3) == 0);
-        self.rsp.lock().unwrap().mem.read(0x1000 | address)
+        self.rsp.mem.read(0x1000 | address)
     }
 
     fn read_data<T: Size>(&self, address: u32) -> T {
-        self.rsp
-            .lock()
-            .unwrap()
-            .mem
-            .read_unaligned(address as usize, 0x0fff)
+        self.rsp.mem.read_unaligned(address as usize, 0x0fff)
     }
 
     fn write_data<T: Size>(&mut self, address: u32, value: T) {
         self.rsp
-            .lock()
-            .unwrap()
             .mem
             .write_unaligned(address as usize, 0x0fff, value);
     }
 
     fn read_register(&self, index: usize) -> u32 {
         if index < 8 {
-            self.rsp.lock().unwrap().read_register(index)
+            self.rsp.read_register(index)
         } else {
             self.rdp.lock().unwrap().read_register(index - 8)
         }
@@ -392,19 +378,18 @@ impl<'a> core::Bus for Bus<'a> {
         let mask = WriteMask::unmasked(value);
 
         if index < 8 {
-            self.rsp.lock().unwrap().write_register(index, mask);
+            self.rsp.write_register(index, mask);
         } else {
             self.rdp.lock().unwrap().write_register(index - 8, mask);
         }
     }
 
     fn break_(&mut self) {
-        let mut rsp = self.rsp.lock().unwrap();
-        rsp.regs.status.set_halted(true);
-        rsp.regs.status.set_broke(true);
+        self.rsp.regs.status.set_halted(true);
+        self.rsp.regs.status.set_broke(true);
 
-        if rsp.regs.status.intbreak() {
-            rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
+        if self.rsp.regs.status.intbreak() {
+            self.rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
         }
     }
 }

@@ -1,6 +1,7 @@
 use super::regs::{AntiAliasMode, DisplayMode};
 use crate::gfx;
 use crate::rdram::Rdram;
+use std::sync::RwLock;
 
 pub struct Framebuffer {
     sampler_linear: wgpu::Sampler,
@@ -73,7 +74,7 @@ impl Framebuffer {
     pub fn upload(
         &mut self,
         queue: &wgpu::Queue,
-        rdram: &Rdram,
+        rdram: &RwLock<Rdram>,
         display_mode: DisplayMode,
         origin: u32,
         buffer_width: u32,
@@ -85,7 +86,7 @@ impl Framebuffer {
             DisplayMode::Blank => self.pixel_buf.fill(0),
             DisplayMode::Reserved => panic!("Use of reserved display mode"),
             DisplayMode::Color16 => gfx::copy_image_rgba16(
-                rdram,
+                &rdram.read().unwrap(),
                 &mut self.pixel_buf,
                 origin,
                 buffer_width,
@@ -93,7 +94,7 @@ impl Framebuffer {
                 video_height,
             ),
             DisplayMode::Color32 => gfx::copy_image_rgba32(
-                rdram,
+                &rdram.read().unwrap(),
                 &mut self.pixel_buf,
                 origin,
                 buffer_width,

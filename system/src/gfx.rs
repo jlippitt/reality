@@ -1,5 +1,6 @@
 use crate::rdram::Rdram;
 use std::error::Error;
+use std::sync::Mutex;
 
 pub struct DisplayTarget<T: wgpu::WindowHandle + 'static> {
     pub window: T,
@@ -11,7 +12,7 @@ pub struct GfxContext {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    config: Mutex<wgpu::SurfaceConfiguration>,
 }
 
 impl GfxContext {
@@ -67,7 +68,7 @@ impl GfxContext {
             surface,
             device,
             queue,
-            config,
+            config: Mutex::new(config),
         })
     }
 
@@ -84,17 +85,19 @@ impl GfxContext {
     }
 
     pub fn output_format(&self) -> wgpu::TextureFormat {
-        self.config.format
+        self.config.lock().unwrap().format
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width == self.config.width && height == self.config.height {
+    pub fn resize(&self, width: u32, height: u32) {
+        let mut config = self.config.lock().unwrap();
+
+        if width == config.width && height == config.height {
             return;
         }
 
-        self.config.width = width;
-        self.config.height = height;
-        self.surface.configure(&self.device, &self.config);
+        config.width = width;
+        config.height = height;
+        self.surface.configure(&self.device, &config);
     }
 }
 

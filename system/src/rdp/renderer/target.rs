@@ -3,6 +3,7 @@ use crate::gfx::{self, GfxContext};
 use crate::rdram::Rdram;
 use fill_color::FillColor;
 use std::mem;
+use std::sync::RwLock;
 use tracing::{debug, trace};
 use wgpu::util::DeviceExt;
 
@@ -158,7 +159,7 @@ impl Target {
         );
     }
 
-    pub fn update(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+    pub fn update(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>) {
         if self.output.is_some() {
             if !self.dirty {
                 return;
@@ -186,7 +187,7 @@ impl Target {
 
         match self.color_image.format {
             (Format::Rgba, 3) => gfx::copy_image_rgba32(
-                rdram,
+                &rdram.read().unwrap(),
                 &mut self.pixel_buf,
                 self.color_image.dram_addr,
                 self.color_image.width,
@@ -194,7 +195,7 @@ impl Target {
                 height,
             ),
             (Format::Rgba, 2) => gfx::copy_image_rgba16(
-                rdram,
+                &rdram.read().unwrap(),
                 &mut self.pixel_buf,
                 self.color_image.dram_addr,
                 self.color_image.width,
@@ -259,7 +260,7 @@ impl Target {
         self.dirty = false;
     }
 
-    pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+    pub fn sync(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>) {
         if self.synced {
             return;
         }
@@ -313,8 +314,10 @@ impl Target {
             // TODO: What happens when color image width is not the same as texture width?
             match output.color_image.format {
                 (Format::Rgba, 3) => {
+                    let mut writer = rdram.write().unwrap();
+
                     for _ in 0..output.color_texture.height() {
-                        rdram.write_block(
+                        writer.write_block(
                             ram_addr,
                             &pixel_data
                                 [buf_addr..(buf_addr + output.color_texture.width() as usize * 4)],
@@ -324,6 +327,8 @@ impl Target {
                     }
                 }
                 (Format::Rgba, 2) => {
+                    let mut writer = rdram.write().unwrap();
+
                     for _ in 0..output.color_texture.height() {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
                         let pixels: Vec<u8> = pixel_data
@@ -339,7 +344,7 @@ impl Target {
                             })
                             .collect();
 
-                        rdram.write_block(ram_addr, &pixels);
+                        writer.write_block(ram_addr, &pixels);
                         buf_addr += output.color_texture.width() as usize * 4;
                         ram_addr += output.color_image.width as usize * 2;
                     }

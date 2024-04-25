@@ -3,7 +3,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
 use regs::Regs;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, trace};
 
 mod regs;
@@ -50,7 +50,7 @@ impl AudioInterface {
     }
 
     #[inline(always)]
-    pub fn step(&mut self, rdram: &Rdram, receiver: &mut impl AudioReceiver) {
+    pub fn step(&mut self, rdram: &RwLock<Rdram>, receiver: &mut impl AudioReceiver) {
         self.cycles_remaining -= 1;
 
         if self.cycles_remaining != 0 {
@@ -60,12 +60,13 @@ impl AudioInterface {
         self.step_inner(rdram, receiver);
     }
 
-    fn step_inner(&mut self, rdram: &Rdram, receiver: &mut impl AudioReceiver) {
+    fn step_inner(&mut self, rdram: &RwLock<Rdram>, receiver: &mut impl AudioReceiver) {
         self.cycles_remaining = self.cycles_per_sample;
 
         if let Some(dma_active) = &mut self.dma_active {
-            let left = rdram.read_single(dma_active.dram_addr as usize);
-            let right = rdram.read_single((dma_active.dram_addr + 2) as usize);
+            let reader = rdram.read().unwrap();
+            let left = reader.read_single(dma_active.dram_addr as usize);
+            let right = reader.read_single((dma_active.dram_addr + 2) as usize);
             receiver.queue_samples(self.sample_rate, &[left, right]);
             trace!("AI DMA: 4 bytes read from {:08X}", dma_active.dram_addr);
 

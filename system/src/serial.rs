@@ -7,7 +7,7 @@ use crc::Crc;
 use joybus::Joybus;
 use pif::Pif;
 use regs::Regs;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, error};
 
 mod joybus;
@@ -49,7 +49,7 @@ impl SerialInterface {
     }
 
     #[inline(always)]
-    pub fn step(&mut self, rdram: &mut Rdram) {
+    pub fn step(&mut self, rdram: &RwLock<Rdram>) {
         if self.dma.is_none() {
             return;
         }
@@ -57,14 +57,17 @@ impl SerialInterface {
         self.step_inner(rdram);
     }
 
-    fn step_inner(&mut self, rdram: &mut Rdram) {
+    fn step_inner(&mut self, rdram: &RwLock<Rdram>) {
         let dma = self.dma.as_ref().unwrap();
 
         let dram_addr = self.regs.dram_addr.dram_addr();
         let mut buf = [0u8; 64];
 
         if dma.write {
-            rdram.read_block(dram_addr as usize, &mut buf);
+            rdram
+                .read()
+                .unwrap()
+                .read_block(dram_addr as usize, &mut buf);
 
             let mut pif_addr = dma.pif_addr;
 
@@ -97,7 +100,7 @@ impl SerialInterface {
                 pif_addr += 1;
             }
 
-            rdram.write_block(dram_addr as usize, &buf);
+            rdram.write().unwrap().write_block(dram_addr as usize, &buf);
 
             debug!(
                 "SI DMA: {} bytes read from {:04X} to {:08X}",

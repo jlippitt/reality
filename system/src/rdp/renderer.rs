@@ -9,6 +9,7 @@ use crate::rdram::Rdram;
 use blender::BlendMode;
 use combiner::CombineMode;
 use display_list::{DisplayList, Vertex};
+use std::sync::RwLock;
 use target::Target;
 use tmem::Tmem;
 use tracing::trace;
@@ -166,7 +167,7 @@ impl Renderer {
     pub fn set_color_image(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         color_image: ColorImage,
     ) {
         if color_image != *self.target.color_image() {
@@ -176,7 +177,7 @@ impl Renderer {
         self.target.set_color_image(color_image);
     }
 
-    pub fn set_scissor(&mut self, gfx: &GfxContext, rdram: &mut Rdram, scissor: Rect) {
+    pub fn set_scissor(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>, scissor: Rect) {
         if scissor != *self.target.scissor() {
             self.flush(gfx, rdram);
         }
@@ -188,7 +189,7 @@ impl Renderer {
         }
     }
 
-    pub fn set_fill_color(&mut self, gfx: &GfxContext, rdram: &mut Rdram, value: u32) {
+    pub fn set_fill_color(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>, value: u32) {
         if value != self.target.fill_color() {
             self.flush(gfx, rdram);
         }
@@ -201,7 +202,7 @@ impl Renderer {
         self.display_list.set_combine_mode(combine_mode);
     }
 
-    pub fn set_other_modes(&mut self, gfx: &GfxContext, rdram: &mut Rdram, mode: OtherModes) {
+    pub fn set_other_modes(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>, mode: OtherModes) {
         if mode.z_buffer != self.z_buffer {
             self.flush(gfx, rdram);
         }
@@ -234,7 +235,7 @@ impl Renderer {
     pub fn load_tile(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         index: usize,
         x_offset: usize,
         x_size: usize,
@@ -250,7 +251,7 @@ impl Renderer {
     pub fn load_tlut(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         index: usize,
         x_offset: usize,
         x_size: usize,
@@ -266,7 +267,7 @@ impl Renderer {
     pub fn load_block(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         index: usize,
         x_offset: usize,
         x_size: usize,
@@ -290,7 +291,7 @@ impl Renderer {
     pub fn draw_triangle(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         edges: [[f32; 2]; 3],
         colors: [[f32; 4]; 3],
         texture: Option<(usize, [[f32; 3]; 3])>,
@@ -319,7 +320,7 @@ impl Renderer {
     pub fn draw_rectangle(
         &mut self,
         gfx: &GfxContext,
-        rdram: &mut Rdram,
+        rdram: &RwLock<Rdram>,
         rect: Rect,
         texture: Option<(usize, Rect, bool)>,
     ) {
@@ -359,12 +360,12 @@ impl Renderer {
         }
     }
 
-    pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+    pub fn sync(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>) {
         self.flush(gfx, rdram);
         self.target.sync(gfx, rdram);
     }
 
-    pub fn flush(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+    pub fn flush(&mut self, gfx: &GfxContext, rdram: &RwLock<Rdram>) {
         if self.display_list.is_empty() {
             return;
         }

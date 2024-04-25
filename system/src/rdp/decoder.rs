@@ -5,7 +5,7 @@ use crate::rdram::Rdram;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tracing::warn;
 
 mod mode;
@@ -18,7 +18,7 @@ mod triangle;
 
 pub struct Context<'a> {
     pub renderer: &'a mut Renderer,
-    pub rdram: &'a mut Rdram,
+    pub rdram: &'a RwLock<Rdram>,
     pub gfx: &'a GfxContext,
 }
 

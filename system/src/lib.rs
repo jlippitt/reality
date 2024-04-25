@@ -16,7 +16,8 @@ use serial::SerialInterface;
 use std::error::Error;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex, RwLock};
+use std::thread;
 use tracing::warn;
 use video::VideoInterface;
 
@@ -42,13 +43,13 @@ const RCP_CLOCK_RATE: f64 = 62500000.0;
 
 const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
 
+const SYNC_CYCLES: u64 = 128;
+
 struct Bus {
     memory_map: Vec<Mapping>,
     cpu_int: Arc<Mutex<CpuInterrupt>>,
-    rdram: Rdram,
-    rsp_core: RspCore,
+    rdram: Arc<RwLock<Rdram>>,
     rsp_iface: Arc<Mutex<RspInterface>>,
-    rdp_core: RdpCore,
     rdp_iface: Arc<Mutex<RdpInterface>>,
     mi: MipsInterface,
     vi: VideoInterface,
@@ -73,7 +74,8 @@ pub struct Stats {
 pub struct Device {
     cpu: Cpu,
     bus: Bus,
-    gfx: GfxContext,
+    barrier: Arc<Barrier>,
+    gfx: Arc<GfxContext>,
     cycles: u64,
 }
 
@@ -111,39 +113,66 @@ impl Device {
         let mut si = SerialInterface::new(rcp_int.clone(), options.pif_data);
         si.cic_detect(&options.rom_data, &mut rdram);
 
-        let rsp_iface = Arc::new(Mutex::new(RspInterface::new(rcp_int.clone(), ipl3_data)));
+        let rsp_iface_cpu = Arc::new(Mutex::new(RspInterface::new(rcp_int.clone(), ipl3_data)));
+        let rsp_iface_rsp = rsp_iface_cpu.clone();
+        let rsp_iface_rdp = rsp_iface_cpu.clone();
 
         let (rdp_sender, rdp_receiver) = mpsc::channel();
         let rdp_running = Arc::new(AtomicBool::new(false));
-        let rdp_iface = Arc::new(Mutex::new(RdpInterface::new(
+        let rdp_iface_cpu = Arc::new(Mutex::new(RdpInterface::new(
             rdp_sender,
             rdp_running.clone(),
         )));
+        let rdp_iface_rdp = rdp_iface_cpu.clone();
+        let rdp_iface_rsp = rdp_iface_cpu.clone();
+
+        let mut rsp_core = RspCore::new();
+        let mut rdp_core = RdpCore::new(rcp_int.clone(), &gfx, rdp_receiver, rdp_running);
+
+        let barrier_cpu = Arc::new(Barrier::new(3));
+        let barrier_rsp = barrier_cpu.clone();
+        let barrier_rdp = barrier_cpu.clone();
+
+        let gfx_cpu = Arc::new(gfx);
+        let gfx_rdp = gfx_cpu.clone();
+
+        let rdram_cpu = Arc::new(RwLock::new(rdram));
+        let rdram_rsp = rdram_cpu.clone();
+        let rdram_rdp = rdram_cpu.clone();
+
+        thread::spawn(move || loop {
+            barrier_rsp.wait();
+
+            for _ in 0..SYNC_CYCLES {
+                rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
+            }
+        });
+
+        thread::spawn(move || loop {
+            barrier_rdp.wait();
+
+            for _ in 0..SYNC_CYCLES {
+                rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
+            }
+        });
 
         Ok(Self {
             cpu: Cpu::new(skip_pif_rom),
             bus: Bus {
                 memory_map,
                 cpu_int,
-                rdram,
-                rsp_core: RspCore::new(rsp_iface.clone(), rdp_iface.clone()),
-                rsp_iface,
-                rdp_core: RdpCore::new(
-                    rcp_int.clone(),
-                    &gfx,
-                    rdp_iface.clone(),
-                    rdp_receiver,
-                    rdp_running,
-                ),
-                rdp_iface,
+                rdram: rdram_cpu,
+                rsp_iface: rsp_iface_cpu,
+                rdp_iface: rdp_iface_cpu,
                 mi: MipsInterface::new(rcp_int.clone()),
-                vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
+                vi: VideoInterface::new(rcp_int.clone(), &gfx_cpu, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
                 pi: PeripheralInterface::new(rcp_int, options.rom_data, skip_pif_rom),
                 si,
                 systest_buffer: Memory::with_byte_len(512),
             },
-            gfx,
+            barrier: barrier_cpu,
+            gfx: gfx_cpu,
             cycles: 0,
         })
     }
@@ -183,35 +212,25 @@ impl Device {
     }
 
     pub fn run_frame(&mut self, receiver: &mut impl AudioReceiver) {
-        loop {
-            self.cycles += 1;
+        let mut frame_done = false;
 
-            self.cpu.step(&mut self.bus);
+        while !frame_done {
+            self.barrier.wait();
 
-            if (self.cycles & 1) == 0 {
+            for _ in 0..SYNC_CYCLES {
+                self.cycles += 1;
+
                 self.cpu.step(&mut self.bus);
-            }
 
-            self.bus.rsp_core.step();
-            self.bus
-                .rsp_iface
-                .lock()
-                .unwrap()
-                .step_dma(&mut self.bus.rdram);
+                if (self.cycles & 1) == 0 {
+                    self.cpu.step(&mut self.bus);
+                }
 
-            self.bus.rdp_core.step_core(&mut self.bus.rdram, &self.gfx);
-            self.bus
-                .rdp_iface
-                .lock()
-                .unwrap()
-                .step_dma(&self.bus.rdram, self.bus.rsp_iface.lock().unwrap().mem());
+                self.bus.ai.step(&self.bus.rdram, receiver);
+                self.bus.pi.step(&self.bus.rdram);
+                self.bus.si.step(&self.bus.rdram);
 
-            self.bus.ai.step(&self.bus.rdram, receiver);
-            self.bus.pi.step(&mut self.bus.rdram);
-            self.bus.si.step(&mut self.bus.rdram);
-
-            if self.bus.vi.step(&self.bus.rdram, &self.gfx) {
-                break;
+                frame_done = self.bus.vi.step(&self.bus.rdram, &self.gfx);
             }
         }
     }
@@ -220,8 +239,12 @@ impl Device {
 impl cpu::Bus for Bus {
     fn read_single<T: Size>(&self, address: u32) -> T {
         match self.memory_map[address as usize >> 20] {
-            Mapping::RdramData => self.rdram.read_single(address as usize),
-            Mapping::RdramRegister => self.rdram.read_register(&self.mi, address & 0x000f_ffff),
+            Mapping::RdramData => self.rdram.read().unwrap().read_single(address as usize),
+            Mapping::RdramRegister => self
+                .rdram
+                .read()
+                .unwrap()
+                .read_register(&self.mi, address & 0x000f_ffff),
             Mapping::Rsp => self.rsp_iface.lock().unwrap().read(address & 0x000f_ffff),
             Mapping::RdpCommand => self
                 .rdp_iface
@@ -237,7 +260,11 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.read(address & 0x000f_ffff),
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
             Mapping::PeripheralInterface => self.pi.read(address & 0x000f_ffff),
-            Mapping::RdramInterface => self.rdram.read_interface(address & 0x000f_ffff),
+            Mapping::RdramInterface => self
+                .rdram
+                .read()
+                .unwrap()
+                .read_interface(address & 0x000f_ffff),
             Mapping::SerialInterface => self.si.read(address & 0x000f_ffff),
             Mapping::DDRegisters => T::max_value(),
             Mapping::CartridgeRom => self.pi.read_rom(address & 0x0fff_ffff),
@@ -251,9 +278,13 @@ impl cpu::Bus for Bus {
 
     fn write_single<T: Size>(&mut self, address: u32, value: T) {
         match self.memory_map[address as usize >> 20] {
-            Mapping::RdramData => self.rdram.write_single(address as usize, value),
+            Mapping::RdramData => self
+                .rdram
+                .write()
+                .unwrap()
+                .write_single(address as usize, value),
             Mapping::RdramRegister => {
-                self.rdram.write_register(
+                self.rdram.write().unwrap().write_register(
                     &mut self.mi,
                     &mut self.memory_map,
                     address & 0x000f_ffff,
@@ -279,7 +310,11 @@ impl cpu::Bus for Bus {
             Mapping::VideoInterface => self.vi.write(address & 0x000f_ffff, value),
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),
             Mapping::PeripheralInterface => self.pi.write(address & 0x000f_ffff, value),
-            Mapping::RdramInterface => self.rdram.write_interface(address & 0x000f_ffff, value),
+            Mapping::RdramInterface => self
+                .rdram
+                .write()
+                .unwrap()
+                .write_interface(address & 0x000f_ffff, value),
             Mapping::SerialInterface => self.si.write(address & 0x000f_ffff, value),
             Mapping::DDRegisters => (), // Ignore
             Mapping::CartridgeRom => match address {
@@ -303,7 +338,10 @@ impl cpu::Bus for Bus {
             panic!("Only RDRAM data is supported for block reads");
         }
 
-        self.rdram.read_block(address as usize, data);
+        self.rdram
+            .read()
+            .unwrap()
+            .read_block(address as usize, data);
     }
 
     fn write_block<T: Size>(&mut self, address: u32, data: &[T]) {
@@ -311,7 +349,10 @@ impl cpu::Bus for Bus {
             panic!("Only RDRAM data is supported for block writes");
         }
 
-        self.rdram.write_block(address as usize, data);
+        self.rdram
+            .write()
+            .unwrap()
+            .write_block(address as usize, data);
     }
 
     fn poll(&self) -> u8 {
