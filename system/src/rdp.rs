@@ -6,8 +6,6 @@ use crate::rsp::RspInterface;
 use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 use tracing::{debug, error_span, warn};
 
@@ -31,19 +29,12 @@ pub struct RdpInterface {
     regs: Regs,
     dma_active: Dma,
     dma_pending: Option<Dma>,
-    sender: Sender<u64>,
-    running: Arc<AtomicBool>,
 }
 
 impl RdpCore {
-    pub fn new(
-        rcp_int: Arc<Mutex<RcpInterrupt>>,
-        gfx: &GfxContext,
-        receiver: Receiver<u64>,
-        running: Arc<AtomicBool>,
-    ) -> Self {
+    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, gfx: &GfxContext) -> Self {
         Self {
-            decoder: Decoder::new(receiver, running),
+            decoder: Decoder::new(),
             renderer: Renderer::new(gfx),
             rcp_int,
         }
@@ -59,7 +50,7 @@ impl RdpCore {
     ) {
         let mut iface_lock = iface.lock().unwrap();
 
-        iface_lock.step_dma(rdram, rsp_iface);
+        iface_lock.step_dma(rdram, rsp_iface, &mut self.decoder);
 
         if !self.decoder.running() || iface_lock.regs.status.freeze() {
             return;
@@ -101,26 +92,34 @@ impl RdpCore {
 }
 
 impl RdpInterface {
-    pub fn new(sender: Sender<u64>, running: Arc<AtomicBool>) -> Self {
+    pub fn new() -> Self {
         Self {
             regs: Regs::default(),
             dma_active: Dma { start: 0, end: 0 },
             dma_pending: None,
-            sender,
-            running,
         }
     }
 
     #[inline(always)]
-    pub fn step_dma(&mut self, rdram: &RwLock<Rdram>, rsp_iface: &Mutex<RspInterface>) {
+    pub fn step_dma(
+        &mut self,
+        rdram: &RwLock<Rdram>,
+        rsp_iface: &Mutex<RspInterface>,
+        decoder: &mut Decoder,
+    ) {
         if self.dma_active.start >= self.dma_active.end {
             return;
         }
 
-        self.step_dma_inner(rdram, rsp_iface);
+        self.step_dma_inner(rdram, rsp_iface, decoder);
     }
 
-    fn step_dma_inner(&mut self, rdram: &RwLock<Rdram>, rsp_iface: &Mutex<RspInterface>) {
+    fn step_dma_inner(
+        &mut self,
+        rdram: &RwLock<Rdram>,
+        rsp_iface: &Mutex<RspInterface>,
+        decoder: &mut Decoder,
+    ) {
         let dma = &mut self.dma_active;
 
         assert!((dma.start & 7) == 0);
@@ -135,7 +134,7 @@ impl RdpInterface {
 
             for _ in 0..block_len {
                 let command: u64 = rsp_mem.read(current as usize & 0xfff);
-                self.sender.send(command).unwrap();
+                decoder.write_command(command);
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -149,7 +148,7 @@ impl RdpInterface {
 
             for _ in 0..block_len {
                 let command: u64 = reader.read_single(current as usize);
-                self.sender.send(command).unwrap();
+                decoder.write_command(command);
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -160,7 +159,7 @@ impl RdpInterface {
             );
         }
 
-        self.running.store(true, Ordering::Relaxed);
+        decoder.restart();
 
         dma.start = current;
 

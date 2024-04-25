@@ -8,24 +8,22 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     ctx: Context,
     word: u64,
 ) {
-    let param_size = 3 + (SHADE as usize * 8) + (TEXTURE as usize * 8) + (Z_BUFFER as usize * 2);
-
-    while decoder.params.len() < param_size {
-        let Ok(param) = decoder.receiver.try_recv() else {
-            decoder.pending_command = Some(word);
-            decoder.halt();
-            return;
-        };
-
-        decoder.params.push_back(param);
-    }
-
     let cmd = Triangle::from(word);
     trace!("{:?}", cmd);
 
-    let edge_low = Edge::from(decoder.params.pop_front().unwrap());
-    let edge_high = Edge::from(decoder.params.pop_front().unwrap());
-    let edge_mid = Edge::from(decoder.params.pop_front().unwrap());
+    let param_size = 3 + (SHADE as usize * 8) + (TEXTURE as usize * 8) + (Z_BUFFER as usize * 2);
+
+    // Check we have enough command data to satisfy our parameters,
+    // or else we have to wait for more to be uploaded
+    if decoder.commands.len() < param_size {
+        decoder.commands.push_front(word);
+        decoder.running = false;
+        return;
+    }
+
+    let edge_low = Edge::from(decoder.commands.pop_front().unwrap());
+    let edge_high = Edge::from(decoder.commands.pop_front().unwrap());
+    let edge_mid = Edge::from(decoder.commands.pop_front().unwrap());
     trace!("L {:?}", edge_low);
     trace!("H {:?}", edge_high);
     trace!("M {:?}", edge_mid);
@@ -51,14 +49,14 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     trace!("  = {:?}", edges);
 
     let colors: [[f32; 4]; 3] = if SHADE {
-        let shade = Color::from(decoder.params.pop_front().unwrap());
-        let shade_dx = Color::from(decoder.params.pop_front().unwrap());
-        let shade_frac = Color::from(decoder.params.pop_front().unwrap());
-        let shade_frac_dx = Color::from(decoder.params.pop_front().unwrap());
-        let shade_de = Color::from(decoder.params.pop_front().unwrap());
-        let shade_dy = Color::from(decoder.params.pop_front().unwrap());
-        let shade_frac_de = Color::from(decoder.params.pop_front().unwrap());
-        let shade_frac_dy = Color::from(decoder.params.pop_front().unwrap());
+        let shade = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_dx = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_dx = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_de = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_dy = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_de = Color::from(decoder.commands.pop_front().unwrap());
+        let shade_frac_dy = Color::from(decoder.commands.pop_front().unwrap());
         trace!("Shade: {:?}", shade);
         trace!("Shade DX: {:?}", shade_dx);
         trace!("Shade Frac: {:?}", shade_frac);
@@ -90,14 +88,14 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     };
 
     let texture = if TEXTURE {
-        let coord = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_dx = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_frac = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_frac_dx = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_de = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_dy = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_frac_de = TexCoord::from(decoder.params.pop_front().unwrap());
-        let coord_frac_dy = TexCoord::from(decoder.params.pop_front().unwrap());
+        let coord = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_dx = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_dx = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_de = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_de = TexCoord::from(decoder.commands.pop_front().unwrap());
+        let coord_frac_dy = TexCoord::from(decoder.commands.pop_front().unwrap());
         trace!("Texture: {:?}", coord);
         trace!("Texture DX: {:?}", coord_dx);
         trace!("Texture Frac: {:?}", coord_frac);
@@ -131,8 +129,8 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
     };
 
     let z_values: [f32; 3] = if Z_BUFFER {
-        let z_dzdx_word = decoder.params.pop_front().unwrap();
-        let dzde_dzdy_word = decoder.params.pop_front().unwrap();
+        let z_dzdx_word = decoder.commands.pop_front().unwrap();
+        let dzde_dzdy_word = decoder.commands.pop_front().unwrap();
 
         let z = ((z_dzdx_word >> 32) as u32 as i32) as f32 / 65536.0;
         let dzdx = (z_dzdx_word as u32 as i32) as f32 / 65536.0;

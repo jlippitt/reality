@@ -14,8 +14,6 @@ use rdram::Rdram;
 use rsp::{RspCore, RspInterface};
 use serial::SerialInterface;
 use std::error::Error;
-use std::sync::atomic::AtomicBool;
-use std::sync::mpsc;
 use std::sync::{Arc, Barrier, Mutex, RwLock};
 use std::thread;
 use tracing::warn;
@@ -117,17 +115,12 @@ impl Device {
         let rsp_iface_rsp = rsp_iface_cpu.clone();
         let rsp_iface_rdp = rsp_iface_cpu.clone();
 
-        let (rdp_sender, rdp_receiver) = mpsc::channel();
-        let rdp_running = Arc::new(AtomicBool::new(false));
-        let rdp_iface_cpu = Arc::new(Mutex::new(RdpInterface::new(
-            rdp_sender,
-            rdp_running.clone(),
-        )));
+        let rdp_iface_cpu = Arc::new(Mutex::new(RdpInterface::new()));
         let rdp_iface_rdp = rdp_iface_cpu.clone();
         let rdp_iface_rsp = rdp_iface_cpu.clone();
 
         let mut rsp_core = RspCore::new();
-        let mut rdp_core = RdpCore::new(rcp_int.clone(), &gfx, rdp_receiver, rdp_running);
+        let mut rdp_core = RdpCore::new(rcp_int.clone(), &gfx);
 
         let barrier_cpu = Arc::new(Barrier::new(3));
         let barrier_rsp = barrier_cpu.clone();
@@ -140,19 +133,35 @@ impl Device {
         let rdram_rsp = rdram_cpu.clone();
         let rdram_rdp = rdram_cpu.clone();
 
-        thread::spawn(move || loop {
-            barrier_rsp.wait();
+        thread::spawn(move || {
+            let mut cycles: u64 = 0;
 
-            for _ in 0..SYNC_CYCLES {
-                rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
+            loop {
+                println!("RSP Wait");
+                barrier_rsp.wait();
+                println!("RSP: {}", cycles);
+
+                for _ in 0..SYNC_CYCLES {
+                    rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
+                }
+
+                cycles += SYNC_CYCLES;
             }
         });
 
-        thread::spawn(move || loop {
-            barrier_rdp.wait();
+        thread::spawn(move || {
+            let mut cycles: u64 = 0;
 
-            for _ in 0..SYNC_CYCLES {
-                rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
+            loop {
+                println!("RDP Wait");
+                barrier_rdp.wait();
+                println!("RDP: {}", cycles);
+
+                for _ in 0..SYNC_CYCLES {
+                    rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
+                }
+
+                cycles += SYNC_CYCLES;
             }
         });
 
@@ -215,7 +224,9 @@ impl Device {
         let mut frame_done = false;
 
         while !frame_done {
+            println!("CPU Wait");
             self.barrier.wait();
+            println!("CPU: {}", self.cycles);
 
             for _ in 0..SYNC_CYCLES {
                 self.cycles += 1;

@@ -22,9 +22,9 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(
     trace!("  = {:?}", rect);
 
     let texture = if TEXTURE {
-        let Ok(arg) = decoder.receiver.try_recv() else {
-            decoder.pending_command = Some(word);
-            decoder.halt();
+        let Some(arg) = decoder.commands.pop_front() else {
+            decoder.commands.push_front(word);
+            decoder.running = false;
             return;
         };
 

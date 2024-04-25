@@ -3,9 +3,7 @@ use super::renderer::{Format, Renderer};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Receiver;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use tracing::warn;
 
 mod mode;
@@ -23,36 +21,34 @@ pub struct Context<'a> {
 }
 
 pub struct Decoder {
-    receiver: Receiver<u64>,
-    running: Arc<AtomicBool>,
-    pending_command: Option<u64>,
-    params: VecDeque<u64>,
+    running: bool,
+    commands: VecDeque<u64>,
 }
 
 impl Decoder {
-    pub fn new(receiver: Receiver<u64>, running: Arc<AtomicBool>) -> Self {
+    pub fn new() -> Self {
         Self {
-            receiver,
-            running,
-            pending_command: None,
-            params: VecDeque::new(),
+            running: false,
+            commands: VecDeque::new(),
         }
     }
 
     pub fn running(&self) -> bool {
-        self.running.load(Ordering::Relaxed)
+        self.running
+    }
+
+    pub fn restart(&mut self) {
+        self.running = true;
+    }
+
+    pub fn write_command(&mut self, value: u64) {
+        self.commands.push_back(value)
     }
 
     pub fn step(&mut self, bus: Context) -> bool {
-        let word = match self.pending_command.take() {
-            Some(word) => word,
-            None => match self.receiver.try_recv() {
-                Ok(word) => word,
-                Err(_) => {
-                    self.halt();
-                    return false;
-                }
-            },
+        let Some(word) = self.commands.pop_front() else {
+            self.running = false;
+            return false;
         };
 
         let opcode = (word >> 56) & 0x3f;
@@ -95,10 +91,6 @@ impl Decoder {
 
         // If SYNC_FULL was run, let the caller know
         opcode == 0x29
-    }
-
-    fn halt(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
     }
 }
 
