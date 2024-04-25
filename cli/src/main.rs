@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 use system::{Device, DeviceOptions, DisplayTarget};
 use tracing::info;
 use winit::dpi::Size;
@@ -42,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let window = Arc::new(
         WindowBuilder::new()
-            .with_title("Reality")
+            .with_title("Reality (FPS: 0)")
             .with_min_inner_size(Size::Physical((640, 480).into()))
             .build(&event_loop)?,
     );
@@ -60,6 +61,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut audio_receiver = AudioReceiver::new(device.sample_rate())?;
+
+    let mut frame_counter: [Instant; 64] = [Instant::now(); 64];
+    let mut frame_counter_index = 0;
 
     event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Poll);
@@ -94,8 +98,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 while !device.step(&mut audio_receiver) {}
 
+                let now = Instant::now();
+                let delta = now - frame_counter[frame_counter_index];
+                let fps = frame_counter.len() as f64 * 1000.0 / delta.as_millis() as f64;
+
+                frame_counter[frame_counter_index] = now;
+                frame_counter_index = (frame_counter_index + 1) % frame_counter.len();
+
+                window.set_title(&format!("Reality (FPS: {:.2})", fps));
+
                 #[cfg(feature = "profiling")]
                 {
+                    info!("FPS: {:.2}", fps,);
+
                     let stats = device.stats();
 
                     let cpu_cycles = (stats.cpu.instruction_cycles
@@ -105,14 +120,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let rsp_cycles = (stats.rsp.instruction_cycles + stats.rsp.halt_cycles) as f64;
 
                     info!(
-                        "CPU: Active: {}%, Stall: {}%, BusyWait: {}",
+                        "CPU: Active: {:.2}%, Stall: {:.2}%, BusyWait: {:.2}%",
                         stats.cpu.instruction_cycles as f64 * 100.0 / cpu_cycles,
                         stats.cpu.stall_cycles as f64 * 100.0 / cpu_cycles,
                         stats.cpu.busy_wait_cycles as f64 * 100.0 / cpu_cycles,
                     );
 
                     info!(
-                        "RSP: Active: {}%, Halt: {}%",
+                        "RSP: Active: {:.2}%, Halt: {:.2}%",
                         stats.rsp.instruction_cycles as f64 * 100.0 / rsp_cycles,
                         stats.rsp.halt_cycles as f64 * 100.0 / rsp_cycles,
                     );
