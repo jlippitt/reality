@@ -48,12 +48,14 @@ impl RdpCore {
         rdram: &RwLock<Rdram>,
         gfx: &GfxContext,
     ) {
-        let mut iface_lock = iface.lock().unwrap();
+        {
+            let mut iface_lock = iface.lock().unwrap();
 
-        iface_lock.step_dma(rdram, rsp_iface, &mut self.decoder);
+            iface_lock.step_dma(rdram, rsp_iface, &mut self.decoder);
 
-        if !self.decoder.running() || iface_lock.regs.status.freeze() {
-            return;
+            if !self.decoder.running() || iface_lock.regs.status.freeze() {
+                return;
+            }
         }
 
         self.step_core_inner(iface, rdram, gfx);
