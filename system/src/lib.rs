@@ -41,7 +41,7 @@ const RCP_CLOCK_RATE: f64 = 62500000.0;
 
 const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
 
-const SYNC_CYCLES: u64 = 512;
+const DEFAULT_SYNC_CYCLES: u64 = 6250;
 
 struct Bus {
     memory_map: Vec<Mapping>,
@@ -61,6 +61,7 @@ pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
     pub display_target: DisplayTarget<T>,
     pub pif_data: Option<Vec<u8>>,
     pub rom_data: Vec<u8>,
+    pub sync_cycles: Option<u64>,
 }
 
 #[cfg(feature = "profiling")]
@@ -75,10 +76,13 @@ pub struct Device {
     barrier: Arc<Barrier>,
     gfx: Arc<GfxContext>,
     cycles: u64,
+    sync_cycles: u64,
 }
 
 impl Device {
     pub fn new(options: DeviceOptions<impl wgpu::WindowHandle>) -> Result<Self, Box<dyn Error>> {
+        let sync_cycles = options.sync_cycles.unwrap_or(DEFAULT_SYNC_CYCLES);
+
         let gfx = GfxContext::new(options.display_target)?;
 
         let mut memory_map = vec![Mapping::None; 512];
@@ -133,35 +137,19 @@ impl Device {
         let rdram_rsp = rdram_cpu.clone();
         let rdram_rdp = rdram_cpu.clone();
 
-        thread::spawn(move || {
-            let mut cycles: u64 = 0;
+        thread::spawn(move || loop {
+            barrier_rsp.wait();
 
-            loop {
-                //println!("RSP Wait");
-                barrier_rsp.wait();
-                //println!("RSP: {}", cycles);
-
-                for _ in 0..SYNC_CYCLES {
-                    rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
-                }
-
-                cycles += SYNC_CYCLES;
+            for _ in 0..sync_cycles {
+                rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
             }
         });
 
-        thread::spawn(move || {
-            let mut cycles: u64 = 0;
+        thread::spawn(move || loop {
+            barrier_rdp.wait();
 
-            loop {
-                //println!("RDP Wait");
-                barrier_rdp.wait();
-                //println!("RDP: {}", cycles);
-
-                for _ in 0..SYNC_CYCLES {
-                    rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
-                }
-
-                cycles += SYNC_CYCLES;
+            for _ in 0..sync_cycles {
+                rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
             }
         });
 
@@ -183,6 +171,7 @@ impl Device {
             barrier: barrier_cpu,
             gfx: gfx_cpu,
             cycles: 0,
+            sync_cycles,
         })
     }
 
@@ -224,11 +213,9 @@ impl Device {
         let mut frame_done = false;
 
         while !frame_done {
-            //println!("CPU Wait");
             self.barrier.wait();
-            //println!("CPU: {}", self.cycles);
 
-            for _ in 0..SYNC_CYCLES {
+            for _ in 0..self.sync_cycles {
                 self.cycles += 1;
 
                 self.cpu.step(&mut self.bus);
@@ -241,7 +228,7 @@ impl Device {
                 self.bus.pi.step(&self.bus.rdram);
                 self.bus.si.step(&self.bus.rdram);
 
-                frame_done = self.bus.vi.step(&self.bus.rdram, &self.gfx);
+                frame_done |= self.bus.vi.step(&self.bus.rdram, &self.gfx);
             }
         }
     }

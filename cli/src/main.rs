@@ -26,6 +26,9 @@ struct Args {
 
     #[arg(short, long)]
     pif_data_path: Option<PathBuf>,
+
+    #[arg(short, long)]
+    sync_cycles: Option<u64>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -60,6 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         pif_data,
         rom_data,
+        sync_cycles: args.sync_cycles,
     })?;
 
     let mut audio_receiver = AudioReceiver::new(device.sample_rate())?;

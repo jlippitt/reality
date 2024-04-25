@@ -85,7 +85,8 @@ impl RdpCore {
 
             self.rcp_int.lock().unwrap().raise(RcpIntType::DP);
 
-            let status = &mut iface.lock().unwrap().regs.status;
+            let mut iface_lock = iface.lock().unwrap();
+            let status = &mut iface_lock.regs.status;
             status.set_pipe_busy(false);
             status.set_start_gclk(false);
             debug!("DPC_STATUS: {:?}", status);
