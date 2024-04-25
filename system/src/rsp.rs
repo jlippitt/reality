@@ -1,10 +1,9 @@
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Memory, Size, WriteMask};
-use crate::rdp::RdpShared;
+use crate::rdp::RdpInterface;
 use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
-use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, debug_span, trace};
 
@@ -30,13 +29,14 @@ pub struct Stats {
 }
 
 struct Bus<'a> {
-    rsp: &'a mut RspInterface,
-    rdp: &'a mut RdpShared,
+    rsp: &'a Arc<Mutex<RspInterface>>,
+    rdp: &'a Arc<Mutex<RdpInterface>>,
 }
 
 pub struct RspCore {
     core: Core,
     iface: Arc<Mutex<RspInterface>>,
+    rdp_iface: Arc<Mutex<RdpInterface>>,
 }
 
 pub struct RspInterface {
@@ -52,42 +52,58 @@ pub struct RspInterface {
 }
 
 impl RspCore {
-    pub fn new(iface: Arc<Mutex<RspInterface>>) -> Self {
+    pub fn new(iface: Arc<Mutex<RspInterface>>, rdp_iface: Arc<Mutex<RdpInterface>>) -> Self {
         Self {
             core: Core::new(),
             iface,
+            rdp_iface,
         }
     }
 
-    pub fn step(&mut self, rdp_shared: &mut RdpShared) {
-        let mut iface = self.iface.lock().unwrap();
-
-        if iface.regs.status.halted() {
+    #[inline(always)]
+    pub fn step(&mut self) {
+        let pc = {
             #[cfg(feature = "profiling")]
-            {
-                iface.stats.halt_cycles += 1;
+            let mut iface = self.iface.lock().unwrap();
+
+            #[cfg(not(feature = "profiling"))]
+            let iface = self.iface.lock().unwrap();
+
+            if iface.regs.status.halted() {
+                #[cfg(feature = "profiling")]
+                {
+                    iface.stats.halt_cycles += 1;
+                }
+
+                return;
             }
 
-            return;
-        }
+            #[cfg(feature = "profiling")]
+            {
+                iface.stats.instruction_cycles += 1;
+            }
 
-        #[cfg(feature = "profiling")]
-        {
-            iface.stats.instruction_cycles += 1;
-        }
+            iface.pc
+        };
 
-        {
+        self.step_inner(pc);
+    }
+
+    fn step_inner(&mut self, pc: u32) {
+        let pc = {
             let _span = debug_span!("rsp").entered();
 
-            iface.pc = self.core.step(
-                iface.pc,
+            self.core.step(
+                pc,
                 &mut Bus {
-                    rsp: iface.deref_mut(),
-                    rdp: rdp_shared,
+                    rsp: &self.iface,
+                    rdp: &self.rdp_iface,
                 },
-            );
-        }
+            )
+        };
 
+        let mut iface = self.iface.lock().unwrap();
+        iface.pc = pc;
         let status = &mut iface.regs.status;
         status.set_halted(status.halted() | status.sstep());
     }
@@ -345,24 +361,30 @@ impl<'a> core::Bus for Bus<'a> {
         let address = address as usize;
         debug_assert!(address < (MEM_SIZE / 2));
         debug_assert!((address & 3) == 0);
-        self.rsp.mem.read(0x1000 | address)
+        self.rsp.lock().unwrap().mem.read(0x1000 | address)
     }
 
     fn read_data<T: Size>(&self, address: u32) -> T {
-        self.rsp.mem.read_unaligned(address as usize, 0x0fff)
+        self.rsp
+            .lock()
+            .unwrap()
+            .mem
+            .read_unaligned(address as usize, 0x0fff)
     }
 
     fn write_data<T: Size>(&mut self, address: u32, value: T) {
         self.rsp
+            .lock()
+            .unwrap()
             .mem
             .write_unaligned(address as usize, 0x0fff, value);
     }
 
     fn read_register(&self, index: usize) -> u32 {
         if index < 8 {
-            self.rsp.read_register(index)
+            self.rsp.lock().unwrap().read_register(index)
         } else {
-            self.rdp.read_register(index - 8)
+            self.rdp.lock().unwrap().read_register(index - 8)
         }
     }
 
@@ -370,18 +392,19 @@ impl<'a> core::Bus for Bus<'a> {
         let mask = WriteMask::unmasked(value);
 
         if index < 8 {
-            self.rsp.write_register(index, mask);
+            self.rsp.lock().unwrap().write_register(index, mask);
         } else {
-            self.rdp.write_register(index - 8, mask);
+            self.rdp.lock().unwrap().write_register(index - 8, mask);
         }
     }
 
     fn break_(&mut self) {
-        self.rsp.regs.status.set_halted(true);
-        self.rsp.regs.status.set_broke(true);
+        let mut rsp = self.rsp.lock().unwrap();
+        rsp.regs.status.set_halted(true);
+        rsp.regs.status.set_broke(true);
 
-        if self.rsp.regs.status.intbreak() {
-            self.rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
+        if rsp.regs.status.intbreak() {
+            rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
         }
     }
 }

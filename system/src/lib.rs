@@ -9,11 +9,13 @@ use interrupt::{CpuInterrupt, RcpInterrupt};
 use memory::{Mapping, Memory, Size};
 use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
-use rdp::Rdp;
+use rdp::{RdpCore, RdpInterface};
 use rdram::Rdram;
 use rsp::{RspCore, RspInterface};
 use serial::SerialInterface;
 use std::error::Error;
+use std::sync::atomic::AtomicBool;
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tracing::warn;
 use video::VideoInterface;
@@ -46,7 +48,8 @@ struct Bus {
     rdram: Rdram,
     rsp_core: RspCore,
     rsp_iface: Arc<Mutex<RspInterface>>,
-    rdp: Rdp,
+    rdp_core: RdpCore,
+    rdp_iface: Arc<Mutex<RdpInterface>>,
     mi: MipsInterface,
     vi: VideoInterface,
     ai: AudioInterface,
@@ -110,15 +113,29 @@ impl Device {
 
         let rsp_iface = Arc::new(Mutex::new(RspInterface::new(rcp_int.clone(), ipl3_data)));
 
+        let (rdp_sender, rdp_receiver) = mpsc::channel();
+        let rdp_running = Arc::new(AtomicBool::new(false));
+        let rdp_iface = Arc::new(Mutex::new(RdpInterface::new(
+            rdp_sender,
+            rdp_running.clone(),
+        )));
+
         Ok(Self {
             cpu: Cpu::new(skip_pif_rom),
             bus: Bus {
                 memory_map,
                 cpu_int,
                 rdram,
-                rsp_core: RspCore::new(rsp_iface.clone()),
+                rsp_core: RspCore::new(rsp_iface.clone(), rdp_iface.clone()),
                 rsp_iface,
-                rdp: Rdp::new(rcp_int.clone(), &gfx),
+                rdp_core: RdpCore::new(
+                    rcp_int.clone(),
+                    &gfx,
+                    rdp_iface.clone(),
+                    rdp_receiver,
+                    rdp_running,
+                ),
+                rdp_iface,
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
@@ -175,16 +192,18 @@ impl Device {
                 self.cpu.step(&mut self.bus);
             }
 
-            self.bus.rsp_core.step(self.bus.rdp.shared());
+            self.bus.rsp_core.step();
             self.bus
                 .rsp_iface
                 .lock()
                 .unwrap()
                 .step_dma(&mut self.bus.rdram);
 
-            self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
+            self.bus.rdp_core.step_core(&mut self.bus.rdram, &self.gfx);
             self.bus
-                .rdp
+                .rdp_iface
+                .lock()
+                .unwrap()
                 .step_dma(&self.bus.rdram, self.bus.rsp_iface.lock().unwrap().mem());
 
             self.bus.ai.step(&self.bus.rdram, receiver);
@@ -204,8 +223,16 @@ impl cpu::Bus for Bus {
             Mapping::RdramData => self.rdram.read_single(address as usize),
             Mapping::RdramRegister => self.rdram.read_register(&self.mi, address & 0x000f_ffff),
             Mapping::Rsp => self.rsp_iface.lock().unwrap().read(address & 0x000f_ffff),
-            Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
-            Mapping::RdpSpan => self.rdp.read_span(address & 0x000f_ffff),
+            Mapping::RdpCommand => self
+                .rdp_iface
+                .lock()
+                .unwrap()
+                .read_command(address & 0x000f_ffff),
+            Mapping::RdpSpan => self
+                .rdp_iface
+                .lock()
+                .unwrap()
+                .read_span(address & 0x000f_ffff),
             Mapping::MipsInterface => self.mi.read(address & 0x000f_ffff),
             Mapping::VideoInterface => self.vi.read(address & 0x000f_ffff),
             Mapping::AudioInterface => self.ai.read(address & 0x000f_ffff),
@@ -238,8 +265,16 @@ impl cpu::Bus for Bus {
                 .lock()
                 .unwrap()
                 .write(address & 0x000f_ffff, value),
-            Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
-            Mapping::RdpSpan => self.rdp.write_span(address & 0x000f_ffff, value),
+            Mapping::RdpCommand => self
+                .rdp_iface
+                .lock()
+                .unwrap()
+                .write_command(address & 0x000f_ffff, value),
+            Mapping::RdpSpan => self
+                .rdp_iface
+                .lock()
+                .unwrap()
+                .write_span(address & 0x000f_ffff, value),
             Mapping::MipsInterface => self.mi.write(address & 0x000f_ffff, value),
             Mapping::VideoInterface => self.vi.write(address & 0x000f_ffff, value),
             Mapping::AudioInterface => self.ai.write(address & 0x000f_ffff, value),

@@ -5,6 +5,8 @@ use crate::rdram::Rdram;
 use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error_span, warn};
 
@@ -18,35 +20,35 @@ struct Dma {
     end: u32,
 }
 
-pub struct RdpShared {
-    regs: Regs,
-    dma_active: Dma,
-    dma_pending: Option<Dma>,
-}
-
-pub struct Rdp {
-    shared: RdpShared,
+pub struct RdpCore {
     decoder: Decoder,
     renderer: Renderer,
+    iface: Arc<Mutex<RdpInterface>>,
     rcp_int: Arc<Mutex<RcpInterrupt>>,
 }
 
-impl Rdp {
-    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, gfx: &GfxContext) -> Self {
+pub struct RdpInterface {
+    regs: Regs,
+    dma_active: Dma,
+    dma_pending: Option<Dma>,
+    sender: Sender<u64>,
+    running: Arc<AtomicBool>,
+}
+
+impl RdpCore {
+    pub fn new(
+        rcp_int: Arc<Mutex<RcpInterrupt>>,
+        gfx: &GfxContext,
+        iface: Arc<Mutex<RdpInterface>>,
+        receiver: Receiver<u64>,
+        running: Arc<AtomicBool>,
+    ) -> Self {
         Self {
-            shared: RdpShared {
-                regs: Regs::default(),
-                dma_active: Dma { start: 0, end: 0 },
-                dma_pending: None,
-            },
-            decoder: Decoder::new(),
+            decoder: Decoder::new(receiver, running),
             renderer: Renderer::new(gfx),
+            iface,
             rcp_int,
         }
-    }
-
-    pub fn shared(&mut self) -> &mut RdpShared {
-        &mut self.shared
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
@@ -56,7 +58,7 @@ impl Rdp {
 
     #[inline(always)]
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
-        if !self.decoder.running() || self.shared.regs.status.freeze() {
+        if !self.decoder.running() || self.iface.lock().unwrap().regs.status.freeze() {
             return;
         }
 
@@ -78,16 +80,28 @@ impl Rdp {
             self.sync(gfx, rdram);
             self.rcp_int.lock().unwrap().raise(RcpIntType::DP);
 
-            let status = &mut self.shared.regs.status;
+            let status = &mut self.iface.lock().unwrap().regs.status;
             status.set_pipe_busy(false);
             status.set_start_gclk(false);
             debug!("DPC_STATUS: {:?}", status);
         }
     }
+}
+
+impl RdpInterface {
+    pub fn new(sender: Sender<u64>, running: Arc<AtomicBool>) -> Self {
+        Self {
+            regs: Regs::default(),
+            dma_active: Dma { start: 0, end: 0 },
+            dma_pending: None,
+            sender,
+            running,
+        }
+    }
 
     #[inline(always)]
     pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
-        if self.shared.dma_active.start >= self.shared.dma_active.end {
+        if self.dma_active.start >= self.dma_active.end {
             return;
         }
 
@@ -95,7 +109,7 @@ impl Rdp {
     }
 
     fn step_dma_inner(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
-        let dma = &mut self.shared.dma_active;
+        let dma = &mut self.dma_active;
 
         assert!((dma.start & 7) == 0);
         assert!((dma.end & 7) == 0);
@@ -103,10 +117,10 @@ impl Rdp {
         let block_len = ((dma.end >> 3) - (dma.start >> 3)).min(16);
         let mut current = dma.start;
 
-        if self.shared.regs.status.xbus() {
+        if self.regs.status.xbus() {
             for _ in 0..block_len {
                 let command: u64 = rsp_mem.read(current as usize & 0xfff);
-                self.decoder.write_command(command);
+                self.sender.send(command).unwrap();
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -118,7 +132,7 @@ impl Rdp {
         } else {
             for _ in 0..block_len {
                 let command: u64 = rdram.read_single(current as usize);
-                self.decoder.write_command(command);
+                self.sender.send(command).unwrap();
                 current = current.wrapping_add(8) & 0x00ff_fff8;
             }
 
@@ -129,7 +143,7 @@ impl Rdp {
             );
         }
 
-        self.decoder.restart();
+        self.running.store(true, Ordering::Relaxed);
 
         dma.start = current;
 
@@ -137,25 +151,25 @@ impl Rdp {
             return;
         }
 
-        if let Some(dma_pending) = self.shared.dma_pending.take() {
-            let status = &mut self.shared.regs.status;
+        if let Some(dma_pending) = self.dma_pending.take() {
+            let status = &mut self.regs.status;
             status.set_start_pending(false);
             status.set_end_pending(false);
             debug!("DPC_STATUS: {:?}", status);
 
-            self.shared.dma_active = dma_pending;
-            debug!("RSP DMA Active: {:08X?}", self.shared.dma_active);
-            debug!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
+            self.dma_active = dma_pending;
+            debug!("RSP DMA Active: {:08X?}", self.dma_active);
+            debug!("RSP DMA Pending: {:08X?}", self.dma_pending);
         }
     }
 
     pub fn read_command<T: Size>(&self, address: u32) -> T {
-        T::truncate_u32(self.shared.read_register(address as usize >> 2))
+        T::truncate_u32(self.read_register(address as usize >> 2))
     }
 
     pub fn write_command<T: Size>(&mut self, address: u32, value: T) {
         let mask = WriteMask::new(address, value);
-        self.shared.write_register(address as usize >> 2, mask);
+        self.write_register(address as usize >> 2, mask);
     }
 
     pub fn read_span<T: Size>(&self, address: u32) -> T {
@@ -171,9 +185,7 @@ impl Rdp {
             mask.raw()
         );
     }
-}
 
-impl RdpShared {
     pub fn read_register(&self, index: usize) -> u32 {
         match index {
             0 => self.regs.start,
