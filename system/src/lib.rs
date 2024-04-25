@@ -69,7 +69,7 @@ pub struct Device {
     cpu: Cpu,
     bus: Bus,
     gfx: GfxContext,
-    cycles: u64,
+    //cycles: u64,
 }
 
 impl Device {
@@ -122,13 +122,13 @@ impl Device {
                 systest_buffer: Memory::with_byte_len(512),
             },
             gfx,
-            cycles: 0,
+            //cycles: 0,
         })
     }
 
-    pub fn cycles(&self) -> u64 {
-        self.cycles
-    }
+    // pub fn cycles(&self) -> u64 {
+    //     self.cycles
+    // }
 
     pub fn sample_rate(&self) -> u32 {
         self.bus.ai.sample_rate()
@@ -161,30 +161,55 @@ impl Device {
     }
 
     pub fn run_frame(&mut self, receiver: &mut impl AudioReceiver) {
-        loop {
-            self.cycles += 1;
+        let mut frame_done = false;
 
-            self.cpu.step(&mut self.bus);
-
-            if (self.cycles & 1) == 0 {
-                self.cpu.step(&mut self.bus);
+        while !frame_done {
+            for _ in 0..6250 {
+                self.bus.rsp.step_core(self.bus.rdp.shared());
+                self.bus.rsp.step_dma(&mut self.bus.rdram);
             }
 
-            self.bus.rsp.step_core(self.bus.rdp.shared());
-            self.bus.rsp.step_dma(&mut self.bus.rdram);
+            for _ in 0..6250 {
+                self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
+                self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+            }
 
-            self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
-            self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+            for cycle in 0..6250 {
+                self.cpu.step(&mut self.bus);
 
-            self.bus.ai.step(&self.bus.rdram, receiver);
-            self.bus.pi.step(&mut self.bus.rdram);
-            self.bus.si.step(&mut self.bus.rdram);
+                if (cycle & 1) == 0 {
+                    self.cpu.step(&mut self.bus);
+                }
 
-            if self.bus.vi.step(&self.bus.rdram, &self.gfx) {
-                break;
+                self.bus.ai.step(&self.bus.rdram, receiver);
+                self.bus.pi.step(&mut self.bus.rdram);
+                self.bus.si.step(&mut self.bus.rdram);
+                frame_done |= self.bus.vi.step(&self.bus.rdram, &self.gfx);
             }
         }
     }
+
+    // pub fn step(&mut self, receiver: &mut impl AudioReceiver) -> bool {
+    //     self.cycles += 1;
+
+    //     self.cpu.step(&mut self.bus);
+
+    //     if (self.cycles & 1) == 0 {
+    //         self.cpu.step(&mut self.bus);
+    //     }
+
+    //     self.bus.rsp.step_core(self.bus.rdp.shared());
+    //     self.bus.rsp.step_dma(&mut self.bus.rdram);
+
+    //     self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
+    //     self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+
+    //     self.bus.ai.step(&self.bus.rdram, receiver);
+    //     self.bus.pi.step(&mut self.bus.rdram);
+    //     self.bus.si.step(&mut self.bus.rdram);
+
+    //     self.bus.vi.step(&self.bus.rdram, &self.gfx)
+    // }
 }
 
 impl cpu::Bus for Bus {
