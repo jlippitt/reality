@@ -5,7 +5,7 @@ use crate::rdram::Rdram;
 use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
-use tracing::{debug, error_span, warn};
+use tracing::{debug, error_span};
 
 mod decoder;
 mod regs;
@@ -256,7 +256,7 @@ impl RdpShared {
                 }
 
                 if (raw & 0x0200) != 0 {
-                    warn!("TODO: RDP clock");
+                    debug!("TODO: RDP clock");
                 }
 
                 debug!("DPC_STATUS: {:?}", status);

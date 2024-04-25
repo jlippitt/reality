@@ -3,7 +3,7 @@ use super::renderer::{Format, Renderer};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::VecDeque;
-use tracing::warn;
+use tracing::debug;
 
 mod mode;
 mod param;
@@ -85,7 +85,7 @@ impl Decoder {
             0x3c => mode::set_combine_mode(self, bus, word),
             0x3d => tmem::set_texture_image(self, bus, word),
             0x3f => target::set_color_image(self, bus, word),
-            _ => warn!("TODO: RDP Command: {:#02X}", opcode),
+            _ => debug!("TODO: RDP Command: {:#02X}", opcode),
         }
 
         // If SYNC_FULL was run, let the caller know
