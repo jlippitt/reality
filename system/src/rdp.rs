@@ -22,7 +22,7 @@ struct Dma {
 pub struct RdpCore {
     decoder: Decoder,
     renderer: Renderer,
-    rcp_int: Arc<Mutex<RcpInterrupt>>,
+    rcp_int: Arc<RcpInterrupt>,
 }
 
 pub struct RdpInterface {
@@ -32,7 +32,7 @@ pub struct RdpInterface {
 }
 
 impl RdpCore {
-    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, gfx: &GfxContext) -> Self {
+    pub fn new(rcp_int: Arc<RcpInterrupt>, gfx: &GfxContext) -> Self {
         Self {
             decoder: Decoder::new(),
             renderer: Renderer::new(gfx),
@@ -83,7 +83,7 @@ impl RdpCore {
                 self.renderer.sync(gfx, rdram);
             }
 
-            self.rcp_int.lock().unwrap().raise(RcpIntType::DP);
+            self.rcp_int.raise(RcpIntType::DP);
 
             let mut iface_lock = iface.lock().unwrap();
             let status = &mut iface_lock.regs.status;

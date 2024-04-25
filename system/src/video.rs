@@ -6,7 +6,7 @@ use crate::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use framebuffer::Framebuffer;
 use regs::Regs;
 use std::error::Error;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use tracing::{debug, trace};
 use upscaler::Upscaler;
 
@@ -19,14 +19,14 @@ pub struct VideoInterface {
     cycles_remaining: u32,
     cycles_per_line: u32,
     frame_counter: u64,
-    rcp_int: Arc<Mutex<RcpInterrupt>>,
+    rcp_int: Arc<RcpInterrupt>,
     upscaler: Upscaler,
     frame_buffer: Framebuffer,
 }
 
 impl VideoInterface {
     pub fn new(
-        rcp_int: Arc<Mutex<RcpInterrupt>>,
+        rcp_int: Arc<RcpInterrupt>,
         gfx: &GfxContext,
         skip_pif_rom: bool,
     ) -> Result<Self, Box<dyn Error>> {
@@ -100,7 +100,7 @@ impl VideoInterface {
         }
 
         if half_line == self.regs.v_intr.half_line() {
-            self.rcp_int.lock().unwrap().raise(RcpIntType::VI);
+            self.rcp_int.raise(RcpIntType::VI);
         }
 
         self.regs.v_current.set_half_line(half_line);
@@ -163,7 +163,7 @@ impl VideoInterface {
             1 => mask.write_reg_hex("VI_ORIGIN", &mut self.regs.origin),
             2 => mask.write_reg("VI_WIDTH", &mut self.regs.width),
             3 => mask.write_reg("VI_V_INTR", &mut self.regs.v_intr),
-            4 => self.rcp_int.lock().unwrap().clear(RcpIntType::VI),
+            4 => self.rcp_int.clear(RcpIntType::VI),
             5 => mask.write_reg("VI_BURST", &mut self.regs.burst),
             6 => mask.write_reg("VI_V_SYNC", &mut self.regs.v_sync),
             7 => {

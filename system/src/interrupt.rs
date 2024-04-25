@@ -58,66 +58,65 @@ impl CpuInterrupt {
     }
 }
 
-#[derive(Clone)]
 pub struct RcpInterrupt {
     cpu_interrupt: Arc<CpuInterrupt>,
-    status: RcpIntType,
-    mask: RcpIntType,
+    status: AtomicU8,
+    mask: AtomicU8,
 }
 
 impl RcpInterrupt {
     pub fn new(cpu_interrupt: Arc<CpuInterrupt>) -> Self {
         Self {
             cpu_interrupt,
-            mask: RcpIntType::empty(),
-            status: RcpIntType::empty(),
+            mask: AtomicU8::new(0),
+            status: AtomicU8::new(0),
         }
     }
 
-    pub fn mask(&self) -> RcpIntType {
-        self.mask
+    pub fn mask(&self) -> u8 {
+        self.mask.load(Ordering::Relaxed)
     }
 
-    pub fn set_mask(&mut self, mask: RcpIntType) {
-        self.mask = mask;
+    pub fn set_mask(&self, mask: RcpIntType) {
+        self.mask.store(mask.bits(), Ordering::Relaxed);
         debug!("RCP Interrupt Mask: {:06b}", mask);
         self.update();
     }
 
-    pub fn status(&self) -> RcpIntType {
-        self.status
+    pub fn status(&self) -> u8 {
+        self.status.load(Ordering::Relaxed)
     }
 
     pub fn has(&self, int_type: RcpIntType) -> bool {
-        self.status.intersects(int_type)
+        (self.status() & int_type.bits()) != 0
     }
 
-    pub fn raise(&mut self, int_type: RcpIntType) {
-        let prev_status = self.status;
-        self.status |= int_type;
+    pub fn raise(&self, int_type: RcpIntType) {
+        let bits = int_type.bits();
+        let prev_status = self.status.fetch_or(bits, Ordering::Relaxed);
 
-        if self.status != prev_status {
+        if (prev_status & bits) == 0 {
             debug!("RCP Interrupt Raised: {:?}", int_type);
         }
 
         self.update();
     }
 
-    pub fn clear(&mut self, int_type: RcpIntType) {
-        let prev_status = self.status;
-        self.status &= !int_type;
+    pub fn clear(&self, int_type: RcpIntType) {
+        let bits = int_type.bits();
+        let prev_status = self.status.fetch_and(!bits, Ordering::Relaxed);
 
-        if self.status != prev_status {
+        if (prev_status & bits) != 0 {
             debug!("RCP Interrupt Cleared: {:?}", int_type);
         }
 
         self.update();
     }
 
-    fn update(&mut self) {
-        let active = self.status & self.mask;
+    fn update(&self) {
+        let active = self.status() & self.mask();
 
-        if active.is_empty() {
+        if active == 0 {
             self.cpu_interrupt.clear(CpuIntType::Rcp);
         } else {
             self.cpu_interrupt.raise(CpuIntType::Rcp);

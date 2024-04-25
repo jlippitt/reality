@@ -7,7 +7,7 @@ use crc::Crc;
 use joybus::Joybus;
 use pif::Pif;
 use regs::Regs;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use tracing::{debug, error};
 
 mod joybus;
@@ -30,11 +30,11 @@ pub struct SerialInterface {
     joybus: Joybus,
     pif: Pif,
     dma: Option<Dma>,
-    rcp_int: Arc<Mutex<RcpInterrupt>>,
+    rcp_int: Arc<RcpInterrupt>,
 }
 
 impl SerialInterface {
-    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, pif_data: Option<Vec<u8>>) -> Self {
+    pub fn new(rcp_int: Arc<RcpInterrupt>, pif_data: Option<Vec<u8>>) -> Self {
         Self {
             regs: Regs::default(),
             joybus: Joybus::new(),
@@ -111,7 +111,7 @@ impl SerialInterface {
         }
 
         self.dma = None;
-        self.rcp_int.lock().unwrap().raise(RcpIntType::SI);
+        self.rcp_int.raise(RcpIntType::SI);
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {
@@ -119,7 +119,7 @@ impl SerialInterface {
             6 => self
                 .regs
                 .status
-                .with_interrupt(self.rcp_int.lock().unwrap().has(RcpIntType::SI))
+                .with_interrupt(self.rcp_int.has(RcpIntType::SI))
                 .into(),
             _ => todo!("SI Register Read: {:08X}", address),
         })
@@ -142,7 +142,7 @@ impl SerialInterface {
                     write: true,
                 })
             }
-            6 => self.rcp_int.lock().unwrap().clear(RcpIntType::SI),
+            6 => self.rcp_int.clear(RcpIntType::SI),
             _ => todo!("SI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }
     }
@@ -156,7 +156,7 @@ impl SerialInterface {
             self.joybus.configure(self.pif.ram());
         }
 
-        self.rcp_int.lock().unwrap().raise(RcpIntType::SI);
+        self.rcp_int.raise(RcpIntType::SI);
     }
 
     pub fn cic_detect(&mut self, rom_data: &[u8], rdram: &mut Rdram) {

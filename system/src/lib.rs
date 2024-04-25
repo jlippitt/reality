@@ -105,7 +105,7 @@ impl Device {
         memory_map[0x000..=0x007].fill(Mapping::RdramData);
 
         let cpu_int = Arc::new(CpuInterrupt::new());
-        let rcp_int = Arc::new(Mutex::new(RcpInterrupt::new(cpu_int.clone())));
+        let rcp_int = Arc::new(RcpInterrupt::new(cpu_int.clone()));
 
         let skip_pif_rom = options.pif_data.is_none();
         let ipl3_data = skip_pif_rom.then(|| &options.rom_data[0..0x1000]);

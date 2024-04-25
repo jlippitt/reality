@@ -3,7 +3,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
 use regs::Regs;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use tracing::{debug, trace};
 
 mod regs;
@@ -25,11 +25,11 @@ pub struct AudioInterface {
     sample_rate: u32,
     dma_active: Option<Dma>,
     dma_pending: Option<Dma>,
-    rcp_int: Arc<Mutex<RcpInterrupt>>,
+    rcp_int: Arc<RcpInterrupt>,
 }
 
 impl AudioInterface {
-    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>) -> Self {
+    pub fn new(rcp_int: Arc<RcpInterrupt>) -> Self {
         let regs = Regs::default();
 
         let (cycles_per_sample, sample_rate) = calc_cycles_per_sample(regs.dacrate.dacrate());
@@ -80,7 +80,7 @@ impl AudioInterface {
 
                 if self.dma_active.is_some() {
                     trace!("AI DMA Pending: {:08X?}", self.dma_active);
-                    self.rcp_int.lock().unwrap().raise(RcpIntType::AI);
+                    self.rcp_int.raise(RcpIntType::AI);
                 }
             }
         } else {
@@ -141,7 +141,7 @@ impl AudioInterface {
                 if self.dma_active.is_none() {
                     self.dma_active = Some(dma);
                     trace!("AI DMA Active: {:08X?}", self.dma_active);
-                    self.rcp_int.lock().unwrap().raise(RcpIntType::AI);
+                    self.rcp_int.raise(RcpIntType::AI);
                 } else if self.dma_pending.is_none() {
                     self.dma_pending = Some(dma);
                     trace!("AI DMA Pending: {:08X?}", self.dma_pending);
@@ -150,7 +150,7 @@ impl AudioInterface {
                 }
             }
             2 => mask.write_reg("AI_CONTROL", &mut self.regs.control),
-            3 => self.rcp_int.lock().unwrap().clear(RcpIntType::AI),
+            3 => self.rcp_int.clear(RcpIntType::AI),
             4 => {
                 mask.write_reg("AI_DACRATE", &mut self.regs.dacrate);
                 (self.cycles_per_sample, self.sample_rate) =

@@ -44,7 +44,7 @@ pub struct RspInterface {
     dma_active: Dma,
     dma_pending: Option<Dma>,
     pc: u32,
-    rcp_int: Arc<Mutex<RcpInterrupt>>,
+    rcp_int: Arc<RcpInterrupt>,
     #[cfg(feature = "profiling")]
     stats: Stats,
 }
@@ -102,7 +102,7 @@ impl RspCore {
 }
 
 impl RspInterface {
-    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, ipl3_data: Option<&[u8]>) -> Self {
+    pub fn new(rcp_int: Arc<RcpInterrupt>, ipl3_data: Option<&[u8]>) -> Self {
         let mem = if let Some(ipl3_data) = ipl3_data {
             let mut vec = Vec::from(ipl3_data);
             vec.resize(MEM_SIZE, 0);
@@ -292,8 +292,8 @@ impl RspInterface {
                 }
 
                 match (raw >> 3) & 3 {
-                    1 => self.rcp_int.lock().unwrap().clear(RcpIntType::SP),
-                    2 => self.rcp_int.lock().unwrap().raise(RcpIntType::SP),
+                    1 => self.rcp_int.clear(RcpIntType::SP),
+                    2 => self.rcp_int.raise(RcpIntType::SP),
                     _ => (),
                 }
 
@@ -389,7 +389,7 @@ impl<'a> core::Bus for Bus<'a> {
         self.rsp.regs.status.set_broke(true);
 
         if self.rsp.regs.status.intbreak() {
-            self.rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
+            self.rsp.rcp_int.raise(RcpIntType::SP);
         }
     }
 }
