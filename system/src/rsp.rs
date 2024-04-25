@@ -5,7 +5,7 @@ use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
 use std::sync::{Arc, Mutex, RwLock};
-use tracing::{debug, debug_span, trace};
+use tracing::{debug, trace};
 
 mod core;
 mod regs;
@@ -84,8 +84,6 @@ impl RspCore {
 
     fn step_inner(core: &mut Core, iface: &mut RspInterface, rdp_iface: &Mutex<RdpInterface>) {
         let pc = {
-            let _span = debug_span!("rsp").entered();
-
             core.step(
                 iface.pc,
                 &mut Bus {

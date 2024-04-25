@@ -7,7 +7,7 @@ use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
 use std::sync::{Arc, Mutex, RwLock};
-use tracing::{debug, error_span, warn};
+use tracing::{debug, warn};
 
 mod decoder;
 mod regs;
@@ -68,8 +68,6 @@ impl RdpCore {
         gfx: &GfxContext,
     ) {
         let sync_full = {
-            let _span = error_span!("rdp").entered();
-
             self.decoder.step(Context {
                 renderer: &mut self.renderer,
                 rdram,
@@ -79,7 +77,6 @@ impl RdpCore {
 
         if sync_full {
             {
-                let _span = error_span!("rdp").entered();
                 self.renderer.sync(gfx, rdram);
             }
 

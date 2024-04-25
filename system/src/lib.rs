@@ -16,7 +16,7 @@ use serial::SerialInterface;
 use std::error::Error;
 use std::sync::{Arc, Barrier, Mutex, RwLock};
 use std::thread;
-use tracing::warn;
+use tracing::{error_span, warn};
 use video::VideoInterface;
 
 #[cfg(feature = "profiling")]
@@ -137,19 +137,27 @@ impl Device {
         let rdram_rsp = rdram_cpu.clone();
         let rdram_rdp = rdram_cpu.clone();
 
-        thread::spawn(move || loop {
-            barrier_rsp.wait();
+        thread::spawn(move || {
+            let _span = error_span!("rsp").entered();
 
-            for _ in 0..sync_cycles {
-                rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
+            loop {
+                barrier_rsp.wait();
+
+                for _ in 0..sync_cycles {
+                    rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
+                }
             }
         });
 
-        thread::spawn(move || loop {
-            barrier_rdp.wait();
+        thread::spawn(move || {
+            let _span = error_span!("rdp").entered();
 
-            for _ in 0..sync_cycles {
-                rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
+            loop {
+                barrier_rdp.wait();
+
+                for _ in 0..sync_cycles {
+                    rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
+                }
             }
         });
 
