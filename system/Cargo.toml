@@ -20,3 +20,4 @@ wgpu = "0.19.3"
 
 [features]
 dcache = []
+profiling = []

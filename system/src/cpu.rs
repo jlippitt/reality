@@ -56,6 +56,14 @@ struct WbState {
     value: i64,
 }
 
+#[cfg(feature = "profiling")]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Stats {
+    pub instruction_cycles: u64,
+    pub stall_cycles: u64,
+    pub busy_wait_cycles: u64,
+}
+
 pub trait Bus {
     fn read_single<T: Size>(&self, address: u32) -> T;
     fn write_single<T: Size>(&mut self, address: u32, value: T);
@@ -81,6 +89,8 @@ pub struct Cpu {
     icache: ICache,
     #[cfg(feature = "dcache")]
     dcache: DCache,
+    #[cfg(feature = "profiling")]
+    stats: Stats,
 }
 
 impl Cpu {
@@ -119,13 +129,30 @@ impl Cpu {
             icache: ICache::new(),
             #[cfg(feature = "dcache")]
             dcache: DCache::new(),
+            #[cfg(feature = "profiling")]
+            stats: Stats::default(),
         }
+    }
+
+    #[cfg(feature = "profiling")]
+    pub fn stats(&self) -> &Stats {
+        &self.stats
+    }
+
+    #[cfg(feature = "profiling")]
+    pub fn reset_stats(&mut self) {
+        self.stats = Stats::default();
     }
 
     // 1. Always inlined
     #[inline(always)]
     pub fn step(&mut self, bus: &mut impl Bus) {
         if self.stall > 0 {
+            #[cfg(feature = "profiling")]
+            {
+                self.stats.stall_cycles += 1;
+            }
+
             self.stall -= 1;
             return;
         }
@@ -136,6 +163,11 @@ impl Cpu {
     // 2. Let the compiler decide whether to inline
     fn step_inner(&mut self, bus: &mut impl Bus) {
         if self.busy_wait {
+            #[cfg(feature = "profiling")]
+            {
+                self.stats.busy_wait_cycles += 1;
+            }
+
             cp0::step(self, bus);
             return;
         }
@@ -145,6 +177,11 @@ impl Cpu {
 
     // 3. Probably won't be inlined
     fn step_cycle(&mut self, bus: &mut impl Bus) {
+        #[cfg(feature = "profiling")]
+        {
+            self.stats.instruction_cycles += 1;
+        }
+
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;

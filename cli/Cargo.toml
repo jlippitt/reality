@@ -16,3 +16,4 @@ rodio = { version = "0.17.3", default-features = false }
 
 [features]
 dcache = ["system/dcache"]
+profiling = ["system/profiling"]

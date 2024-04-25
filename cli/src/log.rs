@@ -107,8 +107,8 @@ impl LogRouter {
         let writer = &mut self.writers[span_id];
         event.record(&mut FieldVisitor::new(writer));
 
-        // If level if WARN or higher, additionally write to stderr
-        if *event.metadata().level() <= Level::WARN {
+        // If level is INFO or higher, additionally write to stderr
+        if *event.metadata().level() <= Level::INFO {
             event.record(&mut FieldVisitor::new(&mut self.stderr));
         }
     }

@@ -6,6 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use system::{Device, DeviceOptions, DisplayTarget};
+use tracing::info;
 use winit::dpi::Size;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -90,7 +91,33 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
             Event::AboutToWait => {
                 device.update_joypads(gamepad.handle_events());
+
                 while !device.step(&mut audio_receiver) {}
+
+                #[cfg(feature = "profiling")]
+                {
+                    let stats = device.stats();
+
+                    let cpu_cycles = (stats.cpu.instruction_cycles
+                        + stats.cpu.stall_cycles
+                        + stats.cpu.busy_wait_cycles) as f64;
+
+                    let rsp_cycles = (stats.rsp.instruction_cycles + stats.rsp.halt_cycles) as f64;
+
+                    info!(
+                        "CPU: Active: {}%, Stall: {}%, BusyWait: {}",
+                        stats.cpu.instruction_cycles as f64 * 100.0 / cpu_cycles,
+                        stats.cpu.stall_cycles as f64 * 100.0 / cpu_cycles,
+                        stats.cpu.busy_wait_cycles as f64 * 100.0 / cpu_cycles,
+                    );
+
+                    info!(
+                        "RSP: Active: {}%, Halt: {}%",
+                        stats.rsp.instruction_cycles as f64 * 100.0 / rsp_cycles,
+                        stats.rsp.halt_cycles as f64 * 100.0 / rsp_cycles,
+                    );
+                }
+
                 window.request_redraw();
             }
             _ => (),

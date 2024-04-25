@@ -3,7 +3,7 @@ pub use gfx::DisplayTarget;
 pub use serial::JoypadState;
 
 use audio::AudioInterface;
-use cpu::Cpu;
+use cpu::{Cpu, Stats as CpuStats};
 use gfx::GfxContext;
 use interrupt::{CpuInterrupt, RcpInterrupt};
 use memory::{Mapping, Memory, Size};
@@ -11,7 +11,7 @@ use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use rdp::Rdp;
 use rdram::Rdram;
-use rsp::Rsp;
+use rsp::{Rsp, Stats as RspStats};
 use serial::SerialInterface;
 use std::error::Error;
 use tracing::warn;
@@ -52,6 +52,12 @@ pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
     pub display_target: DisplayTarget<T>,
     pub pif_data: Option<Vec<u8>>,
     pub rom_data: Vec<u8>,
+}
+
+#[cfg(feature = "profiling")]
+pub struct Stats {
+    pub cpu: CpuStats,
+    pub rsp: RspStats,
 }
 
 pub struct Device {
@@ -121,6 +127,20 @@ impl Device {
 
     pub fn sample_rate(&self) -> u32 {
         self.bus.ai.sample_rate()
+    }
+
+    #[cfg(feature = "profiling")]
+    pub fn stats(&self) -> Stats {
+        Stats {
+            cpu: self.cpu.stats().clone(),
+            rsp: self.bus.rsp.stats().clone(),
+        }
+    }
+
+    #[cfg(feature = "profiling")]
+    pub fn reset_stats(&mut self) {
+        self.cpu.reset_stats();
+        self.bus.rsp.reset_stats();
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {

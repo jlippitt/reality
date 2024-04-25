@@ -29,6 +29,13 @@ struct RspShared {
     rcp_int: RcpInterrupt,
 }
 
+#[cfg(feature = "profiling")]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Stats {
+    pub instruction_cycles: u64,
+    pub halt_cycles: u64,
+}
+
 struct Bus<'a> {
     rsp: &'a mut RspShared,
     rdp: &'a mut RdpShared,
@@ -37,6 +44,8 @@ struct Bus<'a> {
 pub struct Rsp {
     core: Core,
     shared: RspShared,
+    #[cfg(feature = "profiling")]
+    stats: Stats,
 }
 
 impl Rsp {
@@ -59,6 +68,8 @@ impl Rsp {
                 regs: Regs::default(),
                 rcp_int,
             },
+            #[cfg(feature = "profiling")]
+            stats: Stats::default(),
         }
     }
 
@@ -66,10 +77,29 @@ impl Rsp {
         &self.shared.mem
     }
 
+    #[cfg(feature = "profiling")]
+    pub fn stats(&self) -> &Stats {
+        &self.stats
+    }
+
+    pub fn reset_stats(&mut self) {
+        self.stats = Stats::default();
+    }
+
     #[inline(always)]
     pub fn step_core(&mut self, rdp_shared: &mut RdpShared) {
         if self.shared.regs.status.halted() {
+            #[cfg(feature = "profiling")]
+            {
+                self.stats.halt_cycles += 1;
+            }
+
             return;
+        }
+
+        #[cfg(feature = "profiling")]
+        {
+            self.stats.instruction_cycles += 1;
         }
 
         self.step_core_inner(rdp_shared);
