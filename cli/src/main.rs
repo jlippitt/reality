@@ -116,6 +116,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                         stats.rsp.instruction_cycles as f64 * 100.0 / rsp_cycles,
                         stats.rsp.halt_cycles as f64 * 100.0 / rsp_cycles,
                     );
+
+                    device.reset_stats();
                 }
 
                 window.request_redraw();
