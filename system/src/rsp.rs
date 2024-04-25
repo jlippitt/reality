@@ -82,6 +82,7 @@ impl Rsp {
         &self.stats
     }
 
+    #[cfg(feature = "profiling")]
     pub fn reset_stats(&mut self) {
         self.stats = Stats::default();
     }

@@ -52,30 +52,6 @@ impl VideoInterface {
         })
     }
 
-    pub fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) {
-        let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
-
-        let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;
-
-        self.frame_buffer.resize(
-            gfx.device(),
-            self.upscaler.texture_bind_group_layout(),
-            self.regs.ctrl.aa_mode(),
-            video_width,
-            video_height,
-        );
-
-        // TODO: We should technically upload each display pixel as it occurs
-        // rather than doing things all at once at the end of the frame.
-        self.frame_buffer.upload(
-            gfx.queue(),
-            rdram,
-            self.regs.ctrl.display_mode(),
-            self.regs.origin.origin(),
-            self.regs.width.width(),
-        );
-    }
-
     pub fn present(&mut self, gfx: &GfxContext) -> Result<(), wgpu::SurfaceError> {
         let output = gfx.surface_texture()?;
 
@@ -97,17 +73,17 @@ impl VideoInterface {
     }
 
     #[inline(always)]
-    pub fn step(&mut self) -> bool {
+    pub fn step(&mut self, rdram: &Rdram, gfx: &GfxContext) -> bool {
         self.cycles_remaining -= 1;
 
         if self.cycles_remaining > 0 {
             return false;
         }
 
-        self.step_inner()
+        self.step_inner(rdram, gfx)
     }
 
-    fn step_inner(&mut self) -> bool {
+    fn step_inner(&mut self, rdram: &Rdram, gfx: &GfxContext) -> bool {
         self.cycles_remaining = self.cycles_per_line;
 
         let mut half_line = self.regs.v_current.half_line() + 2;
@@ -118,6 +94,7 @@ impl VideoInterface {
             half_line = (half_line & serrate) ^ serrate;
             self.frame_counter += 1;
             debug!("Frame {} (Field={})", self.frame_counter, half_line & 1);
+            self.render(rdram, gfx);
             frame_done = true;
         }
 
@@ -129,6 +106,30 @@ impl VideoInterface {
         trace!("VI_V_CURRENT: {:?}", self.regs.v_current);
 
         frame_done
+    }
+
+    fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) {
+        let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
+
+        let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;
+
+        self.frame_buffer.resize(
+            gfx.device(),
+            self.upscaler.texture_bind_group_layout(),
+            self.regs.ctrl.aa_mode(),
+            video_width,
+            video_height,
+        );
+
+        // TODO: We should technically upload each display pixel as it occurs
+        // rather than doing things all at once at the end of the frame.
+        self.frame_buffer.upload(
+            gfx.queue(),
+            rdram,
+            self.regs.ctrl.display_mode(),
+            self.regs.origin.origin(),
+            self.regs.width.width(),
+        );
     }
 
     pub fn read<T: Size>(&self, address: u32) -> T {

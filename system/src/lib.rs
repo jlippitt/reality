@@ -3,7 +3,7 @@ pub use gfx::DisplayTarget;
 pub use serial::JoypadState;
 
 use audio::AudioInterface;
-use cpu::{Cpu, Stats as CpuStats};
+use cpu::Cpu;
 use gfx::GfxContext;
 use interrupt::{CpuInterrupt, RcpInterrupt};
 use memory::{Mapping, Memory, Size};
@@ -11,11 +11,16 @@ use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use rdp::Rdp;
 use rdram::Rdram;
-use rsp::{Rsp, Stats as RspStats};
+use rsp::Rsp;
 use serial::SerialInterface;
 use std::error::Error;
 use tracing::warn;
 use video::VideoInterface;
+
+#[cfg(feature = "profiling")]
+use cpu::Stats as CpuStats;
+#[cfg(feature = "profiling")]
+use rsp::Stats as RspStats;
 
 mod audio;
 mod cpu;
@@ -147,10 +152,6 @@ impl Device {
         self.gfx.resize(width, height);
     }
 
-    pub fn render(&mut self) {
-        self.bus.vi.render(&self.bus.rdram, &self.gfx);
-    }
-
     pub fn present(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.bus.vi.present(&self.gfx)
     }
@@ -159,25 +160,30 @@ impl Device {
         self.bus.si.update_joypads(joypads);
     }
 
-    pub fn step(&mut self, receiver: &mut impl AudioReceiver) -> bool {
-        self.cycles += 1;
+    pub fn run_frame(&mut self, receiver: &mut impl AudioReceiver) {
+        loop {
+            self.cycles += 1;
 
-        self.cpu.step(&mut self.bus);
-
-        if (self.cycles & 1) == 0 {
             self.cpu.step(&mut self.bus);
+
+            if (self.cycles & 1) == 0 {
+                self.cpu.step(&mut self.bus);
+            }
+
+            self.bus.rsp.step_core(self.bus.rdp.shared());
+            self.bus.rsp.step_dma(&mut self.bus.rdram);
+
+            self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
+            self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+
+            self.bus.ai.step(&self.bus.rdram, receiver);
+            self.bus.pi.step(&mut self.bus.rdram);
+            self.bus.si.step(&mut self.bus.rdram);
+
+            if self.bus.vi.step(&self.bus.rdram, &self.gfx) {
+                break;
+            }
         }
-
-        self.bus.rsp.step_core(self.bus.rdp.shared());
-        self.bus.rsp.step_dma(&mut self.bus.rdram);
-
-        self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
-        self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
-
-        self.bus.ai.step(&self.bus.rdram, receiver);
-        self.bus.pi.step(&mut self.bus.rdram);
-        self.bus.si.step(&mut self.bus.rdram);
-        self.bus.vi.step()
     }
 }
 

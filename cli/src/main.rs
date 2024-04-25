@@ -7,12 +7,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use system::{Device, DeviceOptions, DisplayTarget};
-use tracing::info;
 use winit::dpi::Size;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowBuilder;
+
+#[cfg(feature = "profiling")]
+use tracing::info;
 
 mod audio;
 mod gamepad;
@@ -95,10 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
             Event::AboutToWait => {
                 device.update_joypads(gamepad.handle_events());
-
-                while !device.step(&mut audio_receiver) {}
-
-                device.render();
+                device.run_frame(&mut audio_receiver);
 
                 let now = Instant::now();
                 let delta = now - frame_counter[frame_counter_index];
