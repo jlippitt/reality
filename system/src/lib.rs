@@ -41,11 +41,11 @@ const RCP_CLOCK_RATE: f64 = 62500000.0;
 
 const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
 
-const SYNC_CYCLES: u64 = 128;
+const SYNC_CYCLES: u64 = 512;
 
 struct Bus {
     memory_map: Vec<Mapping>,
-    cpu_int: Arc<Mutex<CpuInterrupt>>,
+    cpu_int: Arc<CpuInterrupt>,
     rdram: Arc<RwLock<Rdram>>,
     rsp_iface: Arc<Mutex<RspInterface>>,
     rdp_iface: Arc<Mutex<RdpInterface>>,
@@ -100,7 +100,7 @@ impl Device {
         // Default RDRAM mapping (for ROMs that use simplified boot sequences)
         memory_map[0x000..=0x007].fill(Mapping::RdramData);
 
-        let cpu_int = Arc::new(Mutex::new(CpuInterrupt::new()));
+        let cpu_int = Arc::new(CpuInterrupt::new());
         let rcp_int = Arc::new(Mutex::new(RcpInterrupt::new(cpu_int.clone())));
 
         let skip_pif_rom = options.pif_data.is_none();
@@ -137,9 +137,9 @@ impl Device {
             let mut cycles: u64 = 0;
 
             loop {
-                println!("RSP Wait");
+                //println!("RSP Wait");
                 barrier_rsp.wait();
-                println!("RSP: {}", cycles);
+                //println!("RSP: {}", cycles);
 
                 for _ in 0..SYNC_CYCLES {
                     rsp_core.step(&rsp_iface_rsp, &rdp_iface_rsp, &rdram_rsp);
@@ -153,9 +153,9 @@ impl Device {
             let mut cycles: u64 = 0;
 
             loop {
-                println!("RDP Wait");
+                //println!("RDP Wait");
                 barrier_rdp.wait();
-                println!("RDP: {}", cycles);
+                //println!("RDP: {}", cycles);
 
                 for _ in 0..SYNC_CYCLES {
                     rdp_core.step_core(&rdp_iface_rdp, &rsp_iface_rdp, &rdram_rdp, &gfx_rdp);
@@ -224,9 +224,9 @@ impl Device {
         let mut frame_done = false;
 
         while !frame_done {
-            println!("CPU Wait");
+            //println!("CPU Wait");
             self.barrier.wait();
-            println!("CPU: {}", self.cycles);
+            //println!("CPU: {}", self.cycles);
 
             for _ in 0..SYNC_CYCLES {
                 self.cycles += 1;
@@ -367,6 +367,6 @@ impl cpu::Bus for Bus {
     }
 
     fn poll(&self) -> u8 {
-        self.cpu_int.lock().unwrap().status().bits()
+        self.cpu_int.status()
     }
 }
