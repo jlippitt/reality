@@ -5,6 +5,7 @@ use crate::rdram::Rdram;
 use decoder::{Context, Decoder};
 use regs::{Regs, Status};
 use renderer::Renderer;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, error_span, warn};
 
 mod decoder;
@@ -27,11 +28,11 @@ pub struct Rdp {
     shared: RdpShared,
     decoder: Decoder,
     renderer: Renderer,
-    rcp_int: RcpInterrupt,
+    rcp_int: Arc<Mutex<RcpInterrupt>>,
 }
 
 impl Rdp {
-    pub fn new(rcp_int: RcpInterrupt, gfx: &GfxContext) -> Self {
+    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, gfx: &GfxContext) -> Self {
         Self {
             shared: RdpShared {
                 regs: Regs::default(),
@@ -75,7 +76,7 @@ impl Rdp {
 
         if sync_full {
             self.sync(gfx, rdram);
-            self.rcp_int.raise(RcpIntType::DP);
+            self.rcp_int.lock().unwrap().raise(RcpIntType::DP);
 
             let status = &mut self.shared.regs.status;
             status.set_pipe_busy(false);

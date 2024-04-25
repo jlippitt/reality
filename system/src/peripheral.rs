@@ -2,6 +2,7 @@ use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Memory, Size, WriteMask};
 use crate::rdram::Rdram;
 use regs::Regs;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, warn};
 
 mod regs;
@@ -15,11 +16,15 @@ pub struct PeripheralInterface {
     regs: Regs,
     rom: Memory<u64>,
     dma: Option<Dma>,
-    rcp_int: RcpInterrupt,
+    rcp_int: Arc<Mutex<RcpInterrupt>>,
 }
 
 impl PeripheralInterface {
-    pub fn new(rcp_int: RcpInterrupt, mut rom_data: Vec<u8>, skip_pif_rom: bool) -> Self {
+    pub fn new(
+        rcp_int: Arc<Mutex<RcpInterrupt>>,
+        mut rom_data: Vec<u8>,
+        skip_pif_rom: bool,
+    ) -> Self {
         // Ensure ROM length is a multiple of 8
         // TODO: Make it a multiple of memory map entry size and adjust memory map accordingly
         rom_data.resize((rom_data.len() + 7) & !7, 0);
@@ -100,7 +105,7 @@ impl PeripheralInterface {
 
         if dma.len == 0 {
             self.dma = None;
-            self.rcp_int.raise(RcpIntType::PI);
+            self.rcp_int.lock().unwrap().raise(RcpIntType::PI);
         }
     }
 
@@ -115,7 +120,7 @@ impl PeripheralInterface {
                     value |= 0x01;
                 }
 
-                if self.rcp_int.has(RcpIntType::PI) {
+                if self.rcp_int.lock().unwrap().has(RcpIntType::PI) {
                     value |= 0x08;
                 }
 
@@ -159,7 +164,7 @@ impl PeripheralInterface {
                 }
 
                 if (raw & 0x02) != 0 {
-                    self.rcp_int.clear(RcpIntType::PI);
+                    self.rcp_int.lock().unwrap().clear(RcpIntType::PI);
                 }
             }
             5 => mask.write_reg("PI_BSD_DOM1_LAT", &mut self.regs.bsd_dom[0].lat),

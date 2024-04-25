@@ -1,6 +1,5 @@
 use bitflags::bitflags;
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use tracing::debug;
 
 bitflags! {
@@ -25,34 +24,34 @@ bitflags! {
 
 #[derive(Clone)]
 pub struct CpuInterrupt {
-    status: Rc<Cell<CpuIntType>>,
+    status: CpuIntType,
 }
 
 impl CpuInterrupt {
     pub fn new() -> Self {
         Self {
-            status: Rc::new(Cell::new(CpuIntType::empty())),
+            status: CpuIntType::empty(),
         }
     }
 
     pub fn status(&self) -> CpuIntType {
-        self.status.get()
+        self.status
     }
 
     pub fn raise(&mut self, int_type: CpuIntType) {
-        let prev_status = self.status.get();
-        self.status.set(prev_status | int_type);
+        let prev_status = self.status;
+        self.status |= int_type;
 
-        if self.status.get() != prev_status {
+        if self.status != prev_status {
             debug!("CPU Interrupt Raised: {:?}", int_type);
         }
     }
 
     pub fn clear(&mut self, int_type: CpuIntType) {
-        let prev_status = self.status.get();
-        self.status.set(prev_status & !int_type);
+        let prev_status = self.status;
+        self.status &= !int_type;
 
-        if self.status.get() != prev_status {
+        if self.status != prev_status {
             debug!("CPU Interrupt Cleared: {:?}", int_type);
         }
     }
@@ -60,43 +59,43 @@ impl CpuInterrupt {
 
 #[derive(Clone)]
 pub struct RcpInterrupt {
-    cpu_interrupt: CpuInterrupt,
-    status: Rc<Cell<RcpIntType>>,
-    mask: Rc<Cell<RcpIntType>>,
+    cpu_interrupt: Arc<Mutex<CpuInterrupt>>,
+    status: RcpIntType,
+    mask: RcpIntType,
 }
 
 impl RcpInterrupt {
-    pub fn new(cpu_interrupt: CpuInterrupt) -> Self {
+    pub fn new(cpu_interrupt: Arc<Mutex<CpuInterrupt>>) -> Self {
         Self {
             cpu_interrupt,
-            mask: Rc::new(Cell::new(RcpIntType::empty())),
-            status: Rc::new(Cell::new(RcpIntType::empty())),
+            mask: RcpIntType::empty(),
+            status: RcpIntType::empty(),
         }
     }
 
     pub fn mask(&self) -> RcpIntType {
-        self.mask.get()
+        self.mask
     }
 
     pub fn set_mask(&mut self, mask: RcpIntType) {
-        self.mask.set(mask);
+        self.mask = mask;
         debug!("RCP Interrupt Mask: {:06b}", mask);
         self.update();
     }
 
     pub fn status(&self) -> RcpIntType {
-        self.status.get()
+        self.status
     }
 
     pub fn has(&self, int_type: RcpIntType) -> bool {
-        self.status.get().intersects(int_type)
+        self.status.intersects(int_type)
     }
 
     pub fn raise(&mut self, int_type: RcpIntType) {
-        let prev_status = self.status.get();
-        self.status.set(prev_status | int_type);
+        let prev_status = self.status;
+        self.status |= int_type;
 
-        if self.status.get() != prev_status {
+        if self.status != prev_status {
             debug!("RCP Interrupt Raised: {:?}", int_type);
         }
 
@@ -104,10 +103,10 @@ impl RcpInterrupt {
     }
 
     pub fn clear(&mut self, int_type: RcpIntType) {
-        let prev_status = self.status.get();
-        self.status.set(prev_status & !int_type);
+        let prev_status = self.status;
+        self.status &= !int_type;
 
-        if self.status.get() != prev_status {
+        if self.status != prev_status {
             debug!("RCP Interrupt Cleared: {:?}", int_type);
         }
 
@@ -115,12 +114,13 @@ impl RcpInterrupt {
     }
 
     fn update(&mut self) {
-        let active = self.status.get() & self.mask.get();
+        let mut cpu_int = self.cpu_interrupt.lock().unwrap();
+        let active = self.status & self.mask;
 
         if active.is_empty() {
-            self.cpu_interrupt.clear(CpuIntType::Rcp);
+            cpu_int.clear(CpuIntType::Rcp);
         } else {
-            self.cpu_interrupt.raise(CpuIntType::Rcp);
+            cpu_int.raise(CpuIntType::Rcp);
         }
     }
 }

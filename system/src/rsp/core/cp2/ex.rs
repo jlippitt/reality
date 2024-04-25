@@ -55,9 +55,9 @@ pub fn cop2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
             0x36 => single_lane::single_lane::<single_lane::VRsqh>(core, pc, word),
             0x37 => single_lane::vnop(core, pc),
             0x3f => single_lane::vnull(core, pc),
-            opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc()),
+            opcode => unimplemented!("RSP COP2 Function {:#04X} [PC:{:08X}]", opcode, core.pc),
         },
-        opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
+        opcode => unimplemented!("RSP COP2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc),
     }
 }
 
@@ -72,7 +72,7 @@ pub fn lwc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
         0x06 => load::load::<load::Lpv>(core, pc, word),
         0x07 => load::load::<load::Luv>(core, pc, word),
         0x0b => load::load::<load::Ltv>(core, pc, word),
-        opcode => unimplemented!("RSP LWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
+        opcode => unimplemented!("RSP LWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc),
     }
 }
 
@@ -87,6 +87,6 @@ pub fn swc2(core: &mut Core, pc: u32, word: u32) -> DfOperation {
         0x06 => store::store::<store::Spv>(core, pc, word),
         0x07 => store::store::<store::Suv>(core, pc, word),
         0x0b => store::store::<store::Stv>(core, pc, word),
-        opcode => unimplemented!("RSP SWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc()),
+        opcode => unimplemented!("RSP SWC2 Opcode {:#04X} [PC:{:08X}]", opcode, core.pc),
     }
 }

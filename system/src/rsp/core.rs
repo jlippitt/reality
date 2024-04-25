@@ -65,15 +65,9 @@ impl Core {
         }
     }
 
-    pub fn pc(&self) -> u32 {
-        self.pc
-    }
+    pub fn step(&mut self, pc: u32, bus: &mut impl Bus) -> u32 {
+        self.pc = pc;
 
-    pub fn set_pc(&mut self, value: u32) {
-        self.pc = value & 0x0ffc;
-    }
-
-    pub fn step(&mut self, bus: &mut impl Bus) {
         // WB
         self.regs[self.wb.reg] = self.wb.value;
         self.regs[0] = 0;
@@ -84,7 +78,7 @@ impl Core {
 
         // DF
         if df::execute(self, bus) {
-            return;
+            return self.pc;
         }
 
         // EX
@@ -114,7 +108,7 @@ impl Core {
             word: bus.read_opcode(self.pc),
         };
 
-        self.pc = self.pc.wrapping_add(4) & 0x0fff;
+        self.pc.wrapping_add(4) & 0x0fff
     }
 
     fn branch(&mut self, condition: bool, offset: i32) {

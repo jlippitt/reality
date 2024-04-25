@@ -11,9 +11,10 @@ use mips_interface::MipsInterface;
 use peripheral::PeripheralInterface;
 use rdp::Rdp;
 use rdram::Rdram;
-use rsp::Rsp;
+use rsp::{RspCore, RspInterface};
 use serial::SerialInterface;
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 use tracing::warn;
 use video::VideoInterface;
 
@@ -41,9 +42,10 @@ const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
 
 struct Bus {
     memory_map: Vec<Mapping>,
-    cpu_int: CpuInterrupt,
+    cpu_int: Arc<Mutex<CpuInterrupt>>,
     rdram: Rdram,
-    rsp: Rsp,
+    rsp_core: RspCore,
+    rsp_iface: Arc<Mutex<RspInterface>>,
     rdp: Rdp,
     mi: MipsInterface,
     vi: VideoInterface,
@@ -95,8 +97,8 @@ impl Device {
         // Default RDRAM mapping (for ROMs that use simplified boot sequences)
         memory_map[0x000..=0x007].fill(Mapping::RdramData);
 
-        let cpu_int = CpuInterrupt::new();
-        let rcp_int = RcpInterrupt::new(cpu_int.clone());
+        let cpu_int = Arc::new(Mutex::new(CpuInterrupt::new()));
+        let rcp_int = Arc::new(Mutex::new(RcpInterrupt::new(cpu_int.clone())));
 
         let skip_pif_rom = options.pif_data.is_none();
         let ipl3_data = skip_pif_rom.then(|| &options.rom_data[0..0x1000]);
@@ -106,13 +108,16 @@ impl Device {
         let mut si = SerialInterface::new(rcp_int.clone(), options.pif_data);
         si.cic_detect(&options.rom_data, &mut rdram);
 
+        let rsp_iface = Arc::new(Mutex::new(RspInterface::new(rcp_int.clone(), ipl3_data)));
+
         Ok(Self {
             cpu: Cpu::new(skip_pif_rom),
             bus: Bus {
                 memory_map,
                 cpu_int,
                 rdram,
-                rsp: Rsp::new(rcp_int.clone(), ipl3_data),
+                rsp_core: RspCore::new(rsp_iface.clone()),
+                rsp_iface,
                 rdp: Rdp::new(rcp_int.clone(), &gfx),
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
@@ -138,14 +143,14 @@ impl Device {
     pub fn stats(&self) -> Stats {
         Stats {
             cpu: self.cpu.stats().clone(),
-            rsp: self.bus.rsp.stats().clone(),
+            rsp: self.bus.rsp_iface.lock().unwrap().stats().clone(),
         }
     }
 
     #[cfg(feature = "profiling")]
     pub fn reset_stats(&mut self) {
         self.cpu.reset_stats();
-        self.bus.rsp.reset_stats();
+        self.bus.rsp_iface.lock().unwrap().reset_stats();
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -170,11 +175,17 @@ impl Device {
                 self.cpu.step(&mut self.bus);
             }
 
-            self.bus.rsp.step_core(self.bus.rdp.shared());
-            self.bus.rsp.step_dma(&mut self.bus.rdram);
+            self.bus.rsp_core.step(self.bus.rdp.shared());
+            self.bus
+                .rsp_iface
+                .lock()
+                .unwrap()
+                .step_dma(&mut self.bus.rdram);
 
             self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
-            self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+            self.bus
+                .rdp
+                .step_dma(&self.bus.rdram, self.bus.rsp_iface.lock().unwrap().mem());
 
             self.bus.ai.step(&self.bus.rdram, receiver);
             self.bus.pi.step(&mut self.bus.rdram);
@@ -192,7 +203,7 @@ impl cpu::Bus for Bus {
         match self.memory_map[address as usize >> 20] {
             Mapping::RdramData => self.rdram.read_single(address as usize),
             Mapping::RdramRegister => self.rdram.read_register(&self.mi, address & 0x000f_ffff),
-            Mapping::Rsp => self.rsp.read(address & 0x000f_ffff),
+            Mapping::Rsp => self.rsp_iface.lock().unwrap().read(address & 0x000f_ffff),
             Mapping::RdpCommand => self.rdp.read_command(address & 0x000f_ffff),
             Mapping::RdpSpan => self.rdp.read_span(address & 0x000f_ffff),
             Mapping::MipsInterface => self.mi.read(address & 0x000f_ffff),
@@ -222,7 +233,11 @@ impl cpu::Bus for Bus {
                     value,
                 );
             }
-            Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
+            Mapping::Rsp => self
+                .rsp_iface
+                .lock()
+                .unwrap()
+                .write(address & 0x000f_ffff, value),
             Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
             Mapping::RdpSpan => self.rdp.write_span(address & 0x000f_ffff, value),
             Mapping::MipsInterface => self.mi.write(address & 0x000f_ffff, value),
@@ -265,6 +280,6 @@ impl cpu::Bus for Bus {
     }
 
     fn poll(&self) -> u8 {
-        self.cpu_int.status().bits()
+        self.cpu_int.lock().unwrap().status().bits()
     }
 }

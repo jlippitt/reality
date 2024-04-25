@@ -1,17 +1,18 @@
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use regs::{Mode, Regs};
+use std::sync::{Arc, Mutex};
 use tracing::debug;
 
 mod regs;
 
 pub struct MipsInterface {
     regs: Regs,
-    rcp_int: RcpInterrupt,
+    rcp_int: Arc<Mutex<RcpInterrupt>>,
 }
 
 impl MipsInterface {
-    pub fn new(rcp_int: RcpInterrupt) -> Self {
+    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>) -> Self {
         Self {
             regs: Regs::default(),
             rcp_int,
@@ -33,8 +34,8 @@ impl MipsInterface {
     pub fn read<T: Size>(&self, address: u32) -> T {
         T::truncate_u32(match address >> 2 {
             1 => 0x0202_0102,
-            2 => self.rcp_int.status().bits() as u32,
-            3 => self.rcp_int.mask().bits() as u32,
+            2 => self.rcp_int.lock().unwrap().status().bits() as u32,
+            3 => self.rcp_int.lock().unwrap().mask().bits() as u32,
             _ => todo!("MI Register Read: {:08X}", address),
         })
     }
@@ -58,19 +59,20 @@ impl MipsInterface {
                 assert!(!self.regs.mode.ebus(), "EBus mode not supported");
 
                 if (mask.raw() & 0x0800) != 0 {
-                    self.rcp_int.clear(RcpIntType::DP);
+                    self.rcp_int.lock().unwrap().clear(RcpIntType::DP);
                 }
             }
             2 => (), // MI_INTERRUPT is read-only
             3 => {
-                let mut int_mask = self.rcp_int.mask();
+                let mut rcp_int = self.rcp_int.lock().unwrap();
+                let mut int_mask = rcp_int.mask();
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::SP, 1, 0);
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::SI, 3, 2);
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::AI, 5, 4);
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::VI, 7, 6);
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::PI, 9, 8);
                 mask.set_or_clear_flag(&mut int_mask, RcpIntType::DP, 11, 10);
-                self.rcp_int.set_mask(int_mask);
+                rcp_int.set_mask(int_mask);
             }
             _ => todo!("MI Register Write: {:08X} <= {:08X}", address, mask.raw()),
         }

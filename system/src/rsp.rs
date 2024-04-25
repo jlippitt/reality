@@ -4,6 +4,8 @@ use crate::rdp::RdpShared;
 use crate::rdram::Rdram;
 use core::Core;
 use regs::{DmaLength, DmaRamAddr, DmaSpAddr, Regs, Status};
+use std::ops::DerefMut;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, debug_span, trace};
 
 mod core;
@@ -20,15 +22,6 @@ struct Dma {
     write: bool,
 }
 
-struct RspShared {
-    mem: Memory<u128>,
-    regs: Regs,
-    dma_in_progress: bool,
-    dma_active: Dma,
-    dma_pending: Option<Dma>,
-    rcp_int: RcpInterrupt,
-}
-
 #[cfg(feature = "profiling")]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Stats {
@@ -37,19 +30,71 @@ pub struct Stats {
 }
 
 struct Bus<'a> {
-    rsp: &'a mut RspShared,
+    rsp: &'a mut RspInterface,
     rdp: &'a mut RdpShared,
 }
 
-pub struct Rsp {
+pub struct RspCore {
     core: Core,
-    shared: RspShared,
+    iface: Arc<Mutex<RspInterface>>,
+}
+
+pub struct RspInterface {
+    mem: Memory<u128>,
+    regs: Regs,
+    dma_in_progress: bool,
+    dma_active: Dma,
+    dma_pending: Option<Dma>,
+    pc: u32,
+    rcp_int: Arc<Mutex<RcpInterrupt>>,
     #[cfg(feature = "profiling")]
     stats: Stats,
 }
 
-impl Rsp {
-    pub fn new(rcp_int: RcpInterrupt, ipl3_data: Option<&[u8]>) -> Self {
+impl RspCore {
+    pub fn new(iface: Arc<Mutex<RspInterface>>) -> Self {
+        Self {
+            core: Core::new(),
+            iface,
+        }
+    }
+
+    pub fn step(&mut self, rdp_shared: &mut RdpShared) {
+        let mut iface = self.iface.lock().unwrap();
+
+        if iface.regs.status.halted() {
+            #[cfg(feature = "profiling")]
+            {
+                iface.stats.halt_cycles += 1;
+            }
+
+            return;
+        }
+
+        #[cfg(feature = "profiling")]
+        {
+            iface.stats.instruction_cycles += 1;
+        }
+
+        {
+            let _span = debug_span!("rsp").entered();
+
+            iface.pc = self.core.step(
+                iface.pc,
+                &mut Bus {
+                    rsp: iface.deref_mut(),
+                    rdp: rdp_shared,
+                },
+            );
+        }
+
+        let status = &mut iface.regs.status;
+        status.set_halted(status.halted() | status.sstep());
+    }
+}
+
+impl RspInterface {
+    pub fn new(rcp_int: Arc<Mutex<RcpInterrupt>>, ipl3_data: Option<&[u8]>) -> Self {
         let mem = if let Some(ipl3_data) = ipl3_data {
             let mut vec = Vec::from(ipl3_data);
             vec.resize(MEM_SIZE, 0);
@@ -59,70 +104,25 @@ impl Rsp {
         };
 
         Self {
-            core: Core::new(),
-            shared: RspShared {
-                mem,
-                dma_in_progress: false,
-                dma_active: Dma::default(),
-                dma_pending: None,
-                regs: Regs::default(),
-                rcp_int,
-            },
+            mem,
+            dma_in_progress: false,
+            dma_active: Dma::default(),
+            dma_pending: None,
+            regs: Regs::default(),
+            rcp_int,
+            pc: 0,
             #[cfg(feature = "profiling")]
             stats: Stats::default(),
         }
     }
 
     pub fn mem(&self) -> &Memory<u128> {
-        &self.shared.mem
-    }
-
-    #[cfg(feature = "profiling")]
-    pub fn stats(&self) -> &Stats {
-        &self.stats
-    }
-
-    #[cfg(feature = "profiling")]
-    pub fn reset_stats(&mut self) {
-        self.stats = Stats::default();
-    }
-
-    #[inline(always)]
-    pub fn step_core(&mut self, rdp_shared: &mut RdpShared) {
-        if self.shared.regs.status.halted() {
-            #[cfg(feature = "profiling")]
-            {
-                self.stats.halt_cycles += 1;
-            }
-
-            return;
-        }
-
-        #[cfg(feature = "profiling")]
-        {
-            self.stats.instruction_cycles += 1;
-        }
-
-        self.step_core_inner(rdp_shared);
-    }
-
-    fn step_core_inner(&mut self, rdp_shared: &mut RdpShared) {
-        {
-            let _span = debug_span!("rsp").entered();
-
-            self.core.step(&mut Bus {
-                rsp: &mut self.shared,
-                rdp: rdp_shared,
-            });
-        }
-
-        let status = &mut self.shared.regs.status;
-        status.set_halted(status.halted() | status.sstep());
+        &self.mem
     }
 
     #[inline(always)]
     pub fn step_dma(&mut self, rdram: &mut Rdram) {
-        if !self.shared.dma_in_progress {
+        if !self.dma_in_progress {
             return;
         }
 
@@ -130,7 +130,7 @@ impl Rsp {
     }
 
     fn step_dma_inner(&mut self, rdram: &mut Rdram) {
-        let dma = &mut self.shared.dma_active;
+        let dma = &mut self.dma_active;
 
         let bank_offset = (dma.sp_addr.mem_bank() as u32) << 12;
         let mem_addr = dma.sp_addr.mem_addr() & 0x0ff8;
@@ -145,7 +145,7 @@ impl Rsp {
             let mut byte_addr = mem_addr as usize;
 
             for byte in data.iter_mut() {
-                *byte = self.shared.mem[bank_offset as usize + byte_addr];
+                *byte = self.mem[bank_offset as usize + byte_addr];
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
@@ -163,7 +163,7 @@ impl Rsp {
             let mut byte_addr = mem_addr as usize;
 
             for byte in data.iter() {
-                self.shared.mem[bank_offset as usize + byte_addr] = *byte;
+                self.mem[bank_offset as usize + byte_addr] = *byte;
                 byte_addr = (byte_addr + 1) & 0x0fff;
             }
 
@@ -184,12 +184,12 @@ impl Rsp {
             let count = dma.len.count();
 
             if count == 0 {
-                if let Some(dma_pending) = self.shared.dma_pending.take() {
-                    self.shared.dma_active = dma_pending;
-                    trace!("RSP DMA Active: {:08X?}", self.shared.dma_active);
-                    trace!("RSP DMA Pending: {:08X?}", self.shared.dma_pending);
+                if let Some(dma_pending) = self.dma_pending.take() {
+                    self.dma_active = dma_pending;
+                    trace!("RSP DMA Active: {:08X?}", self.dma_active);
+                    trace!("RSP DMA Pending: {:08X?}", self.dma_pending);
                 } else {
-                    self.shared.dma_in_progress = false;
+                    self.dma_in_progress = false;
                     dma.len.set_len(0x0ff8);
                 }
 
@@ -205,15 +205,25 @@ impl Rsp {
         }
     }
 
+    #[cfg(feature = "profiling")]
+    pub fn stats(&self) -> &Stats {
+        &self.stats
+    }
+
+    #[cfg(feature = "profiling")]
+    pub fn reset_stats(&mut self) {
+        self.stats = Stats::default();
+    }
+
     pub fn read<T: Size>(&self, address: u32) -> T {
         if (address as usize) < 0x0004_0000 {
-            return self.shared.mem.read(address as usize & 0x0000_1fff);
+            return self.mem.read(address as usize & 0x0000_1fff);
         }
 
         T::truncate_u32(if (address & 0x0004_0000) == 0x0004_0000 {
-            self.shared.read_register((address as usize & 0xffff) >> 2)
+            self.read_register((address as usize & 0xffff) >> 2)
         } else if address == 0x0008_0000 {
-            self.core.pc()
+            self.pc
         } else {
             panic!("Read from unmapped RSP address: {:08X}", address);
         })
@@ -221,26 +231,21 @@ impl Rsp {
 
     pub fn write<T: Size>(&mut self, address: u32, value: T) {
         if address < 0x0004_0000 {
-            return self.shared.mem.write(address as usize & 0x0000_1fff, value);
+            return self.mem.write(address as usize & 0x0000_1fff, value);
         }
 
         let mask = WriteMask::new(address, value);
 
         if (address & 0x0004_0000) == 0x0004_0000 {
-            self.shared
-                .write_register((address as usize & 0xffff) >> 2, mask);
+            self.write_register((address as usize & 0xffff) >> 2, mask);
         } else if address == 0x0008_0000 {
-            let mut pc = self.core.pc();
-            mask.write(&mut pc);
-            self.core.set_pc(pc);
-            debug!("SP_PC: {:08X}", pc);
+            mask.write_partial(&mut self.pc, 0x0ffc);
+            debug!("SP_PC: {:08X}", self.pc);
         } else {
             panic!("Write to unmapped RSP address: {:08X}", address);
         }
     }
-}
 
-impl RspShared {
     fn read_register(&self, index: usize) -> u32 {
         match index {
             0 => self.dma_active.sp_addr.into(),
@@ -279,8 +284,8 @@ impl RspShared {
                 }
 
                 match (raw >> 3) & 3 {
-                    1 => self.rcp_int.clear(RcpIntType::SP),
-                    2 => self.rcp_int.raise(RcpIntType::SP),
+                    1 => self.rcp_int.lock().unwrap().clear(RcpIntType::SP),
+                    2 => self.rcp_int.lock().unwrap().raise(RcpIntType::SP),
                     _ => (),
                 }
 
@@ -376,7 +381,7 @@ impl<'a> core::Bus for Bus<'a> {
         self.rsp.regs.status.set_broke(true);
 
         if self.rsp.regs.status.intbreak() {
-            self.rsp.rcp_int.raise(RcpIntType::SP);
+            self.rsp.rcp_int.lock().unwrap().raise(RcpIntType::SP);
         }
     }
 }
