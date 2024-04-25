@@ -4,6 +4,7 @@ use tracing::trace;
 
 #[derive(Debug)]
 pub enum DfOperation {
+    Nop,
     RegWrite {
         reg: usize,
         value: i32,
@@ -135,11 +136,13 @@ pub enum DfOperation {
         addr: u32,
     },
     Break,
-    Nop,
 }
 
 pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
     match cpu.df {
+        DfOperation::Nop => {
+            cpu.wb.reg = 0;
+        }
         DfOperation::RegWrite { reg, value } => {
             cpu.wb.reg = reg;
             cpu.wb.value = value;
@@ -469,9 +472,6 @@ pub fn execute(cpu: &mut Core, bus: &mut impl Bus) -> bool {
             cpu.ex.word = 0;
             cpu.df = DfOperation::Nop;
             return true;
-        }
-        DfOperation::Nop => {
-            cpu.wb.reg = 0;
         }
     }
 
