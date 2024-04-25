@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     device.resize(size.width, size.height);
                 }
                 WindowEvent::RedrawRequested => {
-                    device.render().unwrap();
+                    device.present().unwrap();
                 }
                 _ => (),
             },
@@ -97,6 +97,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 device.update_joypads(gamepad.handle_events());
 
                 while !device.step(&mut audio_receiver) {}
+
+                device.render();
 
                 let now = Instant::now();
                 let delta = now - frame_counter[frame_counter_index];

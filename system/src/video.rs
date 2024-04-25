@@ -52,7 +52,7 @@ impl VideoInterface {
         })
     }
 
-    pub fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, rdram: &Rdram, gfx: &GfxContext) {
         let video_width = self.regs.h_video.width() * self.regs.x_scale.scale() / 1024;
 
         let video_height = (self.regs.v_video.width() >> 1) * self.regs.y_scale.scale() / 1024;
@@ -74,7 +74,9 @@ impl VideoInterface {
             self.regs.origin.origin(),
             self.regs.width.width(),
         );
+    }
 
+    pub fn present(&mut self, gfx: &GfxContext) -> Result<(), wgpu::SurfaceError> {
         let output = gfx.surface_texture()?;
 
         let view = output

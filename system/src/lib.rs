@@ -147,9 +147,12 @@ impl Device {
         self.gfx.resize(width, height);
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        //self.bus.rdp.sync(&self.gfx, &mut self.bus.rdram);
-        self.bus.vi.render(&self.bus.rdram, &self.gfx)
+    pub fn render(&mut self) {
+        self.bus.vi.render(&self.bus.rdram, &self.gfx);
+    }
+
+    pub fn present(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.bus.vi.present(&self.gfx)
     }
 
     pub fn update_joypads(&mut self, joypads: &[JoypadState; 4]) {
