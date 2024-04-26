@@ -13,7 +13,8 @@ pub fn mfc0(cpu: &mut Cpu) {
         Cp0::REG_NAMES[rd]
     );
 
-    cpu.regs[rt] = cpu.cp0.read_reg(rd) as i32 as i64;
+    let value = cpu.cp0.read_reg(rd) as i32 as i64;
+    cpu.set_reg(rt, value);
 }
 
 pub fn dmfc0(cpu: &mut Cpu) {
@@ -27,7 +28,8 @@ pub fn dmfc0(cpu: &mut Cpu) {
         Cp0::REG_NAMES[rd]
     );
 
-    cpu.regs[rt] = cpu.cp0.read_reg(rd);
+    let value = cpu.cp0.read_reg(rd);
+    cpu.set_reg(rt, value);
 }
 
 pub fn mtc0(cpu: &mut Cpu) {

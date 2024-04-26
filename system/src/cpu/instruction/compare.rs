@@ -14,7 +14,7 @@ pub fn slti(cpu: &mut Cpu) {
         imm
     );
 
-    cpu.regs[rt] = (cpu.regs[rs] < imm) as i64;
+    cpu.set_reg(rt, (cpu.regs[rs] < imm) as i64);
 }
 
 pub fn sltiu(cpu: &mut Cpu) {
@@ -30,7 +30,7 @@ pub fn sltiu(cpu: &mut Cpu) {
         imm
     );
 
-    cpu.regs[rt] = ((cpu.regs[rs] as u64) < imm) as i64;
+    cpu.set_reg(rt, ((cpu.regs[rs] as u64) < imm) as i64);
 }
 
 pub fn slt(cpu: &mut Cpu) {
@@ -46,7 +46,7 @@ pub fn slt(cpu: &mut Cpu) {
         Cpu::REG_NAMES[rt],
     );
 
-    cpu.regs[rd] = (cpu.regs[rs] < cpu.regs[rt]) as i64;
+    cpu.set_reg(rd, (cpu.regs[rs] < cpu.regs[rt]) as i64);
 }
 
 pub fn sltu(cpu: &mut Cpu) {
@@ -62,5 +62,5 @@ pub fn sltu(cpu: &mut Cpu) {
         Cpu::REG_NAMES[rt],
     );
 
-    cpu.regs[rd] = ((cpu.regs[rs] as u64) < (cpu.regs[rt] as u64)) as i64;
+    cpu.set_reg(rd, ((cpu.regs[rs] as u64) < (cpu.regs[rt] as u64)) as i64);
 }

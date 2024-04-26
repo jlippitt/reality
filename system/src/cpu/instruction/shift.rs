@@ -75,7 +75,7 @@ pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu) {
         sa
     );
 
-    cpu.regs[rd] = Op::apply(cpu.regs[rt], sa);
+    cpu.set_reg(rd, Op::apply(cpu.regs[rt], sa));
 }
 
 pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu) {
@@ -92,7 +92,7 @@ pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu) {
         sa
     );
 
-    cpu.regs[rd] = Op::apply(cpu.regs[rt], sa + 32);
+    cpu.set_reg(rd, Op::apply(cpu.regs[rt], sa + 32));
 }
 
 pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu) {
@@ -109,5 +109,5 @@ pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu) {
         Cpu::REG_NAMES[rs],
     );
 
-    cpu.regs[rd] = Op::apply(cpu.regs[rt], cpu.regs[rs] as u32);
+    cpu.set_reg(rd, Op::apply(cpu.regs[rt], cpu.regs[rs] as u32));
 }

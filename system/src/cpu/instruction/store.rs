@@ -169,10 +169,10 @@ impl StoreOperator for Sc {
 
     fn apply(cpu: &mut Cpu, bus: &mut impl Bus, reg: usize, addr: u32) {
         assert!((addr & 3) == 0);
-        cpu.regs[reg] = cpu.ll_bit as i64;
+        let value = cpu.regs[reg] as u32;
+        cpu.set_reg(reg, cpu.ll_bit as i64);
 
         if cpu.ll_bit {
-            let value = cpu.regs[reg] as u32;
             trace!("  [{:08X} <= {:08X}]", addr, value);
             cpu.write_data(bus, addr, value);
         }
@@ -184,10 +184,10 @@ impl StoreOperator for Scd {
 
     fn apply(cpu: &mut Cpu, bus: &mut impl Bus, reg: usize, addr: u32) {
         assert!((addr & 7) == 0);
-        cpu.regs[reg] = cpu.ll_bit as i64;
+        let value = cpu.regs[reg] as u64;
+        cpu.set_reg(reg, cpu.ll_bit as i64);
 
         if cpu.ll_bit {
-            let value = cpu.regs[reg] as u64;
             trace!("  [{:08X} <= {:016X}]", addr, value);
             cpu.write_data(bus, addr, value);
         }

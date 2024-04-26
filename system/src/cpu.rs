@@ -163,6 +163,11 @@ impl Cpu {
         self.pc[2] = self.pc[2].wrapping_add(4);
     }
 
+    fn set_reg(&mut self, reg: usize, value: i64) {
+        self.regs[reg] = value;
+        trace!("  {}: {:08X}", Self::REG_NAMES[reg], value);
+    }
+
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
         if self.delay[0] {
             return;

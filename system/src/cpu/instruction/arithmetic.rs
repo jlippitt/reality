@@ -82,7 +82,7 @@ pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
         todo!("Overflow exception");
     };
 
-    cpu.regs[rt] = result;
+    cpu.set_reg(rt, result);
 }
 
 pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
@@ -99,7 +99,7 @@ pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
         imm
     );
 
-    cpu.regs[rt] = Op::apply_unchecked(cpu.regs[rs], imm);
+    cpu.set_reg(rt, Op::apply_unchecked(cpu.regs[rs], imm));
 }
 
 pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
@@ -120,7 +120,7 @@ pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
         todo!("Overflow exception");
     };
 
-    cpu.regs[rd] = result;
+    cpu.set_reg(rd, result);
 }
 
 pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
@@ -137,5 +137,5 @@ pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
         Cpu::REG_NAMES[rt],
     );
 
-    cpu.regs[rd] = Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]);
+    cpu.set_reg(rd, Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]));
 }

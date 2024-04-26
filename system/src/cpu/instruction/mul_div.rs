@@ -143,13 +143,13 @@ pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu) {
 pub fn mfhi(cpu: &mut Cpu) {
     let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
     trace!("{:08X}: MFHI {}", cpu.pc[0], Cpu::REG_NAMES[rd],);
-    cpu.regs[rd] = cpu.hi;
+    cpu.set_reg(rd, cpu.hi);
 }
 
 pub fn mflo(cpu: &mut Cpu) {
     let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
     trace!("{:08X}: MFLO {}", cpu.pc[0], Cpu::REG_NAMES[rd],);
-    cpu.regs[rd] = cpu.lo;
+    cpu.set_reg(rd, cpu.lo);
 }
 
 pub fn mthi(cpu: &mut Cpu) {

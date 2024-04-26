@@ -183,7 +183,7 @@ pub fn lui(cpu: &mut Cpu) {
         imm
     );
 
-    cpu.regs[rt] = ((imm as i32) << 16) as i64;
+    cpu.set_reg(rt, ((imm as i32) << 16) as i64);
 }
 
 pub fn load<Op: LoadOperator>(cpu: &mut Cpu, bus: &mut impl Bus) {
@@ -203,6 +203,6 @@ pub fn load<Op: LoadOperator>(cpu: &mut Cpu, bus: &mut impl Bus) {
     let address = cpu.regs[base].wrapping_add(offset) as u32;
 
     if let Some(value) = Op::apply(cpu, bus, rt, address) {
-        cpu.regs[rt] = value;
+        cpu.set_reg(rt, value);
     }
 }

@@ -57,7 +57,7 @@ pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu) {
         imm
     );
 
-    cpu.regs[rt] = Op::apply(cpu.regs[rs], imm);
+    cpu.set_reg(rt, Op::apply(cpu.regs[rs], imm));
 }
 
 pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu) {
@@ -74,5 +74,5 @@ pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu) {
         Cpu::REG_NAMES[rt],
     );
 
-    cpu.regs[rd] = Op::apply(cpu.regs[rs], cpu.regs[rt]);
+    cpu.set_reg(rd, Op::apply(cpu.regs[rs], cpu.regs[rt]));
 }

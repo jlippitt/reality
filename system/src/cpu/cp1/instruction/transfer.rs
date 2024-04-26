@@ -8,7 +8,7 @@ pub fn mfc1(cpu: &mut Cpu) {
 
     trace!("{:08X}: MFC1 {}, F{}", cpu.pc[0], Cpu::REG_NAMES[rt], rd,);
 
-    cpu.regs[rt] = i32::cp1_reg(cpu, rd) as i64;
+    cpu.set_reg(rt, i32::cp1_reg(cpu, rd) as i64);
 }
 
 pub fn dmfc1(cpu: &mut Cpu) {
@@ -17,7 +17,7 @@ pub fn dmfc1(cpu: &mut Cpu) {
 
     trace!("{:08X}: DMFC1 {}, F{}", cpu.pc[0], Cpu::REG_NAMES[rt], rd,);
 
-    cpu.regs[rt] = i64::cp1_reg(cpu, rd);
+    cpu.set_reg(rt, i64::cp1_reg(cpu, rd));
 }
 
 pub fn mtc1(cpu: &mut Cpu) {
@@ -49,7 +49,7 @@ pub fn cfc1(cpu: &mut Cpu) {
         Cp1::CONTROL_REG_NAMES[rd]
     );
 
-    cpu.regs[rt] = cpu.cp1.read_control_reg(rd) as i64;
+    cpu.set_reg(rt, cpu.cp1.read_control_reg(rd) as i64);
 }
 
 pub fn ctc1(cpu: &mut Cpu) {

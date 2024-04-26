@@ -18,7 +18,7 @@ pub fn j<const LINK: bool>(cpu: &mut Cpu) {
     }
 
     if LINK {
-        cpu.regs[31] = cpu.pc[1].wrapping_add(4) as i32 as i64;
+        cpu.set_reg(31, cpu.pc[1].wrapping_add(4) as i32 as i64);
     }
 }
 
@@ -49,7 +49,7 @@ pub fn jalr(cpu: &mut Cpu) {
         cpu.pc[2] = cpu.regs[rs] as u32;
     }
 
-    cpu.regs[rd] = cpu.pc[1].wrapping_add(4) as i32 as i64;
+    cpu.set_reg(rd, cpu.pc[1].wrapping_add(4) as i32 as i64);
 }
 
 pub fn beq<const LIKELY: bool>(cpu: &mut Cpu) {
@@ -140,7 +140,7 @@ pub fn bltz<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu) {
     cpu.branch::<LIKELY>(cpu.regs[rs] < 0, offset);
 
     if LINK {
-        cpu.regs[31] = cpu.pc[1].wrapping_add(4) as i32 as i64;
+        cpu.set_reg(31, cpu.pc[1].wrapping_add(4) as i32 as i64);
     }
 }
 
@@ -160,7 +160,7 @@ pub fn bgez<const LINK: bool, const LIKELY: bool>(cpu: &mut Cpu) {
     cpu.branch::<LIKELY>(cpu.regs[rs] >= 0, offset);
 
     if LINK {
-        cpu.regs[31] = cpu.pc[1].wrapping_add(4) as i32 as i64;
+        cpu.set_reg(31, cpu.pc[1].wrapping_add(4) as i32 as i64);
     } else if rs == 0 && offset == -4 {
         cpu.busy_wait = true;
     }

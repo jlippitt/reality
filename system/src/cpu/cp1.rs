@@ -89,6 +89,7 @@ impl Format for i32 {
         };
 
         cpu.cp1.regs[reg] = value;
+        trace!("  F{}.W = {:08}", reg, value);
     }
 
     fn to_f32(self) -> f32 {
@@ -119,6 +120,7 @@ impl Format for i64 {
         }
 
         cpu.cp1.regs[reg] = value;
+        trace!("  F{}.L = {:016X}", reg, value);
     }
 
     fn to_f32(self) -> f32 {
@@ -152,6 +154,7 @@ impl Format for f32 {
         };
 
         cpu.cp1.regs[reg] = value;
+        trace!("  F{}.S = {}", reg, value);
     }
 
     fn to_f32(self) -> f32 {
@@ -194,6 +197,7 @@ impl Format for f64 {
         }
 
         cpu.cp1.regs[reg] = value.to_bits() as i64;
+        trace!("  F{}.D = {}", reg, value);
     }
 
     fn to_f32(self) -> f32 {
