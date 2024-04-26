@@ -111,7 +111,7 @@ pub struct Memory<T: AsRef<[u8]> + AsMut<[u8]> = Box<[u8]>> {
 impl<T: AsRef<[u8]> + AsMut<[u8]>> Memory<T> {
     pub fn read<S: Size>(&self, address: usize) -> S {
         let data = self.data.as_ref();
-        assert!(address < data.len());
+        assert!((address + mem::size_of::<S>()) <= data.len());
 
         unsafe {
             let byte_ptr = data.as_ptr().add(address);
@@ -122,7 +122,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Memory<T> {
 
     pub fn write<S: Size>(&mut self, address: usize, value: S) {
         let data = self.data.as_mut();
-        assert!(address < data.len());
+        assert!((address + mem::size_of::<S>()) <= data.len());
 
         unsafe {
             let byte_ptr = data.as_mut_ptr().add(address);
