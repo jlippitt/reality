@@ -21,7 +21,7 @@ struct Dma {
 }
 
 struct RspShared {
-    mem: Memory<u128>,
+    mem: Memory,
     regs: Regs,
     dma_in_progress: bool,
     dma_active: Dma,
@@ -73,7 +73,7 @@ impl Rsp {
         }
     }
 
-    pub fn mem(&self) -> &Memory<u128> {
+    pub fn mem(&self) -> &Memory {
         &self.shared.mem
     }
 

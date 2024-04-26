@@ -25,7 +25,7 @@ struct Interface {
 }
 
 pub struct Rdram {
-    mem: Memory<u64>,
+    mem: Memory,
     modules: Vec<Module>,
     ri: Interface,
 }

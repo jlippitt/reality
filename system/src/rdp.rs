@@ -85,7 +85,7 @@ impl Rdp {
     }
 
     #[inline(always)]
-    pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
+    pub fn step_dma(&mut self, rdram: &Rdram, rsp_mem: &Memory) {
         if self.shared.dma_active.start >= self.shared.dma_active.end {
             return;
         }
@@ -93,7 +93,7 @@ impl Rdp {
         self.step_dma_inner(rdram, rsp_mem);
     }
 
-    fn step_dma_inner(&mut self, rdram: &Rdram, rsp_mem: &Memory<u128>) {
+    fn step_dma_inner(&mut self, rdram: &Rdram, rsp_mem: &Memory) {
         let dma = &mut self.shared.dma_active;
 
         assert!((dma.start & 7) == 0);

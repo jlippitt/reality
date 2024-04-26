@@ -7,7 +7,7 @@ use crate::memory::Size;
 
 #[derive(Clone, Default, Debug)]
 pub struct ICacheLine {
-    data: Memory<u64, [u64; 4]>,
+    data: Memory<[u8; 32]>,
     ptag: u32,
     valid: bool,
 }
@@ -75,7 +75,7 @@ impl ICacheLine {
 #[cfg(feature = "dcache")]
 #[derive(Clone, Default, Debug)]
 pub struct DCacheLine {
-    data: Memory<u64, [u64; 2]>,
+    data: Memory<[u8; 16]>,
     ptag: u32,
     valid: bool,
     dirty: bool,

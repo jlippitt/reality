@@ -1,8 +1,8 @@
 use bitflags::Flags;
 use bytemuck::Pod;
 use num_traits::PrimInt;
+use std::alloc::{self, Layout};
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
@@ -104,46 +104,55 @@ impl Size for u128 {
 }
 
 #[derive(Clone, Debug)]
-pub struct Memory<T: Size, U: AsRef<[T]> + AsMut<[T]> = Box<[T]>> {
-    data: U,
-    _phantom: PhantomData<T>,
+pub struct Memory<T: AsRef<[u8]> + AsMut<[u8]> = Box<[u8]>> {
+    data: T,
 }
 
-impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
-    pub fn read<V: Size>(&self, address: usize) -> V {
-        let index = address >> mem::size_of::<V>().ilog2();
-        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
-        slice[index].swap_bytes()
+impl<T: AsRef<[u8]> + AsMut<[u8]>> Memory<T> {
+    pub fn read<S: Size>(&self, address: usize) -> S {
+        let data = self.data.as_ref();
+        assert!(address < data.len());
+
+        unsafe {
+            let byte_ptr = data.as_ptr().add(address);
+            let value_ptr = mem::transmute::<*const u8, *const S>(byte_ptr);
+            (*value_ptr).swap_bytes()
+        }
     }
 
-    pub fn write<V: Size>(&mut self, address: usize, value: V) {
-        let index = address >> mem::size_of::<V>().ilog2();
-        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
-        slice[index] = value.swap_bytes();
+    pub fn write<S: Size>(&mut self, address: usize, value: S) {
+        let data = self.data.as_mut();
+        assert!(address < data.len());
+
+        unsafe {
+            let byte_ptr = data.as_mut_ptr().add(address);
+            let value_ptr = mem::transmute::<*mut u8, *mut S>(byte_ptr);
+            *value_ptr = value.swap_bytes();
+        }
     }
 
-    pub fn read_unaligned<V: Size>(&self, address: usize, mirror: usize) -> V {
-        let size = std::mem::size_of::<V>();
+    pub fn read_unaligned<S: Size>(&self, address: usize, mirror: usize) -> S {
+        let size = std::mem::size_of::<S>();
         let align_mask = size - 1;
 
         if (address & align_mask) == 0 {
             return self.read(address & mirror);
         }
 
-        let mut value = V::zeroed();
+        let mut value = S::zeroed();
 
         for index in 0..size {
             let byte_address = address.wrapping_add(index) & mirror;
             let shift = (index ^ align_mask) * 8;
-            let byte_value = V::from(self[byte_address]).unwrap();
+            let byte_value = S::from(self.data.as_ref()[byte_address]).unwrap();
             value = value | (byte_value << shift);
         }
 
         value
     }
 
-    pub fn write_unaligned<V: Size>(&mut self, address: usize, mirror: usize, value: V) {
-        let size = std::mem::size_of::<V>();
+    pub fn write_unaligned<S: Size>(&mut self, address: usize, mirror: usize, value: S) {
+        let size = std::mem::size_of::<S>();
         let align_mask = size - 1;
 
         if (address & align_mask) == 0 {
@@ -154,86 +163,107 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
             let byte_address = address.wrapping_add(index) & mirror;
             let shift = (index ^ align_mask) * 8;
             let byte_value = value >> shift;
-            self[byte_address] = byte_value.as_u8();
+            self.data.as_mut()[byte_address] = byte_value.as_u8();
         }
     }
 
-    pub fn read_block<V: Size>(&self, address: usize, data: &mut [V]) {
-        let start = address >> mem::size_of::<V>().ilog2();
-        let len = data.len();
-        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
-        data.as_mut().copy_from_slice(&slice[start..(start + len)]);
+    pub fn read_block<S: Size>(&self, address: usize, dst: &mut [S]) {
+        let data = self.data.as_ref();
+        assert!((address + dst.len()) <= data.len());
+
+        unsafe {
+            let byte_ptr = data.as_ptr().add(address);
+            let src_ptr = mem::transmute::<*const u8, *const S>(byte_ptr);
+            src_ptr.copy_to(dst.as_mut_ptr(), dst.len());
+        }
     }
 
-    pub fn write_block<V: Size>(&mut self, address: usize, data: &[V]) {
-        let start = address >> mem::size_of::<V>().ilog2();
-        let len = data.len();
-        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
-        slice[start..(start + len)].copy_from_slice(data.as_ref());
+    pub fn write_block<S: Size>(&mut self, address: usize, src: &[S]) {
+        let data = self.data.as_mut();
+        assert!((address + src.len()) <= data.len());
+
+        unsafe {
+            let byte_ptr = data.as_mut_ptr().add(address);
+            let dst_ptr = std::mem::transmute::<*mut u8, *mut S>(byte_ptr);
+            src.as_ptr().copy_to(dst_ptr, src.len());
+        }
     }
 
+    #[allow(dead_code)]
     pub fn as_bytes(&self) -> &[u8] {
-        bytemuck::must_cast_slice(self.data.as_ref())
+        self.data.as_ref()
     }
 
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        bytemuck::must_cast_slice_mut(self.data.as_mut())
+        self.data.as_mut()
     }
 
     pub fn len(&self) -> usize {
-        self.as_bytes().len()
+        self.data.as_ref().len()
     }
 }
 
-impl<T: Size, U: AsRef<[T]> + AsMut<[T]> + Default> Default for Memory<T, U> {
+impl<T: AsRef<[u8]> + AsMut<[u8]> + Default> Default for Memory<T> {
     fn default() -> Self {
-        Self {
-            data: U::default(),
-            _phantom: PhantomData,
-        }
+        assert!((mem::align_of::<T>() & 16) == 0);
+        let value = T::default();
+        assert!((value.as_ref().len() & 16) == 0);
+        Self { data: value }
     }
 }
 
-impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> From<U> for Memory<T, U> {
-    fn from(value: U) -> Self {
-        Self {
-            data: value,
-            _phantom: PhantomData,
-        }
+impl<T: AsRef<[u8]> + AsMut<[u8]>> From<T> for Memory<T> {
+    fn from(value: T) -> Self {
+        assert!((mem::align_of::<T>() & 16) == 0);
+        assert!((value.as_ref().len() & 16) == 0);
+        Self { data: value }
     }
 }
 
-impl<T: Size, U: AsRef<[T]> + AsMut<[T]>, I: SliceIndex<[u8]>> Index<I> for Memory<T, U> {
+impl<T: AsRef<[u8]> + AsMut<[u8]>, I: SliceIndex<[u8]>> Index<I> for Memory<T> {
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.as_bytes()[index]
+        &self.data.as_ref()[index]
     }
 }
-impl<T: Size, U: AsRef<[T]> + AsMut<[T]>, I: SliceIndex<[u8]>> IndexMut<I> for Memory<T, U> {
+impl<T: AsRef<[u8]> + AsMut<[u8]>, I: SliceIndex<[u8]>> IndexMut<I> for Memory<T> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.as_bytes_mut()[index]
+        &mut self.data.as_mut()[index]
     }
 }
 
-impl<T: Size> Memory<T, Box<[T]>> {
+impl Memory<Box<[u8]>> {
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        assert!((bytes.len() % mem::size_of::<T>()) == 0);
-        let mut vec = vec![T::zeroed(); bytes.len() / mem::size_of::<T>()];
-        bytemuck::cast_slice_mut(vec.as_mut_slice()).copy_from_slice(bytes);
+        assert!((bytes.len() & 16) == 0);
+
+        // Force 16-byte alignment
+        let layout = Layout::from_size_align(bytes.len(), 16).unwrap();
+
+        let vec = unsafe {
+            let aligned_bytes = alloc::alloc(layout);
+            bytes.as_ptr().copy_to(aligned_bytes, bytes.len());
+            Vec::from_raw_parts(aligned_bytes, bytes.len(), bytes.len())
+        };
 
         Self {
             data: vec.into_boxed_slice(),
-            _phantom: PhantomData,
         }
     }
 
     pub fn with_byte_len(len: usize) -> Self {
-        assert!((len % mem::size_of::<T>()) == 0);
+        assert!((len & 16) == 0);
+
+        // Force 16-byte alignment
+        let layout = Layout::from_size_align(len, 16).unwrap();
+
+        let vec = unsafe {
+            let aligned_bytes = alloc::alloc(layout);
+            Vec::from_raw_parts(aligned_bytes, len, len)
+        };
 
         Self {
-            data: vec![T::zeroed(); len >> mem::size_of::<T>().ilog2()].into_boxed_slice(),
-            _phantom: PhantomData,
+            data: vec.into_boxed_slice(),
         }
     }
 }
@@ -335,7 +365,7 @@ mod tests {
 
     #[test]
     fn memory_read() {
-        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
         assert_eq!(0x00112233, memory.read::<u32>(0));
         assert_eq!(0x44556677, memory.read::<u32>(4));
         assert_eq!(0x0011, memory.read::<u16>(0));
@@ -354,7 +384,7 @@ mod tests {
 
     #[test]
     fn memory_read_block() {
-        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
         let mut block = [0u8; 4];
         memory.read_block(3, &mut block);
         assert_eq!([0x33, 0x44, 0x55, 0x66], block);
@@ -362,8 +392,7 @@ mod tests {
 
     #[test]
     fn memory_read_write_unaligned() {
-        let mut memory =
-            Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let mut memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
 
         assert_eq!(memory.read_unaligned::<u32>(1, usize::MAX), 0x11223344);
         assert_eq!(memory.read_unaligned::<u16>(5, usize::MAX), 0x5566);
@@ -381,8 +410,7 @@ mod tests {
 
     #[test]
     fn memory_read_write_unaligned_mirror() {
-        let mut memory =
-            Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let mut memory = Memory::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
 
         assert_eq!(memory.read_unaligned::<u32>(1, 3), 0x11223300);
 

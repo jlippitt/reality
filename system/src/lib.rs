@@ -50,7 +50,7 @@ struct Bus {
     ai: AudioInterface,
     pi: PeripheralInterface,
     si: SerialInterface,
-    systest_buffer: Memory<u64>,
+    systest_buffer: Memory,
 }
 
 pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
