@@ -114,6 +114,8 @@ impl Cpu {
     // 1. Always inlined
     #[inline(always)]
     pub fn step(&mut self, bus: &mut impl Bus) {
+        self.cp0.increment_counters();
+
         if self.stall > 0 {
             #[cfg(feature = "profiling")]
             {
@@ -135,7 +137,11 @@ impl Cpu {
                 self.stats.busy_wait_cycles += 1;
             }
 
-            cp0::step(self, bus);
+            if cp0::handle_interrupt(self, bus) {
+                trace!("Leaving Busy Wait mode");
+                self.busy_wait = false;
+            }
+
             return;
         }
 
@@ -149,7 +155,10 @@ impl Cpu {
             self.stats.instruction_cycles += 1;
         }
 
-        cp0::step(self, bus);
+        if cp0::handle_interrupt(self, bus) {
+            return;
+        }
+
         instruction::execute(self, bus);
 
         self.opcode[0] = self.opcode[1];

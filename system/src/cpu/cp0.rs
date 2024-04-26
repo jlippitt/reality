@@ -205,20 +205,22 @@ impl Cp0 {
             ),
         }
     }
+
+    pub fn increment_counters(&mut self) {
+        self.regs.count = self.regs.count.wrapping_add(1);
+
+        if self.regs.count == self.regs.compare {
+            self.regs.cause.set_ip(self.regs.cause.ip() | TIMER_INT);
+            debug!("CP0 Timer Interrupt Raised");
+        }
+    }
 }
 
-pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
+pub fn handle_interrupt(cpu: &mut Cpu, bus: &impl Bus) -> bool {
     let regs = &mut cpu.cp0.regs;
 
-    regs.count = regs.count.wrapping_add(1);
-
-    if regs.count == regs.compare {
-        regs.cause.set_ip(regs.cause.ip() | TIMER_INT);
-        debug!("CP0 Timer Interrupt Raised");
-    }
-
     if !regs.status.ie() || regs.status.erl() || regs.status.exl() {
-        return;
+        return false;
     }
 
     let pending = (regs.cause.ip() & (TIMER_INT | SOFTWARE_INT)) | bus.poll();
@@ -227,15 +229,11 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
     let active = pending & regs.status.im();
 
     if active == 0 {
-        return;
-    }
-
-    if cpu.busy_wait {
-        trace!("Leaving Busy Wait mode");
-        cpu.busy_wait = false;
+        return false;
     }
 
     except(cpu, Exception::Interrupt);
+    true
 }
 
 pub fn except(cpu: &mut Cpu, ex: Exception) {
