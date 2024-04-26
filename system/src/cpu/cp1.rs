@@ -1,23 +1,18 @@
-pub use ex::{cop1, ldc1, lwc1, sdc1, swc1};
+pub use instruction::{cop1, ldc1, lwc1, sdc1, swc1};
 
 use super::cp0;
-use super::{Cpu, DcOperation};
+use super::{Bus, Cpu};
 use bytemuck::Pod;
 use regs::Status;
 use tracing::trace;
 
-mod ex;
+mod instruction;
 mod regs;
-
-pub struct RegWrite {
-    pub reg: usize,
-    pub value: i64,
-}
 
 pub trait Format: Pod {
     const NAME: &'static str;
     fn cp1_reg(cpu: &Cpu, reg: usize) -> Self;
-    fn set_cp1_reg(cpu: &mut Cpu, reg: usize, value: Self) -> RegWrite;
+    fn set_cp1_reg(cpu: &mut Cpu, reg: usize, value: Self);
     fn to_f32(self) -> f32;
     fn to_f64(self) -> f64;
 }
@@ -31,12 +26,11 @@ pub trait Float: Format + num_traits::Float {
 pub trait Int: Format + num_traits::PrimInt {}
 
 pub struct Cp1 {
+    regs: [i64; 32],
     status: Status,
 }
 
 impl Cp1 {
-    pub const REG_OFFSET: usize = 32;
-
     pub const CONTROL_REG_NAMES: [&'static str; 32] = [
         "Revision", "FCR1", "FCR2", "FCR3", "FCR4", "FCR5", "FCR6", "FCR7", "FCR8", "FCR9",
         "FCR10", "FCR11", "FCR12", "FCR13", "FCR14", "FCR15", "FCR16", "FCR17", "FCR18", "FCR19",
@@ -46,6 +40,7 @@ impl Cp1 {
 
     pub fn new() -> Self {
         Self {
+            regs: [0; 32],
             status: Status::default(),
         }
     }
@@ -77,27 +72,23 @@ impl Cp1 {
 impl Format for i32 {
     const NAME: &'static str = "W";
 
-    fn cp1_reg(cpu: &Cpu, mut reg: usize) -> Self {
-        reg += Cp1::REG_OFFSET;
-
+    fn cp1_reg(cpu: &Cpu, reg: usize) -> Self {
         if cpu.cp0.is_fr() || (reg & 1) == 0 {
-            cpu.regs[reg] as i32
+            cpu.cp1.regs[reg] as i32
         } else {
-            (cpu.regs[reg & !1] >> 32) as i32
+            (cpu.cp1.regs[reg & !1] >> 32) as i32
         }
     }
 
-    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) -> RegWrite {
-        reg += Cp1::REG_OFFSET;
-
+    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) {
         let value = if cpu.cp0.is_fr() || (reg & 1) == 0 {
-            (cpu.regs[reg] & !0xffff_ffff) | (value as u32 as i64)
+            (cpu.cp1.regs[reg] & !0xffff_ffff) | (value as u32 as i64)
         } else {
             reg &= !1;
-            (cpu.regs[reg & !1] & 0xffff_ffff) | ((value as u32 as i64) << 32)
+            (cpu.cp1.regs[reg & !1] & 0xffff_ffff) | ((value as u32 as i64) << 32)
         };
 
-        RegWrite { reg, value }
+        cpu.cp1.regs[reg] = value;
     }
 
     fn to_f32(self) -> f32 {
@@ -114,24 +105,20 @@ impl Int for i32 {}
 impl Format for i64 {
     const NAME: &'static str = "L";
 
-    fn cp1_reg(cpu: &Cpu, mut reg: usize) -> Self {
-        reg += Cp1::REG_OFFSET;
-
+    fn cp1_reg(cpu: &Cpu, reg: usize) -> Self {
         if cpu.cp0.is_fr() {
-            cpu.regs[reg]
+            cpu.cp1.regs[reg]
         } else {
-            cpu.regs[reg & !1]
+            cpu.cp1.regs[reg & !1]
         }
     }
 
-    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) -> RegWrite {
-        reg += Cp1::REG_OFFSET;
-
+    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) {
         if !cpu.cp0.is_fr() {
             reg &= !1;
         }
 
-        RegWrite { reg, value }
+        cpu.cp1.regs[reg] = value;
     }
 
     fn to_f32(self) -> f32 {
@@ -148,27 +135,23 @@ impl Int for i64 {}
 impl Format for f32 {
     const NAME: &'static str = "S";
 
-    fn cp1_reg(cpu: &Cpu, mut reg: usize) -> Self {
-        reg += Cp1::REG_OFFSET;
-
+    fn cp1_reg(cpu: &Cpu, reg: usize) -> Self {
         Self::from_bits(if cpu.cp0.is_fr() || (reg & 1) == 0 {
-            cpu.regs[reg] as u32
+            cpu.cp1.regs[reg] as u32
         } else {
-            (cpu.regs[reg & !1] >> 32) as u32
+            (cpu.cp1.regs[reg & !1] >> 32) as u32
         })
     }
 
-    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) -> RegWrite {
-        reg += Cp1::REG_OFFSET;
-
+    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) {
         let value = if cpu.cp0.is_fr() || (reg & 1) == 0 {
-            (cpu.regs[reg] & !0xffff_ffff) | (value.to_bits() as i64)
+            (cpu.cp1.regs[reg] & !0xffff_ffff) | (value.to_bits() as i64)
         } else {
             reg &= !1;
-            (cpu.regs[reg & !1] & 0xffff_ffff) | ((value.to_bits() as i64) << 32)
+            (cpu.cp1.regs[reg & !1] & 0xffff_ffff) | ((value.to_bits() as i64) << 32)
         };
 
-        RegWrite { reg, value }
+        cpu.cp1.regs[reg] = value;
     }
 
     fn to_f32(self) -> f32 {
@@ -198,26 +181,19 @@ impl Format for f64 {
     const NAME: &'static str = "D";
 
     fn cp1_reg(cpu: &Cpu, mut reg: usize) -> Self {
-        reg += Cp1::REG_OFFSET;
-
-        Self::from_bits(if cpu.cp0.is_fr() {
-            cpu.regs[reg] as u64
-        } else {
-            cpu.regs[reg & !1] as u64
-        })
-    }
-
-    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) -> RegWrite {
-        reg += Cp1::REG_OFFSET;
-
         if !cpu.cp0.is_fr() {
             reg &= !1;
         }
 
-        RegWrite {
-            reg,
-            value: value.to_bits() as i64,
+        Self::from_bits(cpu.cp1.regs[reg] as u64)
+    }
+
+    fn set_cp1_reg(cpu: &mut Cpu, mut reg: usize, value: Self) {
+        if !cpu.cp0.is_fr() {
+            reg &= !1;
         }
+
+        cpu.cp1.regs[reg] = value.to_bits() as i64;
     }
 
     fn to_f32(self) -> f32 {
@@ -240,11 +216,5 @@ impl Float for f64 {
 
     fn to_i64(self) -> i64 {
         self as _
-    }
-}
-
-impl From<RegWrite> for DcOperation {
-    fn from(RegWrite { reg, value }: RegWrite) -> Self {
-        Self::RegWrite { reg, value }
     }
 }

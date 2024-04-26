@@ -1,7 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)]
 #![allow(clippy::upper_case_acronyms)]
 
-use super::{Cpu, DcOperation, Float};
+use super::{Cpu, Float};
 use std::cmp::Ordering;
 use tracing::trace;
 
@@ -26,11 +26,18 @@ pub trait Condition {
     fn test(ord: Option<Ordering>) -> bool;
 }
 
-pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let ft = ((word >> 16) & 31) as usize;
-    let fs = ((word >> 11) & 31) as usize;
+pub fn c<C: Condition, F: Float>(cpu: &mut Cpu) {
+    let ft = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let fs = ((cpu.opcode[0] >> 11) & 31) as usize;
 
-    trace!("{:08X}: C.{}.{} F{}, F{}", pc, C::NAME, F::NAME, fs, ft);
+    trace!(
+        "{:08X}: C.{}.{} F{}, F{}",
+        cpu.pc[0],
+        C::NAME,
+        F::NAME,
+        fs,
+        ft
+    );
 
     let result = F::cp1_reg(cpu, fs).partial_cmp(&F::cp1_reg(cpu, ft));
 
@@ -42,8 +49,6 @@ pub fn c<C: Condition, F: Float>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperati
     trace!("  C: {}", cpu.cp1.status.c());
 
     cpu.stall += 1;
-
-    DcOperation::Nop
 }
 
 condition!(F, "F", false, _ if false);

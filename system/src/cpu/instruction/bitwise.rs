@@ -1,4 +1,4 @@
-use super::{Cpu, DcOperation};
+use super::Cpu;
 use tracing::trace;
 
 pub trait BitwiseOperator {
@@ -43,42 +43,36 @@ impl BitwiseOperator for Nor {
     }
 }
 
-pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let imm = (word & 0xffff) as u64 as i64;
+pub fn i_type<Op: BitwiseOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let imm = (cpu.opcode[0] & 0xffff) as u64 as i64;
 
     trace!(
         "{:08X}: {}I {}, {}, 0x{:04X}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rt],
         Cpu::REG_NAMES[rs],
         imm
     );
 
-    DcOperation::RegWrite {
-        reg: rt,
-        value: Op::apply(cpu.regs[rs], imm),
-    }
+    cpu.regs[rt] = Op::apply(cpu.regs[rs], imm);
 }
 
-pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+pub fn r_type<Op: BitwiseOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
 
     trace!(
         "{:08X}: {} {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rs],
         Cpu::REG_NAMES[rt],
     );
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rs], cpu.regs[rt]),
-    }
+    cpu.regs[rd] = Op::apply(cpu.regs[rs], cpu.regs[rt]);
 }

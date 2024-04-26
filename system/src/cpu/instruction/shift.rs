@@ -1,4 +1,4 @@
-use super::{Cpu, DcOperation};
+use super::Cpu;
 use tracing::trace;
 
 pub trait ShiftOperator {
@@ -61,62 +61,53 @@ impl ShiftOperator for Dsra {
     }
 }
 
-pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
-    let sa = (word >> 6) & 31;
+pub fn fixed<Op: ShiftOperator>(cpu: &mut Cpu) {
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
+    let sa = (cpu.opcode[0] >> 6) & 31;
 
     trace!(
         "{:08X}: {} {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rt],
         sa
     );
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rt], sa),
-    }
+    cpu.regs[rd] = Op::apply(cpu.regs[rt], sa);
 }
 
-pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
-    let sa = (word >> 6) & 31;
+pub fn fixed32<Op: ShiftOperator>(cpu: &mut Cpu) {
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
+    let sa = (cpu.opcode[0] >> 6) & 31;
 
     trace!(
         "{:08X}: {}32 {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rt],
         sa
     );
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rt], sa + 32),
-    }
+    cpu.regs[rd] = Op::apply(cpu.regs[rt], sa + 32);
 }
 
-pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+pub fn variable<Op: ShiftOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
 
     trace!(
         "{:08X}: {}V {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rt],
         Cpu::REG_NAMES[rs],
     );
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rt], cpu.regs[rs] as u32),
-    }
+    cpu.regs[rd] = Op::apply(cpu.regs[rt], cpu.regs[rs] as u32);
 }

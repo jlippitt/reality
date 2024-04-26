@@ -1,22 +1,20 @@
 use super::regs::EntryHi;
-use super::{Cpu, DcOperation};
+use super::Cpu;
 use tracing::trace;
 
-pub fn tlbr(cpu: &mut Cpu, pc: u32) -> DcOperation {
-    trace!("{:08X}: TLBR", pc);
+pub fn tlbr(cpu: &mut Cpu) {
+    trace!("{:08X}: TLBR", cpu.pc[0]);
     let index = cpu.cp0.regs.index.index() as usize;
     cpu.cp0.tlb.read_entry(&mut cpu.cp0.regs, index);
-    DcOperation::Nop
 }
 
-pub fn tlbwi(cpu: &mut Cpu, pc: u32) -> DcOperation {
-    trace!("{:08X}: TLBWI", pc);
+pub fn tlbwi(cpu: &mut Cpu) {
+    trace!("{:08X}: TLBWI", cpu.pc[0]);
     cpu.cp0.tlb.write_entry(&cpu.cp0.regs);
-    DcOperation::Nop
 }
 
-pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
-    trace!("{:08X}: TLBP", pc);
+pub fn tlbp(cpu: &mut Cpu) {
+    trace!("{:08X}: TLBP", cpu.pc[0]);
 
     let regs = &mut cpu.cp0.regs;
 
@@ -38,6 +36,4 @@ pub fn tlbp(cpu: &mut Cpu, pc: u32) -> DcOperation {
     }
 
     trace!("  Index: {:?}", regs.index);
-
-    DcOperation::Nop
 }

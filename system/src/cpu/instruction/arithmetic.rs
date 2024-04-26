@@ -1,4 +1,4 @@
-use super::{Cpu, DcOperation};
+use super::Cpu;
 use tracing::trace;
 
 pub trait ArithmeticOperator {
@@ -64,14 +64,14 @@ impl ArithmeticOperator for Dsub {
     }
 }
 
-pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let imm = (word & 0xffff) as i16 as i64;
+pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let imm = (cpu.opcode[0] & 0xffff) as i16 as i64;
 
     trace!(
         "{:08X}: {}I {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rt],
         Cpu::REG_NAMES[rs],
@@ -82,40 +82,34 @@ pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32)
         todo!("Overflow exception");
     };
 
-    DcOperation::RegWrite {
-        reg: rt,
-        value: result,
-    }
+    cpu.regs[rt] = result;
 }
 
-pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let imm = (word & 0xffff) as i16 as i64;
+pub fn i_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let imm = (cpu.opcode[0] & 0xffff) as i16 as i64;
 
     trace!(
         "{:08X}: {}IU {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rt],
         Cpu::REG_NAMES[rs],
         imm
     );
 
-    DcOperation::RegWrite {
-        reg: rt,
-        value: Op::apply_unchecked(cpu.regs[rs], imm),
-    }
+    cpu.regs[rt] = Op::apply_unchecked(cpu.regs[rs], imm);
 }
 
-pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
 
     trace!(
         "{:08X}: {} {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rs],
@@ -126,28 +120,22 @@ pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32)
         todo!("Overflow exception");
     };
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: result,
-    }
+    cpu.regs[rd] = result;
 }
 
-pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+pub fn r_type_unchecked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
 
     trace!(
         "{:08X}: {}U {}, {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rd],
         Cpu::REG_NAMES[rs],
         Cpu::REG_NAMES[rt],
     );
 
-    DcOperation::RegWrite {
-        reg: rd,
-        value: Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]),
-    }
+    cpu.regs[rd] = Op::apply_unchecked(cpu.regs[rs], cpu.regs[rt]);
 }

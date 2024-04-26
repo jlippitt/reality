@@ -1,9 +1,9 @@
-pub use error::{Exception, ExceptionStage};
-pub use ex::cop0;
+pub use exception::Exception;
+pub use instruction::cop0;
 pub use regs::TagLo;
 pub use tlb::TlbResult;
 
-use super::{Bus, Cpu, DcOperation};
+use super::{Bus, Cpu};
 use regs::{Regs, REG_NAMES};
 use tlb::Tlb;
 use tracing::{debug, trace, warn};
@@ -13,8 +13,8 @@ const SOFTWARE_INT: u8 = 0x03;
 
 const EXCEPTION_DELAY: u64 = 2;
 
-mod error;
-mod ex;
+mod exception;
+mod instruction;
 mod regs;
 mod tlb;
 
@@ -235,59 +235,32 @@ pub fn step(cpu: &mut Cpu, bus: &impl Bus) {
         cpu.busy_wait = false;
     }
 
-    except(cpu, Exception::Interrupt, ExceptionStage::DC);
+    except(cpu, Exception::Interrupt);
 }
 
-pub fn except(cpu: &mut Cpu, ex: Exception, stage: ExceptionStage) {
+pub fn except(cpu: &mut Cpu, ex: Exception) {
     let regs = &mut cpu.cp0.regs;
 
     debug!("-- Exception: {:?} --", ex);
     let details = ex.process(regs);
     regs.cause.set_exc_code(details.code);
     regs.cause.set_ce(details.ce);
-    cpu.pc = 0x8000_0000 | details.vector;
 
-    let epc = match stage {
-        ExceptionStage::DC => {
-            let epc = if cpu.dc.delay {
-                cpu.dc.pc.wrapping_sub(4)
-            } else {
-                cpu.dc.pc
-            };
-            regs.cause.set_bd(cpu.dc.delay);
-            cpu.dc.pc = cpu.pc;
-            cpu.dc.op = DcOperation::Nop;
-            cpu.ex.pc = cpu.pc;
-            cpu.ex.word = 0;
-            cpu.rf.pc = cpu.pc;
-            cpu.rf.active = false;
-            epc
-        }
-        ExceptionStage::EX => {
-            let epc = if cpu.ex.delay {
-                cpu.ex.pc.wrapping_sub(4)
-            } else {
-                cpu.ex.pc
-            };
-            regs.cause.set_bd(cpu.ex.delay);
-            cpu.ex.pc = cpu.pc;
-            cpu.ex.word = 0;
-            cpu.rf.pc = cpu.pc;
-            cpu.rf.active = false;
-            epc
-        }
-        ExceptionStage::RF => {
-            let epc = if cpu.rf.delay {
-                cpu.rf.pc.wrapping_sub(4)
-            } else {
-                cpu.rf.pc
-            };
-            regs.cause.set_bd(cpu.rf.delay);
-            cpu.rf.pc = cpu.pc;
-            cpu.rf.active = false;
-            epc
-        }
+    let epc = if cpu.delay[0] {
+        cpu.pc[0].wrapping_sub(4)
+    } else {
+        cpu.pc[0]
     };
+
+    regs.cause.set_bd(cpu.delay[0]);
+
+    cpu.opcode[0] = 0;
+    cpu.opcode[1] = 0;
+    cpu.delay[0] = false;
+    cpu.delay[1] = false;
+    cpu.pc[0] = 0x8000_0000 | details.vector;
+    cpu.pc[1] = cpu.pc[0];
+    cpu.pc[2] = cpu.pc[1];
 
     if details.error {
         let nested = regs.status.erl();

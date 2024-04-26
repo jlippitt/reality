@@ -2,7 +2,6 @@ use crate::memory::Size;
 use cache::ICache;
 use cp0::{Cp0, Exception};
 use cp1::Cp1;
-use dc::DcOperation;
 use tracing::trace;
 
 #[cfg(feature = "dcache")]
@@ -11,8 +10,7 @@ use cache::{DCache, DCacheLine};
 mod cache;
 mod cp0;
 mod cp1;
-mod dc;
-mod ex;
+mod instruction;
 
 const COLD_RESET_VECTOR: u32 = 0xbfc0_0000;
 const IPL3_START: u32 = 0xA4000040;
@@ -28,33 +26,6 @@ const REFRESH_DCACHE_DELAY: u64 = 44;
 // Try to guess average DCache hit rate
 #[cfg(not(feature = "dcache"))]
 const RW_SINGLE_WORD_DCACHE_DELAY: u64 = 4;
-
-#[derive(Default)]
-struct RfState {
-    pc: u32,
-    delay: bool,
-    active: bool,
-}
-
-#[derive(Default)]
-struct ExState {
-    pc: u32,
-    delay: bool,
-    word: u32,
-}
-
-#[derive(Default)]
-struct DcState {
-    pc: u32,
-    delay: bool,
-    op: DcOperation,
-}
-
-#[derive(Default)]
-struct WbState {
-    reg: usize,
-    value: i64,
-}
 
 #[cfg(feature = "profiling")]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -75,12 +46,10 @@ pub trait Bus {
 pub struct Cpu {
     stall: u64,
     busy_wait: bool,
-    wb: WbState,
-    dc: DcState,
-    ex: ExState,
-    rf: RfState,
-    pc: u32,
-    regs: [i64; 64],
+    opcode: [u32; 2],
+    delay: [bool; 2],
+    pc: [u32; 3],
+    regs: [i64; 32],
     hi: i64,
     lo: i64,
     ll_bit: bool,
@@ -101,7 +70,7 @@ impl Cpu {
     ];
 
     pub fn new(skip_pif_rom: bool) -> Self {
-        let mut regs = [0; 64];
+        let mut regs = [0; 32];
 
         let pc = if skip_pif_rom {
             regs[20] = 1;
@@ -115,11 +84,9 @@ impl Cpu {
         Self {
             stall: 0,
             busy_wait: false,
-            wb: WbState::default(),
-            dc: DcState::default(),
-            ex: ExState::default(),
-            rf: RfState::default(),
-            pc,
+            opcode: [0, 0],
+            delay: [false, false],
+            pc: [pc; 3],
             regs,
             hi: 0,
             lo: 0,
@@ -182,80 +149,35 @@ impl Cpu {
             self.stats.instruction_cycles += 1;
         }
 
-        // WB
-        self.regs[self.wb.reg] = self.wb.value;
-        self.regs[0] = 0;
-
-        if self.wb.reg != 0 {
-            if self.wb.reg < Cp1::REG_OFFSET {
-                trace!("  {}: {:016X}", Self::REG_NAMES[self.wb.reg], self.wb.value);
-            } else {
-                trace!(
-                    "  F{}: {:016X}",
-                    self.wb.reg - Cp1::REG_OFFSET,
-                    self.wb.value
-                );
-            }
-        }
-
-        // DC
         cp0::step(self, bus);
+        instruction::execute(self, bus);
 
-        dc::execute(self, bus);
+        self.opcode[0] = self.opcode[1];
+        self.delay[0] = self.delay[1];
+        self.pc[0] = self.pc[1];
 
-        // EX
-        self.dc.op = if self.ex.word != 0 {
-            // Operand forwarding from DC stage
-            let tmp = self.regs[self.wb.reg];
-            self.regs[self.wb.reg] = self.wb.value;
-            self.regs[0] = 0;
-            let op = ex::execute(self, self.ex.pc, self.ex.word);
-            self.regs[self.wb.reg] = tmp;
-            op
-        } else {
-            trace!("{:08X}: NOP", self.ex.pc);
-            DcOperation::Nop
-        };
+        self.opcode[1] = self.read_opcode(bus, self.pc[2]);
+        self.delay[1] = false;
+        self.pc[1] = self.pc[2];
 
-        self.dc.pc = self.ex.pc;
-        self.dc.delay = self.ex.delay;
-
-        // RF
-        self.ex = ExState {
-            pc: self.rf.pc,
-            delay: self.rf.delay,
-            word: if self.rf.active {
-                self.read_opcode(bus, self.rf.pc)
-            } else {
-                0
-            },
-        };
-
-        // IC
-        self.rf = RfState {
-            pc: self.pc,
-            delay: false,
-            active: true,
-        };
-
-        self.pc = self.pc.wrapping_add(4);
+        self.pc[2] = self.pc[2].wrapping_add(4);
     }
 
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
-        if self.ex.delay {
+        if self.delay[0] {
             return;
         }
 
-        self.rf.delay = true;
+        self.delay[1] = true;
 
         if condition {
             trace!("Branch taken");
-            self.pc = (self.ex.pc as i64).wrapping_add(offset + 4) as u32;
+            self.pc[2] = (self.pc[0] as i32 as i64).wrapping_add(offset + 4) as u32;
         } else {
             trace!("Branch not taken");
 
             if LIKELY {
-                self.rf.active = false;
+                self.opcode[1] = 0;
             }
         }
     }
@@ -289,20 +211,12 @@ impl Cpu {
 
     fn read_data_tlb<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32) -> Option<T> {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(
-                self,
-                Exception::TlbMissLoad(vaddr, false),
-                cp0::ExceptionStage::DC,
-            );
+            cp0::except(self, Exception::TlbMissLoad(vaddr, false));
             return None;
         };
 
         if !result.valid {
-            cp0::except(
-                self,
-                Exception::TlbMissLoad(vaddr, true),
-                cp0::ExceptionStage::DC,
-            );
+            cp0::except(self, Exception::TlbMissLoad(vaddr, true));
             return None;
         }
 
@@ -356,29 +270,17 @@ impl Cpu {
 
     fn write_data_tlb<T: Size>(&mut self, bus: &mut impl Bus, vaddr: u32, value: T) {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(
-                self,
-                Exception::TlbMissStore(vaddr, false),
-                cp0::ExceptionStage::DC,
-            );
+            cp0::except(self, Exception::TlbMissStore(vaddr, false));
             return;
         };
 
         if !result.valid {
-            cp0::except(
-                self,
-                Exception::TlbMissStore(vaddr, true),
-                cp0::ExceptionStage::DC,
-            );
+            cp0::except(self, Exception::TlbMissStore(vaddr, true));
             return;
         }
 
         if !result.writable {
-            cp0::except(
-                self,
-                Exception::TlbModification(vaddr),
-                cp0::ExceptionStage::DC,
-            );
+            cp0::except(self, Exception::TlbModification(vaddr));
             return;
         }
 
@@ -425,20 +327,12 @@ impl Cpu {
 
     fn read_opcode_tlb(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(
-                self,
-                Exception::TlbMissLoad(vaddr, false),
-                cp0::ExceptionStage::RF,
-            );
+            cp0::except(self, Exception::TlbMissLoad(vaddr, false));
             return 0;
         };
 
         if !result.valid {
-            cp0::except(
-                self,
-                Exception::TlbMissLoad(vaddr, true),
-                cp0::ExceptionStage::RF,
-            );
+            cp0::except(self, Exception::TlbMissLoad(vaddr, true));
             return 0;
         }
 

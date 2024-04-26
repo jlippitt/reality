@@ -1,4 +1,4 @@
-use super::{Cpu, DcOperation};
+use super::Cpu;
 use tracing::trace;
 
 pub trait MulDivOperator {
@@ -120,13 +120,13 @@ impl MulDivOperator for Ddivu {
     }
 }
 
-pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
+pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    let rt = ((cpu.opcode[0] >> 16) & 31) as usize;
 
     trace!(
         "{:08X}: {} {}, {}",
-        pc,
+        cpu.pc[0],
         Op::NAME,
         Cpu::REG_NAMES[rs],
         Cpu::REG_NAMES[rt],
@@ -138,40 +138,30 @@ pub fn mul_div<Op: MulDivOperator>(cpu: &mut Cpu, pc: u32, word: u32) -> DcOpera
     trace!("  LO: {:016X}", cpu.lo);
 
     cpu.stall += Op::STALL;
-
-    DcOperation::Nop
 }
 
-pub fn mfhi(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rd = ((word >> 11) & 31) as usize;
-    trace!("{:08X}: MFHI {}", pc, Cpu::REG_NAMES[rd],);
-    DcOperation::RegWrite {
-        reg: rd,
-        value: cpu.hi,
-    }
+pub fn mfhi(cpu: &mut Cpu) {
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
+    trace!("{:08X}: MFHI {}", cpu.pc[0], Cpu::REG_NAMES[rd],);
+    cpu.regs[rd] = cpu.hi;
 }
 
-pub fn mflo(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rd = ((word >> 11) & 31) as usize;
-    trace!("{:08X}: MFLO {}", pc, Cpu::REG_NAMES[rd],);
-    DcOperation::RegWrite {
-        reg: rd,
-        value: cpu.lo,
-    }
+pub fn mflo(cpu: &mut Cpu) {
+    let rd = ((cpu.opcode[0] >> 11) & 31) as usize;
+    trace!("{:08X}: MFLO {}", cpu.pc[0], Cpu::REG_NAMES[rd],);
+    cpu.regs[rd] = cpu.lo;
 }
 
-pub fn mthi(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    trace!("{:08X}: MTHI {}", pc, Cpu::REG_NAMES[rs],);
+pub fn mthi(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    trace!("{:08X}: MTHI {}", cpu.pc[0], Cpu::REG_NAMES[rs],);
     cpu.hi = cpu.regs[rs];
     trace!("  HI: {:016X}", cpu.hi);
-    DcOperation::Nop
 }
 
-pub fn mtlo(cpu: &mut Cpu, pc: u32, word: u32) -> DcOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    trace!("{:08X}: MTLO {}", pc, Cpu::REG_NAMES[rs],);
+pub fn mtlo(cpu: &mut Cpu) {
+    let rs = ((cpu.opcode[0] >> 21) & 31) as usize;
+    trace!("{:08X}: MTLO {}", cpu.pc[0], Cpu::REG_NAMES[rs],);
     cpu.lo = cpu.regs[rs];
     trace!("  LO: {:016X}", cpu.lo);
-    DcOperation::Nop
 }

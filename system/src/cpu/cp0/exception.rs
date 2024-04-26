@@ -1,13 +1,5 @@
 use super::Regs;
 
-#[allow(dead_code)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ExceptionStage {
-    DC,
-    EX,
-    RF,
-}
-
 pub struct ExceptionDetails {
     pub code: u32,
     pub vector: u32,
