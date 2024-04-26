@@ -12,6 +12,7 @@ mod transfer;
 pub fn cop1(cpu: &mut Cpu) {
     if !cpu.cp0.cp1_usable() {
         cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        return;
     }
 
     match (cpu.opcode[0] >> 21) & 31 {

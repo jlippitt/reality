@@ -69,6 +69,7 @@ pub fn ctc1(cpu: &mut Cpu) {
 pub fn lwc1(cpu: &mut Cpu, bus: &mut impl Bus) {
     if !cpu.cp0.cp1_usable() {
         cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        return;
     }
 
     let base = ((cpu.opcode[0] >> 21) & 31) as usize;
@@ -95,6 +96,7 @@ pub fn lwc1(cpu: &mut Cpu, bus: &mut impl Bus) {
 pub fn ldc1(cpu: &mut Cpu, bus: &mut impl Bus) {
     if !cpu.cp0.cp1_usable() {
         cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        return;
     }
 
     let base = ((cpu.opcode[0] >> 21) & 31) as usize;
@@ -121,6 +123,7 @@ pub fn ldc1(cpu: &mut Cpu, bus: &mut impl Bus) {
 pub fn swc1(cpu: &mut Cpu, bus: &mut impl Bus) {
     if !cpu.cp0.cp1_usable() {
         cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        return;
     }
 
     let base = ((cpu.opcode[0] >> 21) & 31) as usize;
@@ -145,6 +148,7 @@ pub fn swc1(cpu: &mut Cpu, bus: &mut impl Bus) {
 pub fn sdc1(cpu: &mut Cpu, bus: &mut impl Bus) {
     if !cpu.cp0.cp1_usable() {
         cp0::except(cpu, cp0::Exception::CoprocessorUnusable(1));
+        return;
     }
 
     let base = ((cpu.opcode[0] >> 21) & 31) as usize;
