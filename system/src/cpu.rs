@@ -166,7 +166,7 @@ impl Cpu {
     fn set_reg(&mut self, reg: usize, value: i64) {
         self.regs[reg] = value;
         self.regs[0] = 0;
-        trace!("  {}: {:08X}", Self::REG_NAMES[reg], value);
+        trace!("  {}: {:016X}", Self::REG_NAMES[reg], value);
     }
 
     fn branch<const LIKELY: bool>(&mut self, condition: bool, offset: i64) {
