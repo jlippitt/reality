@@ -1,7 +1,6 @@
-use crate::memory::{Mapping, Memory, Size, WriteMask};
+use crate::memory::{Memory, Size, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
-use std::array;
 use tracing::{debug, warn};
 
 mod regs;
@@ -26,7 +25,6 @@ struct Interface {
 }
 
 pub struct Rdram {
-    banks: [usize; 8],
     mem: Memory<u64>,
     modules: Vec<Module>,
     ri: Interface,
@@ -35,9 +33,6 @@ pub struct Rdram {
 impl Rdram {
     pub fn new() -> Self {
         Self {
-            // Default bank configuration (to support ROMs that use simplified
-            // booting sequences)
-            banks: array::from_fn(|index| (index * BANK_SIZE)),
             mem: Memory::with_byte_len(8 * BANK_SIZE),
             modules: (0..4)
                 .map(|_| Module {
@@ -45,7 +40,6 @@ impl Rdram {
                     ..Module::default()
                 })
                 .collect(),
-            // TODO: Remove these default values if/when we eventually get RAM detection working
             ri: Interface {
                 mode: 0x0e.into(),
                 config: 0x40.into(),
@@ -56,46 +50,19 @@ impl Rdram {
     }
 
     pub fn read_single<T: Size>(&self, address: usize) -> T {
-        let Some(bank_offset) = self.banks.get(address >> 20) else {
-            warn!("Read outside RDRAM range: {:08X}", address);
-            return T::zeroed();
-        };
-
-        let mapped_address = bank_offset + (address & 0x000f_ffff);
-        self.mem.read(mapped_address)
+        self.mem.read(address)
     }
 
     pub fn write_single<T: Size>(&mut self, address: usize, value: T) {
-        let Some(bank_offset) = self.banks.get(address >> 20) else {
-            warn!("Write outside RDRAM range: {:08X}", address);
-            return;
-        };
-
-        let mapped_address = bank_offset + (address & 0x000f_ffff);
-        self.mem.write(mapped_address, value);
+        self.mem.write(address, value);
     }
 
     pub fn read_block<T: Size>(&self, address: usize, data: &mut [T]) {
-        let Some(bank_offset) = self.banks.get(address >> 20) else {
-            warn!("Read outside RDRAM range: {:08X}", address);
-            data.fill(T::zeroed());
-            return;
-        };
-
-        let mapped_address = bank_offset + (address & 0x000f_ffff);
-        // TODO: What happens if we cross a non-contiguous bank boundary?
-        self.mem.read_block(mapped_address, data);
+        self.mem.read_block(address, data);
     }
 
     pub fn write_block<T: Size>(&mut self, address: usize, data: &[T]) {
-        let Some(bank_offset) = self.banks.get(address >> 20) else {
-            warn!("Write outside RDRAM range: {:08X}", address);
-            return;
-        };
-
-        let mapped_address = bank_offset + (address & 0x000f_ffff);
-        // TODO: What happens if we cross a non-contiguous bank boundary?
-        self.mem.write_block(mapped_address, data);
+        self.mem.write_block(address, data);
     }
 
     pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {
@@ -117,19 +84,13 @@ impl Rdram {
         panic!("Nothing responded to device ID {:04X}", device_id);
     }
 
-    pub fn write_register<T: Size>(
-        &mut self,
-        mi: &mut MipsInterface,
-        memory_map: &mut [Mapping],
-        address: u32,
-        value: T,
-    ) {
+    pub fn write_register<T: Size>(&mut self, mi: &mut MipsInterface, address: u32, value: T) {
         let mask = WriteMask::new(address, value);
 
         // Broadcast mode
         if (address & 0x0008_0000) != 0 {
             for index in 0..self.modules.len() {
-                self.write_module_register(mi, memory_map, index, address, mask.clone());
+                self.write_module_register(mi, index, address, mask.clone());
             }
         } else {
             // Single module mode
@@ -139,7 +100,7 @@ impl Rdram {
                 for (index, module) in self.modules.iter().enumerate() {
                     // Assume all modules are 2Mbit
                     if (module.device_id & !1) == device_id {
-                        self.write_module_register(mi, memory_map, index, address, mask);
+                        self.write_module_register(mi, index, address, mask);
                         break 'outer;
                     }
                 }
@@ -210,7 +171,6 @@ impl Rdram {
     fn write_module_register(
         &mut self,
         mi: &MipsInterface,
-        memory_map: &mut [Mapping],
         index: usize,
         address: u32,
         mask: WriteMask,
@@ -241,8 +201,6 @@ impl Rdram {
                     | ((device_id & 0x0080) >> 8);
 
                 debug!("RDRAM{} Device ID: {:04X}", index, module.device_id);
-
-                self.remap(memory_map);
             }
             2 => {
                 mask.write(&mut module.delay);
@@ -271,35 +229,5 @@ impl Rdram {
                 mask.raw()
             ),
         }
-    }
-
-    fn remap(&mut self, _memory_map: &mut [Mapping]) {
-        // TODO: Re-enable
-        // let mut bank_active = [false; 8];
-
-        // // Assume 2MiB modules
-        // for module in self.modules.iter().rev() {
-        //     let device_id = (module.device_id & !1) as usize;
-
-        //     if device_id >= 8 {
-        //         continue;
-        //     }
-
-        //     let memory_start = device_id * BANK_SIZE;
-        //     self.banks[device_id].offset = memory_start as u32;
-        //     self.banks[device_id | 1].offset = (memory_start + BANK_SIZE) as u32;
-        //     bank_active[device_id] = true;
-        //     bank_active[device_id | 1] = true;
-        // }
-
-        // for (index, &active) in bank_active.iter().enumerate() {
-        //     memory_map[index] = if active {
-        //         debug!("Bank {}: {}", index, self.banks[index].offset);
-        //         Mapping::RdramData
-        //     } else {
-        //         debug!("Bank {}: Unmapped", index);
-        //         Mapping::None
-        //     }
-        // }
     }
 }

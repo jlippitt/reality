@@ -240,12 +240,8 @@ impl cpu::Bus for Bus {
         match self.memory_map[address as usize >> 20] {
             Mapping::RdramData => self.rdram.write_single(address as usize, value),
             Mapping::RdramRegister => {
-                self.rdram.write_register(
-                    &mut self.mi,
-                    &mut self.memory_map,
-                    address & 0x000f_ffff,
-                    value,
-                );
+                self.rdram
+                    .write_register(&mut self.mi, address & 0x000f_ffff, value);
             }
             Mapping::Rsp => self.rsp.write(address & 0x000f_ffff, value),
             Mapping::RdpCommand => self.rdp.write_command(address & 0x000f_ffff, value),
