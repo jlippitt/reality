@@ -1,4 +1,4 @@
-use super::{Core, Cp2, DfOperation};
+use super::{Core, Cp2};
 use tracing::trace;
 
 pub trait SingleLaneOperator {
@@ -120,15 +120,15 @@ impl SingleLaneOperator for VRsqh {
     }
 }
 
-pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
-    let vt_el_raw = ((word >> 21) & 15) as usize;
-    let vt = ((word >> 16) & 31) as usize;
-    let vd_el_raw = ((word >> 11) & 15) as usize;
-    let vd = ((word >> 6) & 31) as usize;
+pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core) {
+    let vt_el_raw = ((core.opcode[0] >> 21) & 15) as usize;
+    let vt = ((core.opcode[0] >> 16) & 31) as usize;
+    let vd_el_raw = ((core.opcode[0] >> 11) & 15) as usize;
+    let vd = ((core.opcode[0] >> 6) & 31) as usize;
 
     trace!(
         "{:08X} {} V{:02}[E({}], V{:02}[E({}]",
-        pc,
+        core.pc[0],
         Op::NAME,
         vd,
         vd_el_raw,
@@ -159,18 +159,14 @@ pub fn single_lane<Op: SingleLaneOperator>(core: &mut Core, pc: u32, word: u32) 
 
     dst.set_lane(vd_el, Op::apply(&mut core.cp2, src.lane(vt_el)));
     core.cp2.set_reg(vd, dst);
-
-    DfOperation::Nop
 }
 
-pub fn vnop(_core: &mut Core, pc: u32) -> DfOperation {
-    trace!("{:08x}: VNOP", pc);
-    DfOperation::Nop
+pub fn vnop(core: &mut Core) {
+    trace!("{:08x}: VNOP", core.pc[0]);
 }
 
-pub fn vnull(_core: &mut Core, pc: u32) -> DfOperation {
-    trace!("{:08x}: VNULL", pc);
-    DfOperation::Nop
+pub fn vnull(core: &mut Core) {
+    trace!("{:08x}: VNULL", core.pc[0]);
 }
 
 fn calc_reciprocal<Op: ReciprocalOperator>(cp2: &mut Cp2, input: i32) -> u16 {

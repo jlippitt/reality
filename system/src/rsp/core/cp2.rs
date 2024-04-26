@@ -1,12 +1,12 @@
-pub use ex::{cop2, lwc2, swc2};
+pub use instruction::{cop2, lwc2, swc2};
 pub use regs::Vector;
 
-use super::{Core, DfOperation};
+use super::{Bus, Core};
 use regs::{Accumulator, FlagVector, Flags};
 use std::array;
 use tracing::{trace, warn};
 
-mod ex;
+mod instruction;
 mod regs;
 
 const LOOKUP_TABLE_SIZE: usize = 512;

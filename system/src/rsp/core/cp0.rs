@@ -1,8 +1,8 @@
-pub use ex::cop0;
+pub use instruction::cop0;
 
-use super::{Core, DfOperation};
+use super::{Bus, Core};
 
-mod ex;
+mod instruction;
 
 const REG_NAMES: [&str; 16] = [
     "SP_DMA_SPADDR",

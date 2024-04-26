@@ -1,4 +1,4 @@
-use super::{Core, DfOperation, Flags, Vector};
+use super::{Core, Flags, Vector};
 use std::cmp::Ordering;
 use tracing::trace;
 
@@ -298,15 +298,15 @@ impl ComputeOperator for VNxor {
     }
 }
 
-pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfOperation {
-    let el = ((word >> 21) & 15) as usize;
-    let vt = ((word >> 16) & 31) as usize;
-    let vs = ((word >> 11) & 31) as usize;
-    let vd = ((word >> 6) & 31) as usize;
+pub fn compute<Op: ComputeOperator>(core: &mut Core) {
+    let el = ((core.opcode[0] >> 21) & 15) as usize;
+    let vt = ((core.opcode[0] >> 16) & 31) as usize;
+    let vs = ((core.opcode[0] >> 11) & 31) as usize;
+    let vd = ((core.opcode[0] >> 6) & 31) as usize;
 
     trace!(
         "{:08X}: {} V{:02}, V{:02}, V{:02}[E{}]",
-        pc,
+        core.pc[0],
         Op::NAME,
         vd,
         vs,
@@ -324,15 +324,13 @@ pub fn compute<Op: ComputeOperator>(core: &mut Core, pc: u32, word: u32) -> DfOp
     });
 
     core.cp2.set_reg(vd, Vector::from_le_array(result));
-
-    DfOperation::Nop
 }
 
-pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfOperation {
-    let el = ((word >> 21) & 15) as usize;
-    let vd = ((word >> 6) & 31) as usize;
+pub fn vsar(core: &mut Core) {
+    let el = ((core.opcode[0] >> 21) & 15) as usize;
+    let vd = ((core.opcode[0] >> 6) & 31) as usize;
 
-    trace!("{:08X}: VSAR V{:02}, V{:02}[E{}]", pc, vd, vd, el);
+    trace!("{:08X}: VSAR V{:02}, V{:02}[E{}]", core.pc[0], vd, vd, el);
 
     if (8..=10).contains(&el) {
         let shift = 32 - ((el - 8) << 4);
@@ -342,8 +340,6 @@ pub fn vsar(core: &mut Core, pc: u32, word: u32) -> DfOperation {
     } else {
         core.cp2.set_reg(vd, Vector::default());
     }
-
-    DfOperation::Nop
 }
 
 fn clamp_signed(value: i32) -> i16 {

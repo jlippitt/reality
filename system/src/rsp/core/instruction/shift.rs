@@ -1,4 +1,4 @@
-use super::{Core, DfOperation};
+use super::Core;
 use tracing::trace;
 
 pub trait ShiftOperator {
@@ -34,42 +34,36 @@ impl ShiftOperator for Sra {
     }
 }
 
-pub fn fixed<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
-    let sa = (word >> 6) & 31;
+pub fn fixed<Op: ShiftOperator>(core: &mut Core) {
+    let rt = ((core.opcode[0] >> 16) & 31) as usize;
+    let rd = ((core.opcode[0] >> 11) & 31) as usize;
+    let sa = (core.opcode[0] >> 6) & 31;
 
     trace!(
         "{:08X}: {} {}, {}, {}",
-        pc,
+        core.pc[0],
         Op::NAME,
         Core::REG_NAMES[rd],
         Core::REG_NAMES[rt],
         sa
     );
 
-    DfOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rt], sa),
-    }
+    core.set_reg(rd, Op::apply(core.regs[rt], sa));
 }
 
-pub fn variable<Op: ShiftOperator>(cpu: &mut Core, pc: u32, word: u32) -> DfOperation {
-    let rs = ((word >> 21) & 31) as usize;
-    let rt = ((word >> 16) & 31) as usize;
-    let rd = ((word >> 11) & 31) as usize;
+pub fn variable<Op: ShiftOperator>(core: &mut Core) {
+    let rs = ((core.opcode[0] >> 21) & 31) as usize;
+    let rt = ((core.opcode[0] >> 16) & 31) as usize;
+    let rd = ((core.opcode[0] >> 11) & 31) as usize;
 
     trace!(
         "{:08X}: {}V {}, {}, {}",
-        pc,
+        core.pc[0],
         Op::NAME,
         Core::REG_NAMES[rd],
         Core::REG_NAMES[rt],
         Core::REG_NAMES[rs],
     );
 
-    DfOperation::RegWrite {
-        reg: rd,
-        value: Op::apply(cpu.regs[rt], cpu.regs[rs] as u32),
-    }
+    core.set_reg(rd, Op::apply(core.regs[rt], core.regs[rs] as u32));
 }
