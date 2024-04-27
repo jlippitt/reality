@@ -50,19 +50,19 @@ impl Rdram {
     }
 
     pub fn read_single<T: Size>(&self, address: usize) -> T {
-        self.mem.read(address)
+        self.mem.read_or_zero(address)
     }
 
     pub fn write_single<T: Size>(&mut self, address: usize, value: T) {
-        self.mem.write(address, value);
+        self.mem.write_or_ignore(address, value);
     }
 
     pub fn read_block<T: Size>(&self, address: usize, data: &mut [T]) {
-        self.mem.read_block(address, data);
+        self.mem.read_or_zero_block(address, data);
     }
 
     pub fn write_block<T: Size>(&mut self, address: usize, data: &[T]) {
-        self.mem.write_block(address, data);
+        self.mem.write_or_ignore_block(address, data);
     }
 
     pub fn read_register<T: Size>(&self, mi: &MipsInterface, address: u32) -> T {

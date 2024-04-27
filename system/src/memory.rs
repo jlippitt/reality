@@ -118,8 +118,63 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
 
     pub fn write<V: Size>(&mut self, address: usize, value: V) {
         let index = address >> mem::size_of::<V>().ilog2();
-        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
-        slice[index] = value.swap_bytes();
+        let mem: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
+        mem[index] = value.swap_bytes();
+    }
+
+    pub fn read_or_zero<V: Size>(&self, address: usize) -> V {
+        let index = address >> mem::size_of::<V>().ilog2();
+        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
+
+        if let Some(el) = slice.get(index) {
+            (*el).swap_bytes()
+        } else {
+            V::zeroed()
+        }
+    }
+
+    pub fn write_or_ignore<V: Size>(&mut self, address: usize, value: V) {
+        let index = address >> mem::size_of::<V>().ilog2();
+        let mem: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
+
+        if let Some(el) = mem.get_mut(index) {
+            *el = value.swap_bytes();
+        }
+    }
+
+    pub fn read_or_zero_block<V: Size>(&self, address: usize, data: &mut [V]) {
+        let start = address >> mem::size_of::<V>().ilog2();
+        let mem: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
+
+        if (start + data.len()) < mem.len() {
+            data.copy_from_slice(&mem[start..(start + data.len())]);
+            return;
+        }
+
+        if start < mem.len() {
+            let slice = &mem[start..];
+            data[0..slice.len()].copy_from_slice(slice);
+            bytemuck::fill_zeroes(&mut data[slice.len()..]);
+            return;
+        }
+
+        bytemuck::fill_zeroes(data);
+    }
+
+    pub fn write_or_ignore_block<V: Size>(&mut self, address: usize, data: &[V]) {
+        let start = address >> mem::size_of::<V>().ilog2();
+        let mem: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
+
+        if (start + data.len()) < mem.len() {
+            mem[start..(start + data.len())].copy_from_slice(data);
+            return;
+        }
+
+        if start < mem.len() {
+            let slice = &mut mem[start..];
+            let slice_len = slice.len();
+            slice[0..slice_len].copy_from_slice(&data[0..slice_len]);
+        }
     }
 
     pub fn read_unaligned<V: Size>(&self, address: usize, mirror: usize) -> V {
@@ -156,20 +211,6 @@ impl<T: Size, U: AsRef<[T]> + AsMut<[T]>> Memory<T, U> {
             let byte_value = value >> shift;
             self[byte_address] = byte_value.as_u8();
         }
-    }
-
-    pub fn read_block<V: Size>(&self, address: usize, data: &mut [V]) {
-        let start = address >> mem::size_of::<V>().ilog2();
-        let len = data.len();
-        let slice: &[V] = bytemuck::must_cast_slice(self.data.as_ref());
-        data.as_mut().copy_from_slice(&slice[start..(start + len)]);
-    }
-
-    pub fn write_block<V: Size>(&mut self, address: usize, data: &[V]) {
-        let start = address >> mem::size_of::<V>().ilog2();
-        let len = data.len();
-        let slice: &mut [V] = bytemuck::must_cast_slice_mut(self.data.as_mut());
-        slice[start..(start + len)].copy_from_slice(data.as_ref());
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -353,11 +394,27 @@ mod tests {
     }
 
     #[test]
-    fn memory_read_block() {
+    fn memory_read_or_zero_block_in_range() {
         let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
-        let mut block = [0u8; 4];
-        memory.read_block(3, &mut block);
+        let mut block = [0xffu8; 4];
+        memory.read_or_zero_block(3, &mut block);
         assert_eq!([0x33, 0x44, 0x55, 0x66], block);
+    }
+
+    #[test]
+    fn memory_read_or_zero_block_partially_in_range() {
+        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let mut block = [0xffu8; 4];
+        memory.read_or_zero_block(6, &mut block);
+        assert_eq!([0x66, 0x77, 0, 0], block);
+    }
+
+    #[test]
+    fn memory_read_or_zero_block_out_of_range() {
+        let memory = Memory::<u32>::from_bytes(&[0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        let mut block = [0xffu8; 4];
+        memory.read_or_zero_block(8, &mut block);
+        assert_eq!([0, 0, 0, 0], block);
     }
 
     #[test]
