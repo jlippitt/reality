@@ -163,30 +163,34 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 fn tex_coord(axis: TileViewAxis, size: u32, input: f32) -> f32 {
-    let frac = fract(input);
-    var int = i32(floor(input));
+    var coord = input;
 
     if axis.shift < 11 {
-        int >>= axis.shift;
+        coord /= f32(i32(1) << axis.shift);
     } else {
-        int <<= (16 - axis.shift);
+        coord *= f32(i32(1) << (16 - axis.shift));
     }
 
     if axis.clamp != 0 {
-        int = clamp(int, 0, i32(size));
+        coord = clamp(coord, 0.0, f32(size));
     }
 
     if axis.mask != 0 {
-        let base = int;
-        let mask_bits = i32(1) << axis.mask;
-        int &= mask_bits - 1;
+        let mask_bits = f32(i32(1) << axis.mask);
+        var base = coord % (mask_bits * 2.0);
 
-        if axis.mirror != 0 && (base & mask_bits) != 0 {
-            int ^= mask_bits - 1;
+        if base < 0.0 {
+            base = mask_bits * 2.0 + base;
+        }
+
+        coord = base % mask_bits;
+
+        if axis.mirror != 0 && base >= mask_bits {
+            coord = mask_bits - coord;
         }
     }
 
-    return (f32(int) + frac) / f32(size);
+    return coord / f32(size);
 }
 
 fn combine_rgb(combine: Combine, tex0: vec4<f32>, shade: vec4<f32>, combined: vec4<f32>) -> vec3<f32> {
