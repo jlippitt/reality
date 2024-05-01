@@ -164,8 +164,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
 fn tex_coord(axis: TileViewAxis, size: u32, input: f32) -> f32 {
     let frac = fract(input);
-    let base = u32(input);
-    var int = u32(base);
+    let base = i32(floor(input));
+    var int = base;
 
     if axis.shift < 11 {
         int >>= axis.shift;
@@ -174,7 +174,7 @@ fn tex_coord(axis: TileViewAxis, size: u32, input: f32) -> f32 {
     }
 
     if axis.mask != 0 {
-        let mask_bits = u32(1) << axis.mask;
+        let mask_bits = i32(1) << axis.mask;
         int &= mask_bits - 1;
 
         if axis.mirror != 0 && (base & mask_bits) != 0 {
