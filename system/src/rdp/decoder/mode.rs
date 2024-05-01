@@ -55,6 +55,7 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
         OtherModes {
             cycle_type: cmd.cycle_type(),
             sample_type: cmd.sample_type(),
+            perspective_enable: cmd.persp_tex_en(),
             z_buffer: ZBufferConfig {
                 enable: cmd.z_compare_en(),
                 write_enable: cmd.z_update_en(),

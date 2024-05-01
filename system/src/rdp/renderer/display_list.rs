@@ -1,4 +1,4 @@
-use super::{BlendMode, CombineMode, Rect, Tmem};
+use super::{BlendMode, CombineMode, Rect, Tmem, DEFAULT_W_VALUE};
 use bytemuck::{Pod, Zeroable};
 use pod_enum::pod_enum;
 use std::mem;
@@ -311,17 +311,17 @@ impl DisplayList {
                 Some(handle),
                 if flip {
                     [
-                        [tex_rect.left, tex_rect.top, 0.0],
-                        [tex_rect.right, tex_rect.top, 0.0],
-                        [tex_rect.left, tex_rect.bottom, 0.0],
-                        [tex_rect.right, tex_rect.bottom, 0.0],
+                        [tex_rect.left, tex_rect.top, DEFAULT_W_VALUE],
+                        [tex_rect.right, tex_rect.top, DEFAULT_W_VALUE],
+                        [tex_rect.left, tex_rect.bottom, DEFAULT_W_VALUE],
+                        [tex_rect.right, tex_rect.bottom, DEFAULT_W_VALUE],
                     ]
                 } else {
                     [
-                        [tex_rect.left, tex_rect.top, 0.0],
-                        [tex_rect.left, tex_rect.bottom, 0.0],
-                        [tex_rect.right, tex_rect.top, 0.0],
-                        [tex_rect.right, tex_rect.bottom, 0.0],
+                        [tex_rect.left, tex_rect.top, DEFAULT_W_VALUE],
+                        [tex_rect.left, tex_rect.bottom, DEFAULT_W_VALUE],
+                        [tex_rect.right, tex_rect.top, DEFAULT_W_VALUE],
+                        [tex_rect.right, tex_rect.bottom, DEFAULT_W_VALUE],
                     ]
                 },
             )

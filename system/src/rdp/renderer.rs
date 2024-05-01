@@ -19,6 +19,8 @@ mod display_list;
 mod target;
 mod tmem;
 
+const DEFAULT_W_VALUE: f32 = 1024.0;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Rect {
     pub left: f32,
@@ -67,6 +69,7 @@ pub enum SampleType {
 pub struct OtherModes {
     pub cycle_type: CycleType,
     pub sample_type: SampleType,
+    pub perspective_enable: bool,
     pub z_buffer: ZBufferConfig,
     pub blend_mode: BlendModeRaw,
 }
@@ -77,6 +80,7 @@ pub struct Renderer {
     display_list: DisplayList,
     render_pipeline: wgpu::RenderPipeline,
     sample_type: SampleType,
+    perspective_enable: bool,
     z_buffer: ZBufferConfig,
     prim_depth: f32,
     blend_color: [f32; 4],
@@ -157,6 +161,7 @@ impl Renderer {
             display_list,
             render_pipeline,
             sample_type: SampleType::default(),
+            perspective_enable: false,
             z_buffer: ZBufferConfig::default(),
             prim_depth: 0.0,
             blend_color: [0.0; 4],
@@ -208,6 +213,9 @@ impl Renderer {
 
         self.sample_type = mode.sample_type;
         trace!("  Sample Type: {:?}", self.sample_type);
+
+        self.perspective_enable = mode.perspective_enable;
+        trace!("  Perspective Enable: {:?}", self.perspective_enable);
 
         self.z_buffer = mode.z_buffer;
         trace!("  Z Buffer Config: {:?}", self.z_buffer);
@@ -296,10 +304,16 @@ impl Renderer {
         texture: Option<(usize, [[f32; 3]; 3])>,
         z_values: [f32; 3],
     ) {
-        let texture = texture.and_then(|(tile_id, rect)| {
+        let texture = texture.and_then(|(tile_id, mut coords)| {
+            if !self.perspective_enable {
+                coords[0][2] = DEFAULT_W_VALUE;
+                coords[1][2] = DEFAULT_W_VALUE;
+                coords[2][2] = DEFAULT_W_VALUE;
+            }
+
             self.tmem
                 .get_texture_handle(gfx, tile_id)
-                .map(|handle| (handle, rect))
+                .map(|handle| (handle, coords))
         });
 
         let z_values = if self.z_buffer.source == ZSource::Primitive {

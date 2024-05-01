@@ -130,8 +130,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let size = textureDimensions(t_diffuse);
-    let tex_s = tex_coord(v_diffuse.s, size.x, in.tex_coords.x);
-    let tex_t = tex_coord(v_diffuse.t, size.y, in.tex_coords.y);
+    let tex_coords = in.tex_coords.xy / (in.tex_coords.z / 1024.0);
+    let tex_s = tex_coord(v_diffuse.s, size.x, tex_coords.x);
+    let tex_t = tex_coord(v_diffuse.t, size.y, tex_coords.y);
     let sample = textureSample(t_diffuse, s_diffuse, vec2<f32>(tex_s, tex_t));
 
     if constants.cycle_type == CT_COPY {
