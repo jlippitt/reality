@@ -2,7 +2,7 @@ pub use blender::{BlendModeRaw, BlendModeRawParams};
 pub use combiner::{CombineModeRaw, CombineModeRawParams};
 pub use display_list::{CycleType, FixedColor};
 pub use target::ColorImage;
-pub use tmem::{TextureImage, TileDescriptor};
+pub use tmem::{TextureImage, TileAddressMode, TileDescriptor};
 
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
@@ -334,11 +334,11 @@ impl Renderer {
                     tex_rect.right += (tex_rect.width() + 1.0) / rect.width();
                     tex_rect.bottom += (tex_rect.height() + 1.0) / rect.height();
                     trace!("  = {:?}", tex_rect);
-                } else if self.sample_type == SampleType::Bilinear {
-                    tex_rect.left += 0.5;
-                    tex_rect.right += 0.5;
-                    tex_rect.top += 0.5;
-                    tex_rect.bottom += 0.5;
+                    // } else if self.sample_type == SampleType::Bilinear {
+                    //     tex_rect.left += 0.5;
+                    //     tex_rect.right += 0.5;
+                    //     tex_rect.top += 0.5;
+                    //     tex_rect.bottom += 0.5;
                 }
 
                 (handle, tex_rect, flip)

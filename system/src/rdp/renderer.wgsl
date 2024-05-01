@@ -68,6 +68,18 @@ struct Constants {
     cycle_type: u32,
 }
 
+struct TileViewAxis {
+    clamp: u32,
+    mirror: u32,
+    mask: u32,
+    shift: u32,
+}
+
+struct TileViewUniform {
+    s: TileViewAxis,
+    t: TileViewAxis,
+}
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec4<f32>,
@@ -105,6 +117,8 @@ var s_fill_color: sampler;
 var t_diffuse: texture_2d<f32>;
 @group(2) @binding(1)
 var s_diffuse: sampler;
+@group(2) @binding(2)
+var<uniform> v_diffuse: TileViewUniform;
 
 @group(3) @binding(0)
 var<uniform> constants: Constants;
@@ -115,9 +129,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return textureSample(t_fill_color, s_fill_color, vec2<f32>(in.fill_select / 4.0, 0.0));
     }
 
-    // TODO: Handle W coordinate
-    let size = vec2<f32>(textureDimensions(t_diffuse));
-    let sample = textureSample(t_diffuse, s_diffuse, in.tex_coords.xy / size);
+    let size = textureDimensions(t_diffuse);
+    let tex_s = tex_coord(v_diffuse.s, size.x, in.tex_coords.x);
+    let tex_t = tex_coord(v_diffuse.t, size.y, in.tex_coords.y);
+    let sample = textureSample(t_diffuse, s_diffuse, vec2<f32>(tex_s, tex_t));
 
     if constants.cycle_type == CT_COPY {
         return vec4(sample.xyz, 1.0);
@@ -145,6 +160,35 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let blended_0 = blend(constants.blend_0, in.color.a, combined_1);
 
     return blend(constants.blend_1, in.color.a, blended_0);
+}
+
+fn tex_coord(axis: TileViewAxis, size: u32, input: f32) -> f32 {
+    let frac = fract(input);
+    let base = u32(input);
+    var int = u32(base);
+
+    if axis.shift < 11 {
+        int >>= axis.shift;
+    } else {
+        int <<= (16 - axis.shift);
+    }
+
+    if axis.mask != 0 {
+        let mask_bits = u32(1) << axis.mask;
+        int &= mask_bits - 1;
+
+        if axis.mirror != 0 && (base & mask_bits) != 0 {
+            int ^= mask_bits - 1;
+        }
+    }
+
+    let coord = (f32(int) + frac) / f32(size);
+
+    if axis.clamp != 0 {
+        return clamp(coord, 0.0, 1.0);
+    }
+
+    return coord;
 }
 
 fn combine_rgb(combine: Combine, tex0: vec4<f32>, shade: vec4<f32>, combined: vec4<f32>) -> vec3<f32> {

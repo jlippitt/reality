@@ -1,4 +1,4 @@
-use super::renderer::{Format, Rect, TextureImage, TileDescriptor};
+use super::renderer::{Format, Rect, TextureImage, TileAddressMode, TileDescriptor};
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
 use tracing::trace;
@@ -27,7 +27,18 @@ pub fn set_tile(_decoder: &mut Decoder, ctx: Context, word: u64) {
             width: cmd.line(),
             format: (cmd.format(), cmd.size()),
             palette: cmd.palette(),
-            // TODO: The rest
+            address_s: TileAddressMode {
+                clamp: cmd.clamp_s(),
+                mirror: cmd.mirror_s(),
+                mask: cmd.mask_s(),
+                shift: cmd.shift_s(),
+            },
+            address_t: TileAddressMode {
+                clamp: cmd.clamp_t(),
+                mirror: cmd.mirror_t(),
+                mask: cmd.mask_t(),
+                shift: cmd.shift_t(),
+            },
         },
         word & 0x00fb_ffff_00ff_ffff,
     );

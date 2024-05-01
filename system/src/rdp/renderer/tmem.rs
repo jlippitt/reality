@@ -3,10 +3,13 @@ use super::{Rect, TextureFormat};
 use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use std::collections::HashMap;
+use std::rc::Rc;
 use texture::Texture;
+use tile_view::{TileView, TileViewOptions};
 use tracing::trace;
 
 mod texture;
+mod tile_view;
 
 #[derive(Clone, Debug, Default)]
 pub struct TextureImage {
@@ -16,11 +19,21 @@ pub struct TextureImage {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct TileAddressMode {
+    pub clamp: bool,
+    pub mirror: bool,
+    pub mask: u32,
+    pub shift: u32,
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct TileDescriptor {
     pub tmem_addr: u32,
     pub width: u32,
     pub format: TextureFormat,
     pub palette: u32,
+    pub address_s: TileAddressMode,
+    pub address_t: TileAddressMode,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -34,9 +47,11 @@ pub struct Tmem {
     texture_image: TextureImage,
     tmem_data: Vec<u64>,
     tiles: [Tile; 8],
-    texture_cache: HashMap<u128, Texture>,
-    null_texture: Texture,
+    tile_view_cache: HashMap<u128, TileView>,
+    texture_cache: HashMap<u128, Rc<Texture>>,
+    null_tile: TileView,
     bind_group_layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
 }
 
 impl Tmem {
@@ -62,16 +77,49 @@ impl Tmem {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
                     ],
                 });
+
+        let sampler = gfx.device().create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 100.0,
+            ..Default::default()
+        });
+
+        let null_tile = TileView::new(TileViewOptions {
+            gfx,
+            sampler: &sampler,
+            bind_group_layout: &bind_group_layout,
+            texture: Rc::new(Texture::new(gfx, 1, 1, &[0, 0, 0, 255])),
+            address_s: &Default::default(),
+            address_t: &Default::default(),
+        });
 
         Self {
             texture_image: TextureImage::default(),
             tmem_data: vec![0; 512],
             tiles: Default::default(),
+            tile_view_cache: HashMap::new(),
             texture_cache: HashMap::new(),
-            null_texture: Texture::new(gfx, &bind_group_layout, 1, 1, &[0, 0, 0, 255]),
+            null_tile,
             bind_group_layout,
+            sampler,
         }
     }
 
@@ -107,6 +155,7 @@ impl Tmem {
     ) {
         // TODO: Finer-grained cache invalidation
         self.texture_cache.clear();
+        self.tile_view_cache.clear();
 
         let tile = &self.tiles[tile_id];
         let bits_per_pixel = 4 << self.texture_image.format.1;
@@ -155,6 +204,7 @@ impl Tmem {
     ) {
         // TODO: Finer-grained cache invalidation
         self.texture_cache.clear();
+        self.tile_view_cache.clear();
 
         // TODO: Load TLUT
         let tile = &self.tiles[tile_id];
@@ -203,6 +253,7 @@ impl Tmem {
     ) {
         // TODO: Finer-grained cache invalidation
         self.texture_cache.clear();
+        self.tile_view_cache.clear();
 
         let tile = &self.tiles[tile_id];
         let bits_per_pixel = 4 << self.texture_image.format.1;
@@ -273,11 +324,25 @@ impl Tmem {
             return None;
         }
 
-        self.texture_cache
+        let create_tile_view = || {
+            let texture = self
+                .texture_cache
+                .entry(tile.hash_value & !0x000f_ffff)
+                .or_insert_with(|| Rc::new(Texture::from_tmem_data(gfx, tile, &self.tmem_data)));
+
+            TileView::new(TileViewOptions {
+                gfx,
+                sampler: &self.sampler,
+                bind_group_layout: &self.bind_group_layout,
+                texture: texture.clone(),
+                address_s: &tile.descriptor.address_s,
+                address_t: &tile.descriptor.address_t,
+            })
+        };
+
+        self.tile_view_cache
             .entry(tile.hash_value)
-            .or_insert_with(|| {
-                Texture::from_tmem_data(gfx, &self.bind_group_layout, tile, &self.tmem_data)
-            });
+            .or_insert_with(create_tile_view);
 
         Some(tile.hash_value)
     }
@@ -288,13 +353,16 @@ impl Tmem {
 
     pub fn bind_group(&self, handle: Option<u128>) -> &wgpu::BindGroup {
         if let Some(hash_value) = handle {
-            if let Some(texture) = self.texture_cache.get(&hash_value) {
-                return texture.bind_group();
+            if let Some(tile_view) = self.tile_view_cache.get(&hash_value) {
+                return tile_view.bind_group();
             }
 
-            panic!("Texture with handle {:032X} should be in cache", hash_value);
+            panic!(
+                "Tile view with handle {:032X} should be in cache",
+                hash_value
+            );
         }
 
-        self.null_texture.bind_group()
+        self.null_tile.bind_group()
     }
 }
