@@ -26,6 +26,9 @@ struct Args {
 
     #[arg(short, long)]
     pif_data_path: Option<PathBuf>,
+
+    #[arg(short, long)]
+    granularity: Option<u64>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -60,6 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         pif_data,
         rom_data,
+        granularity: args.granularity,
     })?;
 
     let mut audio_receiver = AudioReceiver::new(device.sample_rate())?;

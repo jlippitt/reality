@@ -39,6 +39,8 @@ const RCP_CLOCK_RATE: f64 = 62500000.0;
 
 const VIDEO_DAC_RATE: f64 = 1000000.0 * (18.0 * 227.5 / 286.0) * 17.0 / 5.0;
 
+const DEFAULT_GRANULARITY: u64 = 6250;
+
 struct Bus {
     memory_map: Vec<Mapping>,
     cpu_int: CpuInterrupt,
@@ -57,6 +59,7 @@ pub struct DeviceOptions<T: wgpu::WindowHandle + 'static> {
     pub display_target: DisplayTarget<T>,
     pub pif_data: Option<Vec<u8>>,
     pub rom_data: Vec<u8>,
+    pub granularity: Option<u64>,
 }
 
 #[cfg(feature = "profiling")]
@@ -69,7 +72,8 @@ pub struct Device {
     cpu: Cpu,
     bus: Bus,
     gfx: GfxContext,
-    //cycles: u64,
+    cycles: u64,
+    granularity: u64,
 }
 
 impl Device {
@@ -122,13 +126,10 @@ impl Device {
                 systest_buffer: Memory::with_byte_len(512),
             },
             gfx,
-            //cycles: 0,
+            cycles: 0,
+            granularity: options.granularity.unwrap_or(DEFAULT_GRANULARITY),
         })
     }
-
-    // pub fn cycles(&self) -> u64 {
-    //     self.cycles
-    // }
 
     pub fn sample_rate(&self) -> u32 {
         self.bus.ai.sample_rate()
@@ -161,20 +162,25 @@ impl Device {
     }
 
     pub fn run_frame(&mut self, receiver: &mut impl AudioReceiver) {
+        if self.granularity == 0 {
+            while !self.step(receiver) {}
+            return;
+        }
+
         let mut frame_done = false;
 
         while !frame_done {
-            for _ in 0..6250 {
+            for _ in 0..self.granularity {
                 self.bus.rsp.step_core(self.bus.rdp.shared());
                 self.bus.rsp.step_dma(&mut self.bus.rdram);
             }
 
-            for _ in 0..6250 {
+            for _ in 0..self.granularity {
                 self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
                 self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
             }
 
-            for cycle in 0..6250 {
+            for cycle in 0..self.granularity {
                 self.cpu.step(&mut self.bus);
 
                 if (cycle & 1) == 0 {
@@ -186,30 +192,32 @@ impl Device {
                 self.bus.si.step(&mut self.bus.rdram);
                 frame_done |= self.bus.vi.step(&self.bus.rdram, &self.gfx);
             }
+
+            self.cycles += self.granularity;
         }
     }
 
-    // pub fn step(&mut self, receiver: &mut impl AudioReceiver) -> bool {
-    //     self.cycles += 1;
+    pub fn step(&mut self, receiver: &mut impl AudioReceiver) -> bool {
+        self.cycles += 1;
 
-    //     self.cpu.step(&mut self.bus);
+        self.cpu.step(&mut self.bus);
 
-    //     if (self.cycles & 1) == 0 {
-    //         self.cpu.step(&mut self.bus);
-    //     }
+        if (self.cycles & 1) == 0 {
+            self.cpu.step(&mut self.bus);
+        }
 
-    //     self.bus.rsp.step_core(self.bus.rdp.shared());
-    //     self.bus.rsp.step_dma(&mut self.bus.rdram);
+        self.bus.rsp.step_core(self.bus.rdp.shared());
+        self.bus.rsp.step_dma(&mut self.bus.rdram);
 
-    //     self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
-    //     self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
+        self.bus.rdp.step_core(&mut self.bus.rdram, &self.gfx);
+        self.bus.rdp.step_dma(&self.bus.rdram, self.bus.rsp.mem());
 
-    //     self.bus.ai.step(&self.bus.rdram, receiver);
-    //     self.bus.pi.step(&mut self.bus.rdram);
-    //     self.bus.si.step(&mut self.bus.rdram);
+        self.bus.ai.step(&self.bus.rdram, receiver);
+        self.bus.pi.step(&mut self.bus.rdram);
+        self.bus.si.step(&mut self.bus.rdram);
 
-    //     self.bus.vi.step(&self.bus.rdram, &self.gfx)
-    // }
+        self.bus.vi.step(&self.bus.rdram, &self.gfx)
+    }
 }
 
 impl cpu::Bus for Bus {
