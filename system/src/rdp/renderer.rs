@@ -305,10 +305,18 @@ impl Renderer {
         z_values: [f32; 3],
     ) {
         let texture = texture.and_then(|(tile_id, mut coords)| {
+            // Make texture coordinates relative to tile origin
+            let tile_size = self.tmem.tile_size(tile_id);
+
+            for vertex in &mut coords {
+                vertex[0] -= tile_size.left;
+                vertex[1] -= tile_size.right;
+            }
+
             if !self.perspective_enable {
-                coords[0][2] = DEFAULT_W_VALUE;
-                coords[1][2] = DEFAULT_W_VALUE;
-                coords[2][2] = DEFAULT_W_VALUE;
+                for vertex in &mut coords {
+                    vertex[2] = DEFAULT_W_VALUE;
+                }
             }
 
             self.tmem
@@ -342,6 +350,13 @@ impl Renderer {
 
         let texture = texture.and_then(|(tile_id, mut tex_rect, flip)| {
             self.tmem.get_texture_handle(gfx, tile_id).map(|handle| {
+                // Make texture coordinates relative to tile origin
+                let tile_size = self.tmem.tile_size(tile_id);
+                tex_rect.left -= tile_size.left;
+                tex_rect.right -= tile_size.left;
+                tex_rect.top -= tile_size.top;
+                tex_rect.bottom -= tile_size.top;
+
                 if self.display_list.cycle_type() == CycleType::Copy {
                     // In copy mode, every 4 S steps is one pixel
                     tex_rect.right = (tex_rect.left * 3.0 + tex_rect.right) / 4.0;

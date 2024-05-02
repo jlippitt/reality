@@ -136,6 +136,10 @@ impl Tmem {
         trace!("  Tile {} Hash Value: {:032X}", tile_id, tile.hash_value);
     }
 
+    pub fn tile_size(&self, tile_id: usize) -> &Rect {
+        &self.tiles[tile_id].size
+    }
+
     pub fn set_tile_size(&mut self, tile_id: usize, rect: Rect, hash_value: u64) {
         let tile = &mut self.tiles[tile_id];
         tile.size = rect;
