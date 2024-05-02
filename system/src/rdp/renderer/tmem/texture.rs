@@ -50,6 +50,7 @@ impl Texture {
 
         let tmem_line_len = ((width as usize * (4 << format.1)) + 63) / 64;
         let tmem_line_count = (height as usize).min(tmem_data.len() / tmem_line_len);
+        let padded_width = tmem_line_len as u32 * (16 >> format.1);
 
         let mut buf: [u64; 4096] = [0; 4096];
 
@@ -70,9 +71,9 @@ impl Texture {
 
         Texture::new(
             gfx,
-            width,
+            padded_width,
             tmem_line_count as u32,
-            &output[0..(width as usize * tmem_line_count * 4)],
+            &output[0..(padded_width as usize * tmem_line_count * 4)],
         )
     }
 
