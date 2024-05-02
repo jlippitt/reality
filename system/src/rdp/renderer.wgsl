@@ -173,7 +173,7 @@ fn tex_coord(axis: TileViewAxis, size: u32, input: f32) -> f32 {
     }
 
     if axis.clamp != 0 {
-        coord = clamp(coord, 0.0, f32(size));
+        coord = clamp(coord, 0.0, f32(size) - 0.25);
     }
 
     if axis.mask != 0 {
