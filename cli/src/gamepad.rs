@@ -67,11 +67,11 @@ impl Gamepad {
             c_down: gamepad.is_pressed(Button::East) || gamepad.value(Axis::RightStickY) <= -0.75,
             c_left: gamepad.is_pressed(Button::West) || gamepad.value(Axis::RightStickX) <= -0.75,
             c_right: gamepad.value(Axis::RightStickX) >= 0.75,
-            l: gamepad.is_pressed(Button::LeftTrigger),
+            l: gamepad.is_pressed(Button::LeftTrigger2) || gamepad.value(Axis::LeftZ) >= -0.75,
             r: gamepad.is_pressed(Button::RightTrigger)
                 || gamepad.is_pressed(Button::RightTrigger2)
                 || gamepad.value(Axis::RightZ) >= -0.75,
-            z: gamepad.is_pressed(Button::LeftTrigger2) || gamepad.value(Axis::LeftZ) >= -0.75,
+            z: gamepad.is_pressed(Button::LeftTrigger),
             start: gamepad.is_pressed(Button::Start),
             dpad_up: gamepad.is_pressed(Button::DPadUp),
             dpad_down: gamepad.is_pressed(Button::DPadDown),
