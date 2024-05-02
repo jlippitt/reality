@@ -114,12 +114,10 @@ pub fn triangle<const SHADE: bool, const TEXTURE: bool, const Z_BUFFER: bool>(
         trace!("Texel DE: {:?}", texel_de);
         trace!("Texel DY: {:?}", texel_dy);
 
-        // TODO: 'ceil' fixes wonkiness, but question is why those coords are
-        // being used in the first place?
         let tex_coords: [[f32; 3]; 3] = [
-            array::from_fn(|i| base_texel[i].ceil() + high_y * texel_de[i]),
-            array::from_fn(|i| base_texel[i].ceil() + mid_y * texel_de[i] + mid_x * texel_dx[i]),
-            array::from_fn(|i| base_texel[i].ceil() + low_y * texel_de[i]),
+            array::from_fn(|i| base_texel[i] + high_y * texel_de[i]),
+            array::from_fn(|i| base_texel[i] + mid_y * texel_de[i] + mid_x * texel_dx[i]),
+            array::from_fn(|i| base_texel[i] + low_y * texel_de[i]),
         ];
 
         trace!("  = {:?}", tex_coords);
