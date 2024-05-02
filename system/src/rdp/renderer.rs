@@ -310,7 +310,7 @@ impl Renderer {
 
             for vertex in &mut coords {
                 vertex[0] -= tile_size.left;
-                vertex[1] -= tile_size.right;
+                vertex[1] -= tile_size.top;
             }
 
             if !self.perspective_enable {
