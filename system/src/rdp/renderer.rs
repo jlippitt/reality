@@ -398,7 +398,9 @@ impl Renderer {
             return;
         }
 
-        self.target.update(gfx, rdram);
+        if !self.target.update(gfx, rdram) {
+            return;
+        }
 
         let Some(output) = self.target.output() else {
             return;

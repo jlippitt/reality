@@ -3,6 +3,7 @@ use crate::gfx::{self, GfxContext};
 use crate::rdram::Rdram;
 use fill_color::FillColor;
 use std::mem;
+use tracing::warn;
 use tracing::{debug, trace};
 use wgpu::util::DeviceExt;
 
@@ -158,10 +159,10 @@ impl Target {
         );
     }
 
-    pub fn update(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
+    pub fn update(&mut self, gfx: &GfxContext, rdram: &mut Rdram) -> bool {
         if self.output.is_some() {
             if !self.dirty {
-                return;
+                return true;
             };
 
             self.sync(gfx, rdram);
@@ -173,7 +174,8 @@ impl Target {
         let height = self.scissor.height() as u32;
 
         if width == 0 || height == 0 {
-            panic!("Cannot create target texture with size of zero")
+            warn!("Cannot create target texture with size of zero");
+            return false;
         }
 
         let size = wgpu::Extent3d {
@@ -257,6 +259,8 @@ impl Target {
         });
 
         self.dirty = false;
+
+        true
     }
 
     pub fn sync(&mut self, gfx: &GfxContext, rdram: &mut Rdram) {
