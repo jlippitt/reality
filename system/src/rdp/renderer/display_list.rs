@@ -296,7 +296,8 @@ impl DisplayList {
 
         let vertex_size = mem::size_of::<Vertex>();
 
-        (self.vertices.len() * vertex_size) >= (self.vertex_buffer.size() as usize - vertex_size)
+        (self.vertices.len() * vertex_size)
+            >= (self.vertex_buffer.size() as usize - vertex_size * 4)
     }
 
     pub fn push_rectangle(
@@ -384,8 +385,10 @@ impl DisplayList {
         let vertex_size = mem::size_of::<Vertex>();
         let index_size = mem::size_of::<u32>();
 
-        (self.vertices.len() * vertex_size) >= (self.vertex_buffer.size() as usize - vertex_size)
-            || (self.indices.len() * index_size) >= (self.index_buffer.size() as usize - index_size)
+        (self.vertices.len() * vertex_size)
+            >= (self.vertex_buffer.size() as usize - vertex_size * 4)
+            || (self.indices.len() * index_size)
+                >= (self.index_buffer.size() as usize - index_size * 6)
     }
 
     pub fn reset(&mut self) {
