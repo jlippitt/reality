@@ -19,7 +19,7 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt update
-        sudo apt install libasound2-dev
+        sudo apt install libasound2-dev libudev-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
