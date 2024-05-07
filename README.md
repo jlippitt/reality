@@ -1,3 +1,5 @@
+![CI](https://github.com/jlippitt/reality/actions/workflows/ci.yml/badge.svg)
+
 # Reality
 
 Usage:
