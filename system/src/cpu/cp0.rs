@@ -13,6 +13,8 @@ const SOFTWARE_INT: u8 = 0x03;
 
 const EXCEPTION_DELAY: u64 = 2;
 
+const RAND_MAX: u32 = 31;
+
 mod exception;
 mod instruction;
 mod regs;
@@ -30,7 +32,10 @@ impl Cp0 {
 
     pub fn new() -> Self {
         Self {
-            regs: Regs::default(),
+            regs: Regs {
+                random: RAND_MAX,
+                ..Regs::default()
+            },
             tlb: Tlb::new(),
         }
     }
@@ -58,11 +63,12 @@ impl Cp0 {
     pub fn read_reg(&mut self, reg: usize) -> i64 {
         match reg {
             0 => u32::from(self.regs.index) as i32 as i64,
+            1 => self.regs.random as i32 as i64,
             2 => u32::from(self.regs.entry_lo0) as i32 as i64,
             3 => u32::from(self.regs.entry_lo1) as i32 as i64,
             4 => u32::from(self.regs.context) as i32 as i64,
             5 => u32::from(self.regs.page_mask) as i32 as i64,
-            6 => u32::from(self.regs.wired) as i32 as i64,
+            6 => self.regs.wired as i32 as i64,
             8 => self.regs.bad_vaddr as i32 as i64,
             9 => self.regs.count as i32 as i64,
             10 => u64::from(self.regs.entry_hi) as i64,
@@ -85,6 +91,7 @@ impl Cp0 {
                 self.regs.index = (value as u32 & 0x8000_003f).into();
                 trace!("  Index: {:?}", self.regs.index);
             }
+            1 => (), // 'Random' is read-only
             2 => {
                 self.regs.entry_lo0 = (value as u32 & 0x3fff_ffff).into();
                 trace!("  EntryLo0: {:?}", self.regs.entry_lo0);
@@ -102,8 +109,10 @@ impl Cp0 {
                 trace!("  PageMask: {:?}", self.regs.page_mask);
             }
             6 => {
-                self.regs.wired = (value as u32 & 0x0000_003f).into();
+                self.regs.wired = (value as u32) & 0x3f;
+                self.regs.random = RAND_MAX;
                 trace!("  Wired: {:?}", self.regs.wired);
+                trace!("  Random: {:?}", self.regs.random);
             }
             9 => {
                 self.regs.count = value as u32;
@@ -206,7 +215,13 @@ impl Cp0 {
         }
     }
 
-    pub fn increment_counters(&mut self) {
+    pub fn update_counters(&mut self) {
+        if self.regs.random == self.regs.wired {
+            self.regs.random = RAND_MAX;
+        } else {
+            self.regs.random = self.regs.random.wrapping_sub(1) & 63;
+        }
+
         self.regs.count = self.regs.count.wrapping_add(1);
 
         if self.regs.count == self.regs.compare {

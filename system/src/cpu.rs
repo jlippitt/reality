@@ -114,7 +114,7 @@ impl Cpu {
     // 1. Always inlined
     #[inline(always)]
     pub fn step(&mut self, bus: &mut impl Bus) {
-        self.cp0.increment_counters();
+        self.cp0.update_counters();
 
         if self.stall > 0 {
             #[cfg(feature = "profiling")]

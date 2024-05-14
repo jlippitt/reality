@@ -40,11 +40,12 @@ pub const REG_NAMES: [&str; 32] = [
 #[derive(Default, Debug)]
 pub struct Regs {
     pub index: Index,
+    pub random: u32,
     pub entry_lo0: EntryLo,
     pub entry_lo1: EntryLo,
     pub context: Context,
     pub page_mask: PageMask,
-    pub wired: Wired,
+    pub wired: u32,
     pub bad_vaddr: u32,
     pub count: u32,
     pub entry_hi: EntryHi,
@@ -101,14 +102,6 @@ pub struct PageMask {
     #[bits(12)]
     pub mask: u32,
     #[bits(7)]
-    __: u32,
-}
-
-#[bitfield(u32)]
-pub struct Wired {
-    #[bits(6)]
-    pub index: u32,
-    #[bits(26)]
     __: u32,
 }
 
