@@ -182,6 +182,9 @@ impl RdpShared {
             2 => self.dma_active.start,
             3 => self.regs.status.into(),
             4 => self.regs.clock & 0x00ff_ffff,
+            5 => self.regs.status.buf_busy() as u32,
+            6 => self.regs.status.pipe_busy() as u32,
+            7 => self.regs.status.tmem_busy() as u32,
             _ => todo!("RDP Command Register Read: {}", index),
         }
     }
