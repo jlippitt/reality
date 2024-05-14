@@ -347,23 +347,29 @@ fn clamp_signed(value: i32) -> i16 {
 }
 
 fn clamp_accumulator_high(value: u64) -> u16 {
-    if ((value >> 32) as i16) < 0 {
-        if (value >> 32) as u16 != 0xffff || ((value >> 16) as i16) >= 0 {
+    let hi = (value >> 32) as i16;
+    let mid = (value >> 16) as i16;
+
+    if hi < 0 {
+        if hi != -1 || mid >= 0 {
             return 0x8000;
         }
-    } else if (((value >> 32) as u16) != 0) || ((value >> 16) as i16) < 0 {
+    } else if hi != 0 || mid < 0 {
         return 0x7fff;
     }
 
-    (value >> 16) as u16
+    mid as u16
 }
 
 fn clamp_accumulator_low(value: u64) -> u16 {
-    if ((value >> 32) as i16) < 0 {
-        if (value >> 32) as u16 != 0xffff || ((value >> 16) as i16) >= 0 {
+    let hi = (value >> 32) as i16;
+    let mid = (value >> 16) as i16;
+
+    if hi < 0 {
+        if hi != -1 || mid >= 0 {
             return 0;
         }
-    } else if (((value >> 32) as u16) != 0) || ((value >> 16) as i16) < 0 {
+    } else if hi != 0 || mid < 0 {
         return 0xffff;
     }
 
