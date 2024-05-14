@@ -252,6 +252,14 @@ pub fn handle_interrupt(cpu: &mut Cpu, bus: &impl Bus) -> bool {
 }
 
 pub fn except(cpu: &mut Cpu, ex: Exception) {
+    except_inner(cpu, ex, false)
+}
+
+pub fn except_opcode(cpu: &mut Cpu, ex: Exception) {
+    except_inner(cpu, ex, true)
+}
+
+fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
     let regs = &mut cpu.cp0.regs;
 
     debug!("-- Exception: {:?} --", ex);
@@ -259,21 +267,27 @@ pub fn except(cpu: &mut Cpu, ex: Exception) {
     regs.cause.set_exc_code(details.code);
     regs.cause.set_ce(details.ce);
 
-    let epc = if cpu.delay[0] {
-        cpu.pc[0].wrapping_sub(4)
+    let vector = 0x8000_0000 | details.vector;
+    let stage = opcode as usize;
+
+    let epc = if cpu.delay[stage] {
+        cpu.pc[stage].wrapping_sub(4)
     } else {
-        cpu.pc[0]
+        cpu.pc[stage]
     };
 
-    regs.cause.set_bd(cpu.delay[0]);
+    regs.cause.set_bd(cpu.delay[stage]);
 
-    cpu.opcode[0] = 0;
+    if !opcode {
+        cpu.opcode[0] = 0;
+        cpu.delay[0] = false;
+        cpu.pc[0] = vector;
+    }
+
     cpu.opcode[1] = 0;
-    cpu.delay[0] = false;
     cpu.delay[1] = false;
-    cpu.pc[0] = 0x8000_0000 | details.vector;
-    cpu.pc[1] = cpu.pc[0];
-    cpu.pc[2] = cpu.pc[1];
+    cpu.pc[1] = vector;
+    cpu.pc[2] = vector;
 
     if details.error {
         let nested = regs.status.erl();

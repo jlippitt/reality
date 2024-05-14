@@ -161,15 +161,15 @@ impl Cpu {
 
         instruction::execute(self, bus);
 
-        self.opcode[0] = self.opcode[1];
         self.delay[0] = self.delay[1];
-        self.pc[0] = self.pc[1];
-
-        self.opcode[1] = self.read_opcode(bus, self.pc[2]);
         self.delay[1] = false;
-        self.pc[1] = self.pc[2];
 
+        self.pc[0] = self.pc[1];
+        self.pc[1] = self.pc[2];
         self.pc[2] = self.pc[2].wrapping_add(4);
+
+        self.opcode[0] = self.opcode[1];
+        self.opcode[1] = self.read_opcode(bus, self.pc[1]);
     }
 
     fn set_reg(&mut self, reg: usize, value: i64) {
@@ -342,12 +342,12 @@ impl Cpu {
 
     fn read_opcode_tlb(&mut self, bus: &mut impl Bus, vaddr: u32) -> u32 {
         let Some(result) = self.cp0.translate(vaddr) else {
-            cp0::except(self, Exception::TlbMissLoad(vaddr, false));
+            cp0::except_opcode(self, Exception::TlbMissLoad(vaddr, false));
             return 0;
         };
 
         if !result.valid {
-            cp0::except(self, Exception::TlbMissLoad(vaddr, true));
+            cp0::except_opcode(self, Exception::TlbMissLoad(vaddr, true));
             return 0;
         }
 
