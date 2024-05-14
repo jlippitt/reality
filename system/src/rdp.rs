@@ -55,6 +55,8 @@ impl Rdp {
 
     #[inline(always)]
     pub fn step_core(&mut self, rdram: &mut Rdram, gfx: &GfxContext) {
+        self.shared.regs.clock = self.shared.regs.clock.wrapping_add(1);
+
         if !self.decoder.running() || self.shared.regs.status.freeze() {
             return;
         }
@@ -179,6 +181,7 @@ impl RdpShared {
             1 => self.regs.end,
             2 => self.dma_active.start,
             3 => self.regs.status.into(),
+            4 => self.regs.clock & 0x00ff_ffff,
             _ => todo!("RDP Command Register Read: {}", index),
         }
     }
@@ -256,7 +259,7 @@ impl RdpShared {
                 }
 
                 if (raw & 0x0200) != 0 {
-                    debug!("TODO: RDP clock");
+                    self.regs.clock = 0;
                 }
 
                 debug!("DPC_STATUS: {:?}", status);

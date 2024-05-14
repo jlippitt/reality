@@ -5,6 +5,7 @@ pub struct Regs {
     pub start: u32,
     pub end: u32,
     pub status: Status,
+    pub clock: u32,
 }
 
 #[bitfield(u32)]
