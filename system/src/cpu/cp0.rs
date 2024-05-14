@@ -268,25 +268,34 @@ fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
     regs.cause.set_ce(details.ce);
 
     let vector = 0x8000_0000 | details.vector;
-    let stage = opcode as usize;
 
-    let epc = if cpu.delay[stage] {
-        cpu.pc[stage].wrapping_sub(4)
+    let epc = if opcode {
+        let delay = has_delay_slot(cpu.opcode[0]);
+
+        let epc = if delay {
+            cpu.pc[1].wrapping_sub(4)
+        } else {
+            cpu.pc[1]
+        };
+
+        regs.cause.set_bd(delay);
+        cpu.delay[0] = true;
+        epc
     } else {
-        cpu.pc[stage]
-    };
+        let epc = if cpu.delay[0] {
+            cpu.pc[0].wrapping_sub(4)
+        } else {
+            cpu.pc[0]
+        };
 
-    regs.cause.set_bd(cpu.delay[stage]);
-
-    if !opcode {
+        regs.cause.set_bd(cpu.delay[0]);
         cpu.opcode[0] = 0;
         cpu.delay[0] = false;
-        cpu.pc[0] = vector;
-    }
+        epc
+    };
 
     cpu.opcode[1] = 0;
     cpu.delay[1] = false;
-    cpu.pc[1] = vector;
     cpu.pc[2] = vector;
 
     if details.error {
@@ -312,4 +321,27 @@ fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
     };
 
     cpu.stall += EXCEPTION_DELAY;
+}
+
+fn has_delay_slot(word: u32) -> bool {
+    let opcode = word >> 26;
+
+    // J, JAL, BEQ, BNE, BLEZ, BNEZ + likely forms
+    if (opcode & 0o76) == 0o02 || (opcode & 0o54) == 0o04 {
+        return true;
+    }
+
+    if opcode == 0o00 {
+        // JR, JALR
+        if (word & 0o76) == 0o10 {
+            return true;
+        }
+    } else if opcode == 0o01 {
+        // BLTZ, BGTZ + likely/linked forms
+        if ((word >> 16) & 0o14) == 0o00 {
+            return true;
+        }
+    }
+
+    false
 }
