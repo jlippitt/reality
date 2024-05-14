@@ -103,6 +103,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 device.update_joypads(gamepad.handle_events());
                 device.run_frame(&mut audio_receiver);
 
+                audio_receiver
+                    .set_sample_rate(device.sample_rate())
+                    .unwrap();
+
                 let now = Instant::now();
                 let delta = now - frame_counter[frame_counter_index];
                 let fps = frame_counter.len() as f64 * 1000.0 / delta.as_millis() as f64;

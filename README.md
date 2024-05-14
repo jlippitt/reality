@@ -17,4 +17,4 @@ For some IPL3 variants, the PIF ROM may be omitted:
 | CPU       | Done, except for floating point rounding modes and some rarely used instructions. |
 | RSP       | Done, except for some rarely used instructions. |
 | RDP (Graphics) | Texture engine TMEM usage is not accurate and is likely leading to texture bugs that are visibile in some software. Z-buffer implementation is incomplete. Alpha blending implementation is incomplete. Some lesser-used features are missing. |
-| Audio     | Glitchy. Audio engine needs a rewrite. |
+| Audio     | Works fine in most cases, but is subject to distortion from frame-rate drops. |

@@ -8,7 +8,7 @@ use tracing::{debug, trace};
 mod regs;
 
 pub trait AudioReceiver {
-    fn queue_samples(&mut self, sample_rate: u32, samples: &[u16]);
+    fn queue_sample(&mut self, samples: (i16, i16));
 }
 
 #[derive(Debug)]
@@ -63,9 +63,9 @@ impl AudioInterface {
         self.cycles_remaining = self.cycles_per_sample;
 
         if let Some(dma_active) = &mut self.dma_active {
-            let left = rdram.read_single(dma_active.dram_addr as usize);
-            let right = rdram.read_single((dma_active.dram_addr + 2) as usize);
-            receiver.queue_samples(self.sample_rate, &[left, right]);
+            let left: u16 = rdram.read_single(dma_active.dram_addr as usize);
+            let right: u16 = rdram.read_single((dma_active.dram_addr + 2) as usize);
+            receiver.queue_sample((left as i16, right as i16));
             trace!("AI DMA: 4 bytes read from {:08X}", dma_active.dram_addr);
 
             dma_active.dram_addr = (dma_active.dram_addr + 4) & 0x00ff_ffff;
@@ -82,7 +82,7 @@ impl AudioInterface {
                 }
             }
         } else {
-            receiver.queue_samples(self.sample_rate, &[0, 0]);
+            receiver.queue_sample((0, 0));
         }
     }
 
