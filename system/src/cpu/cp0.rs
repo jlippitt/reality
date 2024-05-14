@@ -77,7 +77,7 @@ impl Cp0 {
             13 => u32::from(self.regs.cause) as i32 as i64,
             14 => self.regs.epc,
             16 => u32::from(self.regs.config) as i32 as i64,
-            17 => self.regs.ll_addr as i32 as i64,
+            17 => self.regs.ll_addr as i64, // Note: No sign-extension
             20 => u64::from(self.regs.x_context) as i64,
             29 => self.regs.tag_hi as i32 as i64,
             30 => self.regs.error_epc,
