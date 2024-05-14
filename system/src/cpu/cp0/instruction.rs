@@ -15,6 +15,7 @@ pub fn cop0(cpu: &mut Cpu) {
         0o20..=0o37 => match cpu.opcode[0] & 63 {
             0o01 => tlb::tlbr(cpu),
             0o02 => tlb::tlbwi(cpu),
+            0o06 => tlb::tlbwr(cpu),
             0o10 => tlb::tlbp(cpu),
             0o30 => eret(cpu),
             func => todo!("CPU COP0 Function '{:02o}' at {:08X}", func, cpu.pc[0]),

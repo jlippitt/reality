@@ -10,7 +10,14 @@ pub fn tlbr(cpu: &mut Cpu) {
 
 pub fn tlbwi(cpu: &mut Cpu) {
     trace!("{:08X}: TLBWI", cpu.pc[0]);
-    cpu.cp0.tlb.write_entry(&cpu.cp0.regs);
+    let index = cpu.cp0.regs.index.index() as usize;
+    cpu.cp0.tlb.write_entry(&cpu.cp0.regs, index);
+}
+
+pub fn tlbwr(cpu: &mut Cpu) {
+    trace!("{:08X}: TLBWR", cpu.pc[0]);
+    let index = cpu.cp0.regs.random as usize;
+    cpu.cp0.tlb.write_entry(&cpu.cp0.regs, index);
 }
 
 pub fn tlbp(cpu: &mut Cpu) {

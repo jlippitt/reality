@@ -53,8 +53,7 @@ impl Tlb {
         trace!("  PageMask: {:?}", regs.page_mask);
     }
 
-    pub fn write_entry(&mut self, regs: &Regs) {
-        let index = regs.index.index() as usize;
+    pub fn write_entry(&mut self, regs: &Regs, index: usize) {
         assert!(index < self.entries.len());
 
         let entry_hi =
