@@ -17,6 +17,7 @@ pub enum Exception {
     Breakpoint,
     ReservedInstruction(u32),
     CoprocessorUnusable(u32),
+    ArithmeticOverflow,
     Trap,
 }
 
@@ -99,6 +100,12 @@ impl Exception {
                 vector: 0x0180,
                 error: false,
                 ce,
+            },
+            Exception::ArithmeticOverflow => ExceptionDetails {
+                code: 12,
+                vector: 0x0180,
+                error: false,
+                ce: 0,
             },
             Exception::Trap => ExceptionDetails {
                 code: 13,

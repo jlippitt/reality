@@ -1,3 +1,4 @@
+use super::cp0::{self, Exception};
 use super::Cpu;
 use tracing::trace;
 
@@ -79,7 +80,8 @@ pub fn i_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
     );
 
     let Some(result) = Op::apply_checked(cpu.regs[rs], imm) else {
-        todo!("Overflow exception");
+        cp0::except(cpu, Exception::ArithmeticOverflow);
+        return;
     };
 
     cpu.set_reg(rt, result);
@@ -117,7 +119,8 @@ pub fn r_type_checked<Op: ArithmeticOperator>(cpu: &mut Cpu) {
     );
 
     let Some(result) = Op::apply_checked(cpu.regs[rs], cpu.regs[rt]) else {
-        todo!("Overflow exception");
+        cp0::except(cpu, Exception::ArithmeticOverflow);
+        return;
     };
 
     cpu.set_reg(rd, result);
