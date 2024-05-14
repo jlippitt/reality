@@ -135,7 +135,7 @@ impl Cp0 {
                 }
             }
             12 => {
-                self.regs.status = (value as u32).into();
+                self.regs.status = (value as u32 & 0xfff7_ffff).into();
                 trace!("  Status: {:?}", self.regs.status);
                 assert_eq!(0, self.regs.status.ksu(), "Only kernel mode is supported");
                 assert!(!self.regs.status.rp(), "Low power mode is not supported");
