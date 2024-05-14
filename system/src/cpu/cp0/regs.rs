@@ -85,7 +85,7 @@ pub struct EntryLo {
     __: u32,
 }
 
-#[bitfield(u32)]
+#[bitfield(u64)]
 pub struct Context {
     #[bits(4)]
     __: u32,
@@ -93,6 +93,7 @@ pub struct Context {
     pub bad_vpn2: u32,
     #[bits(9)]
     pub pte_base: u32,
+    pub __: u32,
 }
 
 #[bitfield(u32)]

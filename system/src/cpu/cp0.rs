@@ -66,7 +66,7 @@ impl Cp0 {
             1 => self.regs.random as i32 as i64,
             2 => u32::from(self.regs.entry_lo0) as i32 as i64,
             3 => u32::from(self.regs.entry_lo1) as i32 as i64,
-            4 => u32::from(self.regs.context) as i32 as i64,
+            4 => u64::from(self.regs.context) as i64,
             5 => u32::from(self.regs.page_mask) as i32 as i64,
             6 => self.regs.wired as i32 as i64,
             8 => self.regs.bad_vaddr as i32 as i64,
@@ -101,7 +101,7 @@ impl Cp0 {
                 trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
             }
             4 => {
-                self.regs.context = (value as u32).into();
+                self.regs.context = (value as u64 & 0xffff_ffff_ff80_0000).into();
                 trace!("  Context: {:?}", self.regs.context);
             }
             5 => {
@@ -185,7 +185,7 @@ impl Cp0 {
                 trace!("  WatchHi: {:?}", self.regs.watch_hi);
             }
             20 => {
-                self.regs.x_context = (value as u64).into();
+                self.regs.x_context = (value as u64 & 0xffff_fffe_0000_0000).into();
                 trace!("  XContext: {:?}", self.regs.x_context);
             }
             // TOOD: This register has special behaviour when read back
