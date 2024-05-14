@@ -52,7 +52,7 @@ pub struct Regs {
     pub compare: u32,
     pub status: Status,
     pub cause: Cause,
-    pub epc: u32,
+    pub epc: i64,
     pub config: Config,
     pub ll_addr: u32,
     pub watch_lo: WatchLo,
@@ -60,7 +60,7 @@ pub struct Regs {
     pub x_context: XContext,
     pub tag_lo: TagLo,
     pub tag_hi: u32,
-    pub error_epc: u32,
+    pub error_epc: i64,
 }
 
 #[bitfield(u32)]

@@ -75,12 +75,12 @@ impl Cp0 {
             11 => self.regs.compare as i32 as i64,
             12 => u32::from(self.regs.status) as i32 as i64,
             13 => u32::from(self.regs.cause) as i32 as i64,
-            14 => self.regs.epc as i32 as i64,
+            14 => self.regs.epc,
             16 => u32::from(self.regs.config) as i32 as i64,
             17 => self.regs.ll_addr as i32 as i64,
             20 => u64::from(self.regs.x_context) as i64,
             29 => self.regs.tag_hi as i32 as i64,
-            30 => self.regs.error_epc as i32 as i64,
+            30 => self.regs.error_epc,
             _ => todo!("CP0 Register Read: {:?}", reg),
         }
     }
@@ -114,6 +114,7 @@ impl Cp0 {
                 trace!("  Wired: {:?}", self.regs.wired);
                 trace!("  Random: {:?}", self.regs.random);
             }
+            8 => (), // 'BadVAddr' is read-only
             9 => {
                 self.regs.count = value as u32;
                 trace!("  Count: {:?}", self.regs.count);
@@ -156,7 +157,7 @@ impl Cp0 {
                 }
             }
             14 => {
-                self.regs.epc = value as u32;
+                self.regs.epc = value;
                 trace!("  EPC: {:08X}", self.regs.epc);
             }
             16 => {
@@ -204,7 +205,7 @@ impl Cp0 {
                 assert_eq!(0, self.regs.tag_hi);
             }
             30 => {
-                self.regs.error_epc = value as u32;
+                self.regs.error_epc = value;
                 trace!("  ErrorEPC: {:08X}", self.regs.error_epc);
             }
             _ => todo!(
@@ -305,7 +306,7 @@ fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
         trace!("  Cause: {:?}", regs.cause);
 
         if !nested {
-            regs.error_epc = epc;
+            regs.error_epc = epc as i32 as i64;
             trace!("  ErrorEPC: {:08X}", regs.error_epc);
         }
     } else {
@@ -315,7 +316,7 @@ fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
         trace!("  Cause: {:?}", regs.cause);
 
         if !nested {
-            regs.epc = epc;
+            regs.epc = epc as i32 as i64;
             trace!("  EPC: {:08X}", regs.epc);
         }
     };

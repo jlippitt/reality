@@ -30,10 +30,10 @@ fn eret(cpu: &mut Cpu) {
     let regs = &mut cpu.cp0.regs;
 
     if regs.status.erl() {
-        cpu.pc[2] = regs.error_epc;
+        cpu.pc[2] = regs.error_epc as u32;
         regs.status.set_erl(false);
     } else {
-        cpu.pc[2] = regs.epc;
+        cpu.pc[2] = regs.epc as u32;
         regs.status.set_exl(false);
     }
 
