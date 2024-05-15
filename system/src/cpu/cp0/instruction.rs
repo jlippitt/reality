@@ -43,4 +43,5 @@ fn eret(cpu: &mut Cpu) {
     cpu.pc[1] = cpu.pc[2];
 
     cpu.ll_bit = false;
+    cpu.cp0.update_int_mask();
 }

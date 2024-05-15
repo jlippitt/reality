@@ -11,9 +11,7 @@ use tracing::{debug, trace, warn};
 
 const TIMER_INT: u8 = 0x80;
 const SOFTWARE_INT: u8 = 0x03;
-
 const EXCEPTION_DELAY: u64 = 2;
-
 const RAND_MAX: u32 = 31;
 
 mod exception;
@@ -25,6 +23,7 @@ mod tlb;
 pub struct Cp0 {
     regs: Regs,
     tlb: Tlb,
+    int_mask: u8,
 }
 
 impl Cp0 {
@@ -38,6 +37,7 @@ impl Cp0 {
                 ..Regs::default()
             },
             tlb: Tlb::new(),
+            int_mask: 0,
         }
     }
 
@@ -148,6 +148,8 @@ impl Cp0 {
                 if self.regs.status.ds() != 0 {
                     warn!("CPU diagnostics are not supported");
                 }
+
+                self.update_int_mask();
             }
             13 => {
                 write_bits(&mut self.regs.cause, value as u32, 0x0000_0300);
@@ -231,26 +233,33 @@ impl Cp0 {
             debug!("CP0 Timer Interrupt Raised");
         }
     }
+
+    pub fn update_int_mask(&mut self) {
+        let status = &self.regs.status;
+
+        self.int_mask = if status.ie() && !status.exl() && !status.erl() {
+            status.im()
+        } else {
+            0
+        };
+
+        trace!("CP0 Int Mask: {:02X}", self.int_mask);
+    }
 }
 
 pub fn handle_interrupt(cpu: &mut Cpu, bus: &impl Bus) -> bool {
-    let regs = &mut cpu.cp0.regs;
+    let cause = &mut cpu.cp0.regs.cause;
 
-    if !regs.status.ie() || regs.status.erl() || regs.status.exl() {
-        return false;
+    let pending = (cause.ip() & (TIMER_INT | SOFTWARE_INT)) | bus.poll();
+    cause.set_ip(pending);
+
+    let interrupt = (pending & cpu.cp0.int_mask) != 0;
+
+    if interrupt {
+        except(cpu, Exception::Interrupt);
     }
 
-    let pending = (regs.cause.ip() & (TIMER_INT | SOFTWARE_INT)) | bus.poll();
-    regs.cause.set_ip(pending);
-
-    let active = pending & regs.status.im();
-
-    if active == 0 {
-        return false;
-    }
-
-    except(cpu, Exception::Interrupt);
-    true
+    interrupt
 }
 
 pub fn except(cpu: &mut Cpu, ex: Exception) {
@@ -323,6 +332,7 @@ fn except_inner(cpu: &mut Cpu, ex: Exception, opcode: bool) {
     };
 
     cpu.stall += EXCEPTION_DELAY;
+    cpu.cp0.update_int_mask();
 }
 
 fn has_delay_slot(word: u32) -> bool {
