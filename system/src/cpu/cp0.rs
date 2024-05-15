@@ -5,6 +5,7 @@ pub use tlb::TlbResult;
 
 use super::{Bus, Cpu};
 use regs::{Regs, REG_NAMES};
+use std::ops::{BitAnd, BitOr, Not};
 use tlb::Tlb;
 use tracing::{debug, trace, warn};
 
@@ -88,28 +89,28 @@ impl Cp0 {
     pub fn write_reg(&mut self, reg: usize, value: i64) {
         match reg {
             0 => {
-                self.regs.index = (value as u32 & 0x8000_003f).into();
+                write_bits(&mut self.regs.index, value as u32, 0x8000_003f);
                 trace!("  Index: {:?}", self.regs.index);
             }
             1 => (), // 'Random' is read-only
             2 => {
-                self.regs.entry_lo0 = (value as u32 & 0x3fff_ffff).into();
+                write_bits(&mut self.regs.entry_lo0, value as u32, 0x3fff_ffff);
                 trace!("  EntryLo0: {:?}", self.regs.entry_lo0);
             }
             3 => {
-                self.regs.entry_lo1 = (value as u32 & 0x3fff_ffff).into();
+                write_bits(&mut self.regs.entry_lo1, value as u32, 0x3fff_ffff);
                 trace!("  EntryLo1: {:?}", self.regs.entry_lo1);
             }
             4 => {
-                self.regs.context = (value as u64 & 0xffff_ffff_ff80_0000).into();
+                write_bits(&mut self.regs.context, value as u64, 0xffff_ffff_ff80_0000);
                 trace!("  Context: {:?}", self.regs.context);
             }
             5 => {
-                self.regs.page_mask = (value as u32 & 0x01ff_e000).into();
+                write_bits(&mut self.regs.page_mask, value as u32, 0x01ff_e000);
                 trace!("  PageMask: {:?}", self.regs.page_mask);
             }
             6 => {
-                self.regs.wired = (value as u32) & 0x3f;
+                write_bits(&mut self.regs.wired, value as u32, 0x0000_003f);
                 self.regs.random = RAND_MAX;
                 trace!("  Wired: {:?}", self.regs.wired);
                 trace!("  Random: {:?}", self.regs.random);
@@ -120,7 +121,7 @@ impl Cp0 {
                 trace!("  Count: {:?}", self.regs.count);
             }
             10 => {
-                self.regs.entry_hi = (value as u64 & 0xc000_00ff_ffff_e0ff).into();
+                write_bits(&mut self.regs.entry_hi, value as u64, 0xc000_00ff_ffff_e0ff);
                 trace!("  EntryHi: {:?}", self.regs.entry_hi);
             }
             11 => {
@@ -135,7 +136,7 @@ impl Cp0 {
                 }
             }
             12 => {
-                self.regs.status = (value as u32 & 0xfff7_ffff).into();
+                write_bits(&mut self.regs.status, value as u32, 0xfff7_ffff);
                 trace!("  Status: {:?}", self.regs.status);
                 assert_eq!(0, self.regs.status.ksu(), "Only kernel mode is supported");
                 assert!(!self.regs.status.rp(), "Low power mode is not supported");
@@ -161,7 +162,7 @@ impl Cp0 {
                 trace!("  EPC: {:08X}", self.regs.epc);
             }
             16 => {
-                self.regs.config = (0x7006_6460 | (value as u32 & 0x0f00_800f)).into();
+                write_bits(&mut self.regs.config, value as u32, 0x0f00_800f);
                 trace!("  Config: {:?}", self.regs.config);
                 assert_ne!(2, self.regs.config.k0(), "Uncached KSEG0 is not supported");
                 assert!(self.regs.config.be(), "Little-endian mode is not supported");
@@ -186,7 +187,11 @@ impl Cp0 {
                 trace!("  WatchHi: {:?}", self.regs.watch_hi);
             }
             20 => {
-                self.regs.x_context = (value as u64 & 0xffff_fffe_0000_0000).into();
+                write_bits(
+                    &mut self.regs.x_context,
+                    value as u64,
+                    0xffff_fffe_0000_0000,
+                );
                 trace!("  XContext: {:?}", self.regs.x_context);
             }
             // TOOD: This register has special behaviour when read back
@@ -345,4 +350,12 @@ fn has_delay_slot(word: u32) -> bool {
     }
 
     false
+}
+
+fn write_bits<T, U>(reg: &mut T, value: U, mask: U)
+where
+    T: Copy,
+    U: Copy + From<T> + Into<T> + BitAnd<Output = U> + BitOr<Output = U> + Not<Output = U>,
+{
+    *reg = ((U::from(*reg) & !mask) | (value & mask)).into();
 }
