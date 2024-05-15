@@ -150,12 +150,8 @@ impl Cp0 {
                 }
             }
             13 => {
-                self.regs.cause = (value as u32).into();
+                write_bits(&mut self.regs.cause, value as u32, 0x0000_0300);
                 trace!("  Cause: {:?}", self.regs.cause);
-
-                if self.regs.cause.ip() != 0 {
-                    todo!("Manual interrupts");
-                }
             }
             14 => {
                 self.regs.epc = value;
