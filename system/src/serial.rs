@@ -1,6 +1,6 @@
 pub use joybus::JoypadState;
 
-use crate::header::CicType;
+use crate::header::{CicType, SaveType};
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
@@ -27,7 +27,12 @@ pub struct SerialInterface {
 }
 
 impl SerialInterface {
-    pub fn new(rcp_int: RcpInterrupt, pif_data: Option<Vec<u8>>, cic_type: CicType) -> Self {
+    pub fn new(
+        rcp_int: RcpInterrupt,
+        pif_data: Option<Vec<u8>>,
+        cic_type: CicType,
+        save_type: SaveType,
+    ) -> Self {
         let mut pif = Pif::new(pif_data);
 
         let cic_seed: Option<u32> = match cic_type {
@@ -45,7 +50,7 @@ impl SerialInterface {
 
         Self {
             regs: Regs::default(),
-            joybus: Joybus::new(),
+            joybus: Joybus::new(save_type),
             pif,
             dma: None,
             rcp_int,

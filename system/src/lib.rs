@@ -122,7 +122,12 @@ impl Device {
                 vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
                 pi: PeripheralInterface::new(rcp_int.clone(), options.rom_data, skip_pif_rom),
-                si: SerialInterface::new(rcp_int, options.pif_data, header.cic_type),
+                si: SerialInterface::new(
+                    rcp_int,
+                    options.pif_data,
+                    header.cic_type,
+                    header.save_type,
+                ),
                 systest_buffer: Memory::with_byte_len(512),
             },
             gfx,

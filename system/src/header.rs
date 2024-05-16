@@ -1,4 +1,5 @@
 use crc::Crc;
+use phf::{phf_map, Map};
 use std::fmt::{self, Display, Formatter};
 use tracing::debug;
 
@@ -13,8 +14,15 @@ pub enum CicType {
     MiniIPL3,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum SaveType {
+    Eeprom4K,
+    Eeprom16K,
+}
+
 pub struct Header {
     pub cic_type: CicType,
+    pub save_type: SaveType,
 }
 
 pub fn parse(rom: &[u8]) -> Header {
@@ -34,12 +42,22 @@ pub fn parse(rom: &[u8]) -> Header {
         _ => CicType::Unknown,
     };
 
+    let code_without_region = String::from_utf8_lossy(&code[0..=2]);
+
+    let save_type = *SAVE_TYPE_MAP
+        .get(&code_without_region)
+        .unwrap_or(&SaveType::Eeprom4K);
+
     debug!("Title: {}", String::from_utf8_lossy(title));
     debug!("Code: {}", String::from_utf8_lossy(code));
     debug!("Version: {}", version);
     debug!("CIC Type: {} (checksum: {})", cic_type, ipl3_checksum);
+    debug!("Save Type: {}", save_type);
 
-    Header { cic_type }
+    Header {
+        cic_type,
+        save_type,
+    }
 }
 
 impl Display for CicType {
@@ -59,3 +77,19 @@ impl Display for CicType {
         )
     }
 }
+impl Display for SaveType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SaveType::Eeprom4K => "EEPROM (4Kbit)",
+                SaveType::Eeprom16K => "EEPROM (16Kbit)",
+            }
+        )
+    }
+}
+
+const SAVE_TYPE_MAP: Map<&'static str, SaveType> = phf_map! {
+    "NYS" => SaveType::Eeprom16K,
+};

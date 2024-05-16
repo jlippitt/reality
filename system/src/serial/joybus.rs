@@ -1,3 +1,4 @@
+use crate::header::SaveType;
 use arrayvec::ArrayVec;
 use tracing::{debug, trace, warn};
 
@@ -24,13 +25,15 @@ pub struct JoypadState {
 pub struct Joybus {
     program: [u8; 64],
     joypads: [[u8; 4]; 4],
+    save_type: SaveType,
 }
 
 impl Joybus {
-    pub fn new() -> Self {
+    pub fn new(save_type: SaveType) -> Self {
         Self {
             program: [0; 64],
             joypads: [[0; 4]; 4],
+            save_type,
         }
     }
 
@@ -142,10 +145,15 @@ impl Joybus {
                     }
                     1..=3 => return None,
                     4 => {
-                        // Provide 4 Kbit EEPROM by default
-                        // TODO: Support other EEPROM sizes
+                        // TODO: This shouldn't return anything for non-EEPROM saves
                         output.push(0x00);
-                        output.push(0x80);
+
+                        output.push(if self.save_type == SaveType::Eeprom16K {
+                            0xc0
+                        } else {
+                            0x80
+                        });
+
                         output.push(0x00); // TODO: 'Write in progress' flag
                     }
                     _ => panic!("Invalid JoyBus channel: {}", channel),
