@@ -1,3 +1,4 @@
+use crate::header::CicType;
 use crate::memory::{Memory, Size, WriteMask};
 use crate::mips_interface::MipsInterface;
 use regs::{Delay, Mode, RasInterval, RefRow, RiConfig, RiMode, RiRefresh, RiSelect};
@@ -31,9 +32,23 @@ pub struct Rdram {
 }
 
 impl Rdram {
-    pub fn new() -> Self {
+    pub fn new(cic_type: CicType) -> Self {
+        let mut mem = Memory::with_byte_len(8 * BANK_SIZE);
+
+        // RAM size detection doesn't currently work, so populate the specific
+        // destinations in memory with the RAM size (8MB) based on CIC type
+        let ram_size_address = match cic_type {
+            CicType::Nus6101 | CicType::Nus6102 | CicType::MiniIPL3 => Some(0x0318),
+            CicType::Nus6105 => Some(0x03f0),
+            _ => None,
+        };
+
+        if let Some(address) = ram_size_address {
+            mem.write(address, 0x0080_0000u32);
+        }
+
         Self {
-            mem: Memory::with_byte_len(8 * BANK_SIZE),
+            mem,
             modules: (0..4)
                 .map(|_| Module {
                     device_id: 0xffff,

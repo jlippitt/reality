@@ -1,13 +1,13 @@
 pub use joybus::JoypadState;
 
+use crate::header::CicType;
 use crate::interrupt::{RcpIntType, RcpInterrupt};
 use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
-use crc::Crc;
 use joybus::Joybus;
 use pif::Pif;
 use regs::Regs;
-use tracing::{debug, error};
+use tracing::debug;
 
 mod joybus;
 mod pif;
@@ -16,12 +16,6 @@ mod regs;
 struct Dma {
     pif_addr: u32,
     write: bool,
-}
-
-struct Cic {
-    variant: &'static str,
-    seed: u32,
-    rdram_size_addr: Option<u32>,
 }
 
 pub struct SerialInterface {
@@ -33,11 +27,26 @@ pub struct SerialInterface {
 }
 
 impl SerialInterface {
-    pub fn new(rcp_int: RcpInterrupt, pif_data: Option<Vec<u8>>) -> Self {
+    pub fn new(rcp_int: RcpInterrupt, pif_data: Option<Vec<u8>>, cic_type: CicType) -> Self {
+        let mut pif = Pif::new(pif_data);
+
+        let cic_seed: Option<u32> = match cic_type {
+            CicType::Nus6101 => Some(0x0004_3f3f),
+            CicType::Nus6102 | CicType::MiniIPL3 => Some(0x0000_3f3f),
+            CicType::Nus6103 => Some(0x0000_783f),
+            CicType::Nus6105 => Some(0x0000_913f),
+            CicType::Nus6106 => Some(0x0000_853f),
+            _ => None,
+        };
+
+        if let Some(seed) = cic_seed {
+            pif.write(0x07e4, seed);
+        }
+
         Self {
             regs: Regs::default(),
             joybus: Joybus::new(),
-            pif: Pif::new(pif_data),
+            pif,
             dma: None,
             rcp_int,
         }
@@ -153,60 +162,5 @@ impl SerialInterface {
         }
 
         self.rcp_int.raise(RcpIntType::SI);
-    }
-
-    pub fn cic_detect(&mut self, rom_data: &[u8], rdram: &mut Rdram) {
-        let ipl3_checksum = Crc::<u32>::new(&crc::CRC_32_CKSUM).checksum(&rom_data[0x0040..0x1000]);
-        debug!("IPL3 Checksum: {:08X}", ipl3_checksum);
-
-        // This data is written by PIF upon startup
-        // (byte 1 is the seed for the IPL3 CRC check)
-        let cic_result = match ipl3_checksum {
-            0x0013579c => Some(Cic {
-                variant: "NUS-6101",
-                seed: 0x0004_3f3f,
-                rdram_size_addr: Some(0x0318),
-            }),
-            0xd1f2d592 => Some(Cic {
-                variant: "NUS-6102",
-                seed: 0x0000_3f3f,
-                rdram_size_addr: Some(0x0318),
-            }),
-            0x27df61e2 => Some(Cic {
-                variant: "NUS-6103",
-                seed: 0x0000_783f,
-                rdram_size_addr: None,
-            }),
-            0x229f516c => Some(Cic {
-                variant: "NUS-6105",
-                seed: 0x0000_913f,
-                rdram_size_addr: Some(0x03f0),
-            }),
-            0xa0dd69f7 => Some(Cic {
-                variant: "NUS-6106",
-                seed: 0x0000_853f,
-                rdram_size_addr: None,
-            }),
-            0x522fd8eb => Some(Cic {
-                variant: "MiniIPL",
-                seed: 0x0000_3f3f,
-                rdram_size_addr: Some(0x0318),
-            }),
-            _ => None,
-        };
-
-        if let Some(cic) = cic_result {
-            debug!("CIC Type: {}", cic.variant);
-            self.pif.write(0x07e4, cic.seed);
-
-            if let Some(address) = cic.rdram_size_addr {
-                rdram.write_single(address as usize, 0x0080_0000u32);
-            }
-        } else {
-            error!(
-                "IPL3 checksum {:08X} not matched. Could not detect CIC type.",
-                ipl3_checksum
-            );
-        }
     }
 }

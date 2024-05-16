@@ -25,6 +25,7 @@ use rsp::Stats as RspStats;
 mod audio;
 mod cpu;
 mod gfx;
+mod header;
 mod interrupt;
 mod memory;
 mod mips_interface;
@@ -103,26 +104,25 @@ impl Device {
         let rcp_int = RcpInterrupt::new(cpu_int.clone());
 
         let skip_pif_rom = options.pif_data.is_none();
-        let ipl3_data = skip_pif_rom.then(|| &options.rom_data[0..0x1000]);
 
-        // Detect CIC variant and populate initial values in PIF RAM and RDRAM
-        let mut rdram = Rdram::new();
-        let mut si = SerialInterface::new(rcp_int.clone(), options.pif_data);
-        si.cic_detect(&options.rom_data, &mut rdram);
+        let header = header::parse(&options.rom_data);
 
         Ok(Self {
             cpu: Cpu::new(skip_pif_rom),
             bus: Bus {
                 memory_map,
                 cpu_int,
-                rdram,
-                rsp: Rsp::new(rcp_int.clone(), ipl3_data),
+                rdram: Rdram::new(header.cic_type),
+                rsp: Rsp::new(
+                    rcp_int.clone(),
+                    skip_pif_rom.then(|| &options.rom_data[0..0x1000]),
+                ),
                 rdp: Rdp::new(rcp_int.clone(), &gfx),
                 mi: MipsInterface::new(rcp_int.clone()),
                 vi: VideoInterface::new(rcp_int.clone(), &gfx, skip_pif_rom)?,
                 ai: AudioInterface::new(rcp_int.clone()),
-                pi: PeripheralInterface::new(rcp_int, options.rom_data, skip_pif_rom),
-                si,
+                pi: PeripheralInterface::new(rcp_int.clone(), options.rom_data, skip_pif_rom),
+                si: SerialInterface::new(rcp_int, options.pif_data, header.cic_type),
                 systest_buffer: Memory::with_byte_len(512),
             },
             gfx,
