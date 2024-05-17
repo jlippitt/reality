@@ -1,6 +1,6 @@
 use super::renderer::{
     BlendModeRaw, BlendModeRawParams, CombineModeRaw, CombineModeRawParams, CycleType, OtherModes,
-    SampleType, ZBufferConfig, ZSource,
+    SampleType, ZSource,
 };
 use super::{Context, Decoder};
 use bitfield_struct::bitfield;
@@ -56,11 +56,9 @@ pub fn set_other_modes(_decoder: &mut Decoder, ctx: Context, word: u64) {
             cycle_type: cmd.cycle_type(),
             sample_type: cmd.sample_type(),
             perspective_enable: cmd.persp_tex_en(),
-            z_buffer: ZBufferConfig {
-                enable: cmd.z_compare_en(),
-                write_enable: cmd.z_update_en(),
-                source: cmd.z_source_sel(),
-            },
+            z_compare_en: cmd.z_compare_en(),
+            z_update_en: cmd.z_update_en(),
+            z_source: cmd.z_source_sel(),
             blend_mode: BlendModeRaw {
                 mode: [
                     BlendModeRawParams {

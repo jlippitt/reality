@@ -8,7 +8,8 @@ use crate::gfx::GfxContext;
 use crate::rdram::Rdram;
 use blender::BlendMode;
 use combiner::CombineMode;
-use display_list::{DisplayList, Vertex};
+use display_list::DisplayList;
+use pipeline::{Pipeline, PipelineSpec};
 use target::Target;
 use tmem::Tmem;
 use tracing::trace;
@@ -16,6 +17,7 @@ use tracing::trace;
 mod blender;
 mod combiner;
 mod display_list;
+mod pipeline;
 mod target;
 mod tmem;
 
@@ -50,13 +52,6 @@ pub enum ZSource {
     Primitive = 1,
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct ZBufferConfig {
-    pub enable: bool,
-    pub write_enable: bool,
-    pub source: ZSource,
-}
-
 #[repr(u32)]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum SampleType {
@@ -70,7 +65,9 @@ pub struct OtherModes {
     pub cycle_type: CycleType,
     pub sample_type: SampleType,
     pub perspective_enable: bool,
-    pub z_buffer: ZBufferConfig,
+    pub z_compare_en: bool,
+    pub z_update_en: bool,
+    pub z_source: ZSource,
     pub blend_mode: BlendModeRaw,
 }
 
@@ -78,10 +75,10 @@ pub struct Renderer {
     target: Target,
     tmem: Tmem,
     display_list: DisplayList,
-    render_pipeline: wgpu::RenderPipeline,
+    pipeline: Pipeline,
     sample_type: SampleType,
     perspective_enable: bool,
-    z_buffer: ZBufferConfig,
+    z_source: ZSource,
     prim_depth: f32,
     blend_color: [f32; 4],
 }
@@ -112,57 +109,16 @@ impl Renderer {
                     push_constant_ranges: &[],
                 });
 
-        let render_pipeline =
-            gfx.device()
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("RDP Render Pipeline"),
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: "vs_main",
-                        buffers: &[Vertex::desc()],
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8Unorm,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: None,
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                        conservative: false,
-                    },
-                    depth_stencil: Some(wgpu::DepthStencilState {
-                        format: wgpu::TextureFormat::Depth16Unorm,
-                        depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::LessEqual,
-                        stencil: wgpu::StencilState::default(),
-                        bias: wgpu::DepthBiasState::default(),
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                });
+        let pipeline = Pipeline::new(gfx.device(), render_pipeline_layout, shader);
 
         Self {
             target,
             tmem,
             display_list,
-            render_pipeline,
+            pipeline,
             sample_type: SampleType::default(),
             perspective_enable: false,
-            z_buffer: ZBufferConfig::default(),
+            z_source: ZSource::default(),
             prim_depth: 0.0,
             blend_color: [0.0; 4],
         }
@@ -203,23 +159,27 @@ impl Renderer {
     }
 
     pub fn set_other_modes(&mut self, gfx: &GfxContext, rdram: &mut Rdram, mode: OtherModes) {
-        if mode.z_buffer != self.z_buffer {
+        let pipeline_spec = PipelineSpec {
+            z_compare_en: mode.z_compare_en,
+            z_update_en: mode.z_update_en,
+        };
+
+        if pipeline_spec != *self.pipeline.spec() {
             self.flush(gfx, rdram);
+            self.pipeline.update(gfx.device(), pipeline_spec);
         }
-
-        self.sample_type = mode.sample_type;
-        trace!("  Sample Type: {:?}", self.sample_type);
-
-        self.perspective_enable = mode.perspective_enable;
-        trace!("  Perspective Enable: {:?}", self.perspective_enable);
-
-        self.z_buffer = mode.z_buffer;
-        trace!("  Z Buffer Config: {:?}", self.z_buffer);
 
         self.display_list.set_cycle_type(mode.cycle_type);
 
         let blend_mode = BlendMode::from_raw(mode.blend_mode);
         self.display_list.set_blend_mode(blend_mode);
+
+        self.sample_type = mode.sample_type;
+        self.perspective_enable = mode.perspective_enable;
+        self.z_source = mode.z_source;
+        trace!("  Sample Type: {:?}", self.sample_type);
+        trace!("  Perspective Enable: {:?}", self.perspective_enable);
+        trace!("  Z Source: {:?}", self.z_source);
     }
 
     pub fn set_texture_image(&mut self, texture_image: TextureImage) {
@@ -320,7 +280,7 @@ impl Renderer {
                 .map(|handle| (handle, coords))
         });
 
-        let z_values = if self.z_buffer.source == ZSource::Primitive {
+        let z_values = if self.z_source == ZSource::Primitive {
             [self.prim_depth; 3]
         } else {
             z_values
@@ -377,7 +337,7 @@ impl Renderer {
             })
         });
 
-        let z_value = if self.z_buffer.source == ZSource::Primitive {
+        let z_value = if self.z_source == ZSource::Primitive {
             self.prim_depth
         } else {
             1.0
@@ -437,22 +397,23 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                // TODO: Only add the stencil if 'self.z_buffer.enable' is set
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_texture_view,
-                    depth_ops: Some(wgpu::Operations {
-                        // TODO: This should be loaded from RDRAM. For now,
-                        // clear it to the max depth value.
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment: self.pipeline.spec().z_compare_en.then_some(
+                    wgpu::RenderPassDepthStencilAttachment {
+                        view: &depth_texture_view,
+                        depth_ops: Some(wgpu::Operations {
+                            // TODO: This should be loaded from RDRAM. For now,
+                            // clear it to the max depth value.
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    },
+                ),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(self.pipeline.current());
             render_pass.set_bind_group(0, self.target.image_size_bind_group(), &[]);
             render_pass.set_bind_group(1, self.target.fill_color_bind_group(), &[]);
             render_pass.set_bind_group(2, self.tmem.bind_group(None), &[]);
