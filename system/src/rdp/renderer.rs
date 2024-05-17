@@ -344,7 +344,9 @@ impl Renderer {
         // TODO: Proper blending
         let color = self.blend_color;
 
-        if self.display_list.cycle_type() == CycleType::Fill {
+        if self.display_list.cycle_type() == CycleType::Fill
+            || self.display_list.cycle_type() == CycleType::Copy
+        {
             rect.right += 1.0;
             rect.bottom += 1.0;
         }
