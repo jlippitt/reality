@@ -340,7 +340,7 @@ impl Renderer {
         let z_value = if self.z_source == ZSource::Primitive {
             self.prim_depth
         } else {
-            1.0
+            0.0
         };
 
         if self
@@ -397,18 +397,28 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: self.pipeline.spec().z_compare_en.then_some(
-                    wgpu::RenderPassDepthStencilAttachment {
-                        view: &depth_texture_view,
-                        depth_ops: Some(wgpu::Operations {
-                            // TODO: This should be loaded from RDRAM. For now,
-                            // clear it to the max depth value.
-                            load: wgpu::LoadOp::Load,
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    },
-                ),
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        // TODO: This should be loaded from RDRAM. For now,
+                        // clear it to the max depth value.
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                // depth_stencil_attachment: self.pipeline.spec().z_compare_en.then_some(
+                //     wgpu::RenderPassDepthStencilAttachment {
+                //         view: &depth_texture_view,
+                //         depth_ops: Some(wgpu::Operations {
+                //             // TODO: This should be loaded from RDRAM. For now,
+                //             // clear it to the max depth value.
+                //             load: wgpu::LoadOp::Load,
+                //             store: wgpu::StoreOp::Store,
+                //         }),
+                //         stencil_ops: None,
+                //     },
+                // ),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });

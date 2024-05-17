@@ -83,13 +83,20 @@ fn create_from_spec(
             unclipped_depth: false,
             conservative: false,
         },
-        depth_stencil: spec.z_compare_en.then_some(wgpu::DepthStencilState {
+        depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth16Unorm,
             depth_write_enabled: spec.z_update_en,
             depth_compare: wgpu::CompareFunction::LessEqual,
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
+        // depth_stencil: spec.z_compare_en.then_some(wgpu::DepthStencilState {
+        //     format: wgpu::TextureFormat::Depth16Unorm,
+        //     depth_write_enabled: spec.z_update_en,
+        //     depth_compare: wgpu::CompareFunction::LessEqual,
+        //     stencil: wgpu::StencilState::default(),
+        //     bias: wgpu::DepthBiasState::default(),
+        // }),
         multisample: wgpu::MultisampleState {
             count: 1,
             mask: !0,
