@@ -14,9 +14,9 @@ pub fn rectangle<const TEXTURE: bool, const FLIP: bool>(
 
     let rect = Rect {
         left: cmd.xh() as f32 / 4.0,
-        right: cmd.xl() as f32 / 4.0,
+        right: (cmd.xl() as f32 / 4.0),
         top: cmd.yh() as f32 / 4.0,
-        bottom: cmd.yl() as f32 / 4.0,
+        bottom: (cmd.yl() as f32 / 4.0),
     };
 
     trace!("  = {:?}", rect);

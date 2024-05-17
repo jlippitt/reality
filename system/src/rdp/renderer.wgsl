@@ -94,13 +94,13 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0)
-var<uniform> scissor: vec4<f32>;
+var<uniform> image_size: vec2<f32>;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    let x = ((in.position.x - scissor[0]) * 2.0 / scissor[2]) - 1.0;
-    let y = 1.0 - ((in.position.y - scissor[1]) * 2.0 / scissor[3]);
+    let x = (in.position.x * 2.0 / image_size.x) - 1.0;
+    let y = 1.0 - (in.position.y * 2.0 / image_size.y);
     out.clip_position = vec4<f32>(x, y, in.position.z, 1.0);
     out.color = in.color;
     out.tex_coords = in.tex_coords;
@@ -126,7 +126,8 @@ var<uniform> constants: Constants;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if constants.cycle_type == CT_FILL {
-        return textureSample(t_fill_color, s_fill_color, vec2<f32>(in.fill_select / 4.0, 0.0));
+        let color = textureSample(t_fill_color, s_fill_color, vec2<f32>(in.fill_select / 4.0, 0.0));
+        return vec4<f32>(color.r, color.g, color.b, 1.0);
     }
 
     let size = textureDimensions(t_diffuse);

@@ -104,7 +104,7 @@ impl Renderer {
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("RDP Render Pipeline Layout"),
                     bind_group_layouts: &[
-                        target.scissor_bind_group_layout(),
+                        target.image_size_bind_group_layout(),
                         target.fill_color_bind_group_layout(),
                         tmem.bind_group_layout(),
                         display_list.constant_bind_group_layout(),
@@ -187,10 +187,6 @@ impl Renderer {
         }
 
         self.target.set_scissor(scissor);
-
-        if self.target.is_dirty() {
-            self.target.upload_buffers(gfx.queue());
-        }
     }
 
     pub fn set_fill_color(&mut self, gfx: &GfxContext, rdram: &mut Rdram, value: u32) {
@@ -342,11 +338,16 @@ impl Renderer {
         &mut self,
         gfx: &GfxContext,
         rdram: &mut Rdram,
-        rect: Rect,
+        mut rect: Rect,
         texture: Option<(usize, Rect, bool)>,
     ) {
         // TODO: Proper blending
         let color = self.blend_color;
+
+        if self.display_list.cycle_type() == CycleType::Fill {
+            rect.right += 1.0;
+            rect.bottom += 1.0;
+        }
 
         let texture = texture.and_then(|(tile_id, mut tex_rect, flip)| {
             self.tmem.get_texture_handle(gfx, tile_id).map(|handle| {
@@ -454,12 +455,27 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, self.target.scissor_bind_group(), &[]);
+            render_pass.set_bind_group(0, self.target.image_size_bind_group(), &[]);
             render_pass.set_bind_group(1, self.target.fill_color_bind_group(), &[]);
             render_pass.set_bind_group(2, self.tmem.bind_group(None), &[]);
 
+            render_pass.set_viewport(
+                0.0,
+                0.0,
+                output.color_image.width as f32,
+                output.color_texture.height() as f32,
+                0.0,
+                1.0,
+            );
+
             let scissor = self.target.scissor();
-            render_pass.set_viewport(0.0, 0.0, scissor.width(), scissor.height(), 0.0, 1.0);
+
+            render_pass.set_scissor_rect(
+                scissor.left as u32,
+                scissor.top as u32,
+                scissor.width() as u32,
+                scissor.height() as u32,
+            );
 
             self.display_list.flush(&self.tmem, &mut render_pass);
         }

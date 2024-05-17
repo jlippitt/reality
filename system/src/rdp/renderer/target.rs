@@ -26,22 +26,22 @@ pub struct TargetOutput {
 pub struct Target {
     color_image: ColorImage,
     scissor: Rect,
-    scissor_buffer: wgpu::Buffer,
-    scissor_bind_group_layout: wgpu::BindGroupLayout,
-    scissor_bind_group: wgpu::BindGroup,
+    max_scissor_height: u32,
+    image_size_buffer: wgpu::Buffer,
+    image_size_bind_group_layout: wgpu::BindGroupLayout,
+    image_size_bind_group: wgpu::BindGroup,
     fill_color: FillColor,
     output: Option<TargetOutput>,
     pixel_buf: Vec<u8>,
-    dirty: bool,
     synced: bool,
 }
 
 impl Target {
     pub fn new(gfx: &GfxContext) -> Self {
-        let scissor_bind_group_layout =
+        let image_size_bind_group_layout =
             gfx.device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("RDP Scissor Bind Group Layout"),
+                    label: Some("RDP Image Size Bind Group Layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX,
@@ -54,32 +54,32 @@ impl Target {
                     }],
                 });
 
-        let scissor_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
-            label: Some("RDP Scissor Buffer"),
+        let image_size_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("RDP Image Size Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            size: mem::size_of::<[f32; 4]>() as u64,
+            size: mem::size_of::<[f32; 2]>() as u64,
             mapped_at_creation: false,
         });
 
-        let scissor_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("RDP Scissor Bind Group"),
-            layout: &scissor_bind_group_layout,
+        let image_size_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("RDP Image Size Bind Group"),
+            layout: &image_size_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: scissor_buffer.as_entire_binding(),
+                resource: image_size_buffer.as_entire_binding(),
             }],
         });
 
         Self {
             color_image: ColorImage::default(),
             scissor: Rect::default(),
-            scissor_buffer,
-            scissor_bind_group_layout,
-            scissor_bind_group,
+            max_scissor_height: 0,
+            image_size_buffer,
+            image_size_bind_group_layout,
+            image_size_bind_group,
             fill_color: FillColor::new(gfx),
             output: None,
             pixel_buf: vec![],
-            dirty: true,
             synced: false,
         }
     }
@@ -92,12 +92,12 @@ impl Target {
         &self.scissor
     }
 
-    pub fn scissor_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
-        &self.scissor_bind_group_layout
+    pub fn image_size_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.image_size_bind_group_layout
     }
 
-    pub fn scissor_bind_group(&self) -> &wgpu::BindGroup {
-        &self.scissor_bind_group
+    pub fn image_size_bind_group(&self) -> &wgpu::BindGroup {
+        &self.image_size_bind_group
     }
 
     pub fn fill_color(&self) -> u32 {
@@ -112,29 +112,23 @@ impl Target {
         self.fill_color.bind_group()
     }
 
-    pub fn is_dirty(&self) -> bool {
-        self.dirty
-    }
-
     pub fn request_sync(&mut self) {
         self.synced = false;
     }
 
     pub fn set_color_image(&mut self, color_image: ColorImage) {
-        self.dirty |= color_image != self.color_image;
         self.color_image = color_image;
         trace!("  Color Image: {:?}", self.color_image);
-        trace!("  Dirty: {}", self.dirty);
     }
 
     pub fn set_scissor(&mut self, mut scissor: Rect) {
         // Zero-size scissor causes bad things to happen
         scissor.right = scissor.right.max(scissor.left + 1.0);
         scissor.bottom = scissor.bottom.max(scissor.top + 1.0);
-        self.dirty |= scissor != self.scissor;
         self.scissor = scissor;
+        self.max_scissor_height = self.max_scissor_height.max(self.scissor.bottom as u32);
         trace!("  Scissor: {:?}", self.scissor);
-        trace!("  Dirty: {}", self.dirty);
+        trace!("  Max Scissor Height: {:?}", self.max_scissor_height);
     }
 
     pub fn set_fill_color(&mut self, queue: &wgpu::Queue, value: u32) {
@@ -146,32 +140,25 @@ impl Target {
         self.output.as_ref()
     }
 
-    pub fn upload_buffers(&self, queue: &wgpu::Queue) {
-        queue.write_buffer(
-            &self.scissor_buffer,
-            0,
-            bytemuck::cast_slice(&[
-                self.scissor.left,
-                self.scissor.top,
-                self.scissor.width(),
-                self.scissor.height(),
-            ]),
-        );
-    }
-
     pub fn update(&mut self, gfx: &GfxContext, rdram: &mut Rdram) -> bool {
-        if self.output.is_some() {
-            if !self.dirty {
+        let height = self.max_scissor_height.max(self.color_image.width * 3 / 4);
+
+        if let Some(output) = &self.output {
+            if output.color_image == self.color_image && output.color_texture.height() == height {
                 return true;
             };
 
             self.sync(gfx, rdram);
         }
 
+        debug!(
+            "  Creating new target texture: {}x{}",
+            self.color_image.width, height
+        );
+
         // Width must be padded to a 64-byte boundary for 'copy to buffer' to work
         // TODO: Width is exclusive in 1-Cycle/2-Cycle mode
-        let width = (self.scissor.width() as u32 + 63) & !63;
-        let height = self.scissor.height() as u32;
+        let width = (self.color_image.width + 63) & !63;
 
         if width == 0 || height == 0 {
             warn!("Cannot create target texture with size of zero");
@@ -245,11 +232,16 @@ impl Target {
             mapped_at_creation: false,
         });
 
+        // Image dimensions have changed, so update image size
+        gfx.queue().write_buffer(
+            &self.image_size_buffer,
+            0,
+            bytemuck::cast_slice(&[width as f32, height as f32]),
+        );
+
         // BPP may have changed, so update fill color
         self.fill_color
             .upload(gfx.queue(), self.color_image.format.1);
-
-        // TODO: Upload pixels from existing Color Image
 
         self.output = Some(TargetOutput {
             color_image: self.color_image.clone(),
@@ -257,8 +249,6 @@ impl Target {
             depth_texture,
             sync_buffer,
         });
-
-        self.dirty = false;
 
         true
     }
@@ -273,9 +263,11 @@ impl Target {
             return;
         };
 
+        self.max_scissor_height = self.max_scissor_height.max(self.scissor.height() as u32);
+
         debug!(
-            "  Writing output texture to RDRAM {:08X}",
-            output.color_image.dram_addr
+            "  Writing output texture to RDRAM {:08X}: {}x{}",
+            output.color_image.dram_addr, output.color_image.width, self.max_scissor_height,
         );
 
         let mut encoder = gfx
@@ -317,7 +309,7 @@ impl Target {
             // TODO: What happens when color image width is not the same as texture width?
             match output.color_image.format {
                 (Format::Rgba, 3) => {
-                    for _ in 0..output.color_texture.height() {
+                    for _ in 0..self.max_scissor_height {
                         rdram.write_block(
                             ram_addr,
                             &pixel_data
@@ -328,7 +320,7 @@ impl Target {
                     }
                 }
                 (Format::Rgba, 2) => {
-                    for _ in 0..output.color_texture.height() {
+                    for _ in 0..self.max_scissor_height {
                         // TODO: Make a persistent Vec buffer for the pixel data (so we don't allocate here)
                         let pixels: Vec<u8> = pixel_data
                             [buf_addr..(buf_addr + output.color_texture.width() as usize * 4)]
@@ -356,6 +348,9 @@ impl Target {
         }
 
         output.sync_buffer.unmap();
+
+        self.max_scissor_height = 0;
+        trace!("  Max Scissor Height: {:?}", self.max_scissor_height);
 
         self.synced = true;
     }
