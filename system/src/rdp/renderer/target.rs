@@ -212,18 +212,41 @@ impl Target {
             &self.pixel_buf,
         );
 
-        let depth_texture = gfx.device().create_texture(&wgpu::TextureDescriptor {
-            label: Some("RDP Target Depth Texture"),
+        bytemuck::cast_slice_mut::<u8, u16>(&mut self.pixel_buf).fill(u16::MAX);
+
+        let depth_texture = gfx.device().create_texture_with_data(
+            gfx.queue(),
+            &wgpu::TextureDescriptor {
+                label: Some("RDP Target Depth Texture"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth16Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &self.pixel_buf,
+        );
+
+        gfx.queue().write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &depth_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::DepthOnly,
+            },
+            &self.pixel_buf,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
             size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        );
 
         let sync_buffer = gfx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("RDP Target Sync Buffer"),

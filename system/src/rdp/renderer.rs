@@ -141,7 +141,7 @@ impl Renderer {
                         conservative: false,
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
-                        format: wgpu::TextureFormat::Depth32Float,
+                        format: wgpu::TextureFormat::Depth16Unorm,
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::LessEqual,
                         stencil: wgpu::StencilState::default(),
@@ -380,7 +380,7 @@ impl Renderer {
         let z_value = if self.z_buffer.source == ZSource::Primitive {
             self.prim_depth
         } else {
-            0.0
+            1.0
         };
 
         if self
@@ -443,12 +443,8 @@ impl Renderer {
                     depth_ops: Some(wgpu::Operations {
                         // TODO: This should be loaded from RDRAM. For now,
                         // clear it to the max depth value.
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: if self.z_buffer.write_enable {
-                            wgpu::StoreOp::Store
-                        } else {
-                            wgpu::StoreOp::Discard
-                        },
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
