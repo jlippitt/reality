@@ -4,7 +4,7 @@ use crate::memory::{Size, WriteMask};
 use crate::rdram::Rdram;
 use crate::{RCP_CLOCK_RATE, VIDEO_DAC_RATE};
 use framebuffer::Framebuffer;
-use regs::Regs;
+use regs::{DisplayMode, Regs};
 use std::error::Error;
 use tracing::{debug, trace};
 use upscaler::Upscaler;
@@ -121,12 +121,18 @@ impl VideoInterface {
             video_height,
         );
 
+        let display_mode = if video_width > 0 && video_height > 0 {
+            self.regs.ctrl.display_mode()
+        } else {
+            DisplayMode::Blank
+        };
+
         // TODO: We should technically upload each display pixel as it occurs
         // rather than doing things all at once at the end of the frame.
         self.frame_buffer.upload(
             gfx.queue(),
             rdram,
-            self.regs.ctrl.display_mode(),
+            display_mode,
             self.regs.origin.origin(),
             self.regs.width.width(),
         );
