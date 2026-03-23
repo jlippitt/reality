@@ -2,6 +2,8 @@
 
 ![CI](https://github.com/jlippitt/reality/actions/workflows/ci.yml/badge.svg)
 
+Note: This repository is now archived. Development moved to [Utopia-S](https://github.com/jlippitt/utopia-s).
+
 Usage:
 
     cargo run -r -- -p <pif-rom-file> <rom-file>
