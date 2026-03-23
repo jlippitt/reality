@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/jlippitt/reality/actions/workflows/ci.yml/badge.svg)
 
-Note: This repository is now archived. Development moved to [Utopia-S](https://github.com/jlippitt/utopia-s).
+Note: This repository is now archived. Development has moved to [Utopia-S](https://github.com/jlippitt/utopia-s).
 
 Usage:
 
